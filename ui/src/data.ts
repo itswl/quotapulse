@@ -29,6 +29,9 @@ export async function loadFeatures(): Promise<void> {
     toggleDisplay('view-subscriptions-btn', false);
     toggleDisplay('add-subscription-btn', false);
   }
+  if (!AppState.features.email_scan) {
+    toggleDisplay('view-email-btn', false);
+  }
   // Implementation note.
   toggleDisplay('add-project-btn', AppState.features.dynamic_config);
 }

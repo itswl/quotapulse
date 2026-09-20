@@ -29,6 +29,9 @@ export function toggleTheme(): void {
 }
 
 export function switchView(view: ViewName): void {
+  if (view === 'email' && !AppState.features.email_scan) {
+    view = 'all';
+  }
   AppState.currentView = view;
 
   // Implementation note.

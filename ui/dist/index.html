@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuotaPulse</title>
-    <link rel="stylesheet" href="/static/app.css?v=fcafac22701e">
+    <link rel="stylesheet" href="/static/app.css?v=a65de664a48e">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2317191d'/><text x='16' y='21.5' text-anchor='middle' font-family='Menlo,monospace' font-size='15' font-weight='700' fill='white'>Q</text></svg>">
 </head>
 <body>
@@ -465,13 +465,14 @@
                         <label for="sub-cycle">Billing cycle *</label>
                         <select id="sub-cycle" required>
                             <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
+                            <option value="yearly">Yearly (Gregorian)</option>
+                            <option value="lunar_yearly">Yearly (lunar)</option>
                             <option value="weekly">Weekly</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="sub-renewal-day">Renewal day *</label>
-                        <input type="number" id="sub-renewal-day" min="1" max="31" required placeholder="1-31">
+                        <input type="text" id="sub-renewal-day" required placeholder="1-31">
                     </div>
                 </div>
 
@@ -562,6 +563,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=fcafac22701e"></script>
+    <script defer src="/static/app.js?v=a65de664a48e"></script>
 </body>
 </html>

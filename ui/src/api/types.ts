@@ -15,7 +15,7 @@ export type BalanceType = 'balance' | 'credits' | 'quota';
 export type Confidence = 'none' | 'low' | 'medium' | 'high';
 
 /* Implementation note. */
-export type CycleType = 'weekly' | 'monthly' | 'yearly';
+export type CycleType = 'weekly' | 'monthly' | 'yearly' | 'lunar_yearly';
 
 // Implementation note.
 
@@ -42,6 +42,7 @@ export interface Features {
   subscriptions: boolean;
   dynamic_config: boolean;
   history: boolean;
+  email_scan: boolean;
 }
 
 export interface FeaturesResponse {
@@ -153,7 +154,7 @@ export interface SubscriptionConfig {
   name: string;
   owner_project: string | null;
   cycle_type: CycleType;
-  renewal_day: number; // Weekly 1-7，Monthly 1-31，Yearly MMDD
+  renewal_day: number; // Weekly 1-7，Monthly 1-31，Yearly/lunar_yearly MMDD
   alert_days_before: number;
   amount: number;
   enabled: boolean;
@@ -172,7 +173,7 @@ export interface SubscriptionPayload {
   owner_project: string | null;
   amount: number;
   cycle_type: CycleType;
-  renewal_day: number;
+  renewal_day: number | string;
   alert_days_before: number;
   enabled: boolean;
   last_renewed_date?: string;

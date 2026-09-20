@@ -7,12 +7,12 @@ import { describe, it } from 'node:test';
 
 import type { CheckResult, CreditsResponse, Features, Runway, SubscriptionResult } from '../src/api/types.js';
 import { filterProjects, renderProjectCard, renderProjects } from '../src/ui/projects.js';
-import { renderSubscriptionCard } from '../src/ui/subscriptions.js';
+import { renderSubscriptionCard, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
 import { shortestRunway, updateFailedHint, updateStats } from '../src/ui/stats.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
-const ALL_OFF: Features = { subscriptions: false, dynamic_config: false, history: false };
-const ALL_ON: Features = { subscriptions: true, dynamic_config: true, history: true };
+const ALL_OFF: Features = { subscriptions: false, dynamic_config: false, history: false, email_scan: false };
+const ALL_ON: Features = { subscriptions: true, dynamic_config: true, history: true, email_scan: true };
 
 function project(overrides: Partial<CheckResult> = {}): CheckResult {
   return {
@@ -255,6 +255,16 @@ describe('renderSubscriptionCard', () => {
     const html = renderSubscriptionCard(subscription());
     assert.match(html, /js-mark-renewed/);
     assert.ok(!html.includes('js-clear-renewed'));
+  });
+
+  it('按下一次提醒日期从近到远排序，原数组不变', () => {
+    const input = [
+      subscription({ name: 'later', next_renewal_date: '2026-12-01', days_until_renewal: 72 }),
+      subscription({ name: 'soon', next_renewal_date: '2026-10-02', days_until_renewal: 12 }),
+      subscription({ name: 'middle', next_renewal_date: '2026-11-01', days_until_renewal: 42 }),
+    ];
+    assert.deepEqual(sortSubscriptionsByNextDate(input).map((item) => item.name), ['soon', 'middle', 'later']);
+    assert.deepEqual(input.map((item) => item.name), ['later', 'soon', 'middle']);
   });
 });
 

@@ -163,6 +163,11 @@ func FormatSubscriptionCycle(cycleType string, renewalDay int) string {
 		}
 		// Implementation note.
 		return "Fixed annual date"
+	case model.CycleLunarYearly:
+		if month, day, ok := splitMMDD(renewalDay); ok {
+			return fmt.Sprintf("Annually on lunar %02d-%02d", month, day)
+		}
+		return "Fixed lunar date"
 	case model.CycleMonthly:
 		return fmt.Sprintf("Monthly on day %d", renewalDay)
 	}

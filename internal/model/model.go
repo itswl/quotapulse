@@ -50,7 +50,7 @@ func SubscriptionID(name string) string {
 type Subscription struct {
 	Name            string  `json:"name"`
 	OwnerProject    *string `json:"owner_project"`
-	CycleType       string  `json:"cycle_type"`  // weekly / monthly / yearly
+	CycleType       string  `json:"cycle_type"`  // weekly / monthly / yearly / lunar_yearly
 	RenewalDay      int     `json:"renewal_day"` // operation 1-7,operation 1-31,operation MMDD
 	AlertDaysBefore int     `json:"alert_days_before"`
 	Amount          float64 `json:"amount"`
@@ -63,6 +63,8 @@ const (
 	CycleWeekly  = "weekly"
 	CycleMonthly = "monthly"
 	CycleYearly  = "yearly"
+	// CycleLunarYearly is an annual reminder whose renewal_day is a lunar MMDD.
+	CycleLunarYearly = "lunar_yearly"
 )
 
 // Implementation note.

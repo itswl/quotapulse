@@ -54,12 +54,24 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
         `;
 }
 
+export function sortSubscriptionsByNextDate(subscriptions: SubscriptionResult[]): SubscriptionResult[] {
+  return [...subscriptions].sort((a, b) => {
+    const dateOrder = (a.next_renewal_date || '9999-12-31').localeCompare(b.next_renewal_date || '9999-12-31');
+    if (dateOrder !== 0) return dateOrder;
+    if (a.days_until_renewal !== b.days_until_renewal) {
+      return a.days_until_renewal - b.days_until_renewal;
+    }
+    return a.name.localeCompare(b.name, 'zh-CN');
+  });
+}
+
 export function renderSubscriptions(data: SubscriptionsResponse): void {
   const container = requireById('subscriptions-container');
   const subscriptions = data.subscriptions || [];
+  const sortedSubscriptions = sortSubscriptionsByNextDate(subscriptions);
 
   container.innerHTML =
     subscriptions.length === 0
       ? emptyState('No subscriptions', 'No subscription reminders yet', 'calendar')
-      : subscriptions.map((s) => renderSubscriptionCard(s)).join('');
+      : sortedSubscriptions.map((s) => renderSubscriptionCard(s)).join('');
 }

@@ -56,7 +56,7 @@ export const AppState: AppStateShape = {
   balanceData: null,
   subscriptionData: null,
   // Implementation note.
-  features: { subscriptions: false, dynamic_config: false, history: false },
+  features: { subscriptions: false, dynamic_config: false, history: false, email_scan: false },
   lastUpdate: null,
   autoRefreshTimer: null,
 };

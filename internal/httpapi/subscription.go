@@ -46,6 +46,7 @@ type subscriptionRequest struct {
 
 var validCycles = map[string]bool{
 	model.CycleWeekly: true, model.CycleMonthly: true, model.CycleYearly: true,
+	model.CycleLunarYearly: true,
 }
 
 func (s *Server) handleAddSubscription(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +141,7 @@ func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest
 	if len(body.RenewalDay) > 0 && string(body.RenewalDay) != "null" {
 		day, ok := parseRenewalDay(body.RenewalDay, target.CycleType)
 		if !ok {
-			problems = append(problems, `renewal_day: operation(operation "03-15",operation 1-31,operation 1-7)`)
+			problems = append(problems, `renewal_day: use MMDD for yearly/lunar_yearly, 1-31 for monthly, or 1-7 for weekly`)
 		} else {
 			target.RenewalDay = day
 		}

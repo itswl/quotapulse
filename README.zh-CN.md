@@ -77,7 +77,7 @@ go build -o quotapulse ./cmd/quotapulse
 
 ### 订阅与邮箱字段
 
-订阅 `cycle_type` 为 `weekly` / `monthly` / `yearly`：周付 `renewal_day` 写 1-7，月付写 1-31，年付直接写 `"03-15"`。`alert_days_before` 默认 3，续费当天也提醒，`amount` 与 `owner_project` 可选。
+订阅 `cycle_type` 为 `weekly` / `monthly` / `yearly` / `lunar_yearly`：周付 `renewal_day` 写 1-7，月付写 1-31，公历年付写 `"03-15"`，农历年付写农历月日 `"05-03"`。这样可以把订阅改作公历或农历的生日、节日提醒；每条提醒的名称就是通知标题中的订阅名。`alert_days_before` 默认 3，提醒当天也发送，`amount` 与 `owner_project` 可选。农历日期会按当年的实际春节和闰月规则转换为公历发送日。
 
 邮箱要 `host` `username` `password`，`port`（993）和 `use_ssl`（true）可省。匹配关键词默认覆盖中英文的欠费、续费、停机用语，要改用环境变量：`EMAIL_ALERT_KEYWORDS` 整体替换，`EMAIL_EXTRA_ALERT_KEYWORDS` 追加，都是逗号分隔。
 

@@ -22,7 +22,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /api/jobs` | Scheduled job status and run details | — |
 | `GET /api/subscriptions` | Current subscription status | Subscriptions |
 | `GET /api/config/subscriptions` | Subscription configuration | Subscriptions |
-| `POST /api/subscription/add` | Create a subscription | Subscriptions |
+| `POST /api/subscription/add` | Create a subscription; `cycle_type` supports `weekly`, `monthly`, `yearly`, and `lunar_yearly` | Subscriptions |
 | `POST /api/config/subscription` | Update a subscription; `name` identifies it and `new_name` renames it | Subscriptions |
 | `POST` or `DELETE /api/subscription/delete` | Delete `{"name":"..." }` | Subscriptions |
 | `POST /api/subscription/mark_renewed` | Mark or clear renewal status; accepts optional `renewed_date` | Subscriptions |

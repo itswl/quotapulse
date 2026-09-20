@@ -83,16 +83,19 @@ type featureToggles struct {
 	Subscriptions bool `json:"subscriptions"`
 	DynamicConfig bool `json:"dynamic_config"`
 	History       bool `json:"history"`
+	EmailScan     bool `json:"email_scan"`
 }
 
 // Implementation note.
-func (s *Server) handleFeatures(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
+	cfg := s.Resolver.Load(r.Context())
 	writeJSON(w, http.StatusOK, featuresBody{
 		Status: "success",
 		Features: featureToggles{
 			Subscriptions: s.Settings.EnableSubscriptions,
 			DynamicConfig: s.Settings.EnableDynamicConfig,
 			History:       s.Settings.EnableHistoryAPI,
+			EmailScan:     len(s.Settings.EmailScanTimes) > 0 && len(cfg.EnabledMailboxes()) > 0,
 		},
 	})
 }

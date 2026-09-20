@@ -3,6 +3,7 @@ module github.com/itswl/quotapulse
 go 1.26.0
 
 require (
+	github.com/6tail/lunar-go v1.4.6
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/emersion/go-message v0.18.2
 	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611

@@ -148,6 +148,7 @@ export function getBalanceStatus(balance: number, threshold: number): BalanceSta
 export function cycleLabel(cycle: string | null | undefined): string {
   if (cycle === 'monthly') return 'Monthly';
   if (cycle === 'yearly') return 'Yearly';
+  if (cycle === 'lunar_yearly') return 'Yearly (lunar)';
   return 'Weekly';
 }
 

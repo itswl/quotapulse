@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/6tail/lunar-go/calendar"
+	"github.com/itswl/quotapulse/internal/model"
 )
 
 // Implementation note.
@@ -36,7 +39,7 @@ func CoerceRenewalDay(value string, cycleType string) (int, bool) {
 	if matched := mmddPattern.FindStringSubmatch(text); matched != nil {
 		month, _ := strconv.Atoi(matched[1])
 		day, _ := strconv.Atoi(matched[2])
-		if cycleType == "yearly" {
+		if cycleType == model.CycleYearly || cycleType == model.CycleLunarYearly {
 			return month*100 + day, true
 		}
 		return day, true
@@ -109,8 +112,10 @@ func NextRenewal(cycleType string, renewalDay int, today time.Time, lastRenewed 
 			ahead += 7
 		}
 		next = today.AddDate(0, 0, ahead)
-	case "yearly":
+	case model.CycleYearly:
 		next = nextYearlyDate(renewalDay, today, lastRenewed)
+	case model.CycleLunarYearly:
+		next = nextLunarYearlyDate(renewalDay, today)
 	default: // monthly:operation,operation
 		months := 0
 		if today.Day() > renewalDay {
@@ -147,13 +152,50 @@ func nextYearlyDate(renewalDay int, today time.Time, lastRenewed *time.Time) tim
 	return safeMonthDate(today.Year()+1, time.Month(month), day, today.Location())
 }
 
+// nextLunarYearlyDate returns the next Gregorian date for a recurring lunar
+// MMDD. Lunar years do not begin on January 1, so use the lunar year that
+// contains today instead of the Gregorian year.
+func nextLunarYearlyDate(renewalDay int, today time.Time) time.Time {
+	lunarToday := calendar.NewLunarFromDate(today)
+	if candidate, ok := lunarDate(lunarToday.GetYear(), renewalDay, today.Location()); ok && !candidate.Before(today) {
+		return candidate
+	}
+	if candidate, ok := lunarDate(lunarToday.GetYear()+1, renewalDay, today.Location()); ok {
+		return candidate
+	}
+	return safeReplaceYear(today, today.Year()+1)
+}
+
+func lunarDate(lunarYear int, renewalDay int, loc *time.Location) (time.Time, bool) {
+	month, day, ok := SplitMMDD(renewalDay)
+	if !ok || month > 12 {
+		return time.Time{}, false
+	}
+	lunarMonth := calendar.NewLunarYear(lunarYear).GetMonth(month)
+	if lunarMonth == nil || day > lunarMonth.GetDayCount() {
+		return time.Time{}, false
+	}
+	solar := calendar.NewLunarFromYmd(lunarYear, month, day).GetSolar()
+	return time.Date(solar.GetYear(), time.Month(solar.GetMonth()), solar.GetDay(), 0, 0, 0, 0, loc), true
+}
+
+func previousLunarYearlyDate(renewalDay int, next time.Time) time.Time {
+	lunarYear := calendar.NewLunarFromDate(next).GetYear()
+	if previous, ok := lunarDate(lunarYear-1, renewalDay, next.Location()); ok {
+		return previous
+	}
+	return next.AddDate(-1, 0, 0)
+}
+
 // Implementation note.
 func cycleStart(cycleType string, renewalDay int, today, next time.Time) time.Time {
 	switch cycleType {
 	case "weekly":
 		return next.AddDate(0, 0, -7)
-	case "yearly":
+	case model.CycleYearly:
 		return safeReplaceYear(next, next.Year()-1)
+	case model.CycleLunarYearly:
+		return previousLunarYearlyDate(renewalDay, next)
 	default: // monthly:operation
 		months := 0
 		if today.Day() < renewalDay {

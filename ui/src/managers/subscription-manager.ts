@@ -52,10 +52,10 @@ function updateRenewalDayInputForCycle(): void {
     input.min = '1';
     input.max = '7';
     input.placeholder = '1-7';
-  } else if (cycle === 'yearly') {
+  } else if (cycle === 'yearly' || cycle === 'lunar_yearly') {
     input.min = '101';
     input.max = '1231';
-    input.placeholder = 'MMDD, for example 0315';
+    input.placeholder = cycle === 'lunar_yearly' ? 'Lunar MMDD, for example 0503' : 'MMDD, for example 0315';
   } else {
     input.min = '1';
     input.max = '31';
@@ -109,7 +109,9 @@ async function saveSubscription(event: Event): Promise<void> {
     owner_project: selectById('sub-owner-project').value || null,
     amount: Number.parseFloat(inputById('sub-amount').value) || 0,
     cycle_type: selectById('sub-cycle').value as CycleType,
-    renewal_day: Number.parseInt(inputById('sub-renewal-day').value, 10),
+    renewal_day: ['yearly', 'lunar_yearly'].includes(selectById('sub-cycle').value)
+      ? inputById('sub-renewal-day').value.trim()
+      : Number.parseInt(inputById('sub-renewal-day').value, 10),
     alert_days_before: Number.parseInt(inputById('sub-alert-days').value, 10),
     enabled: isChecked('sub-enabled'),
   };

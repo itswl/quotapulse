@@ -134,6 +134,38 @@ func TestRenewalDayIsNotOffByOne(t *testing.T) {
 	}
 }
 
+func TestLunarYearlyRenewal(t *testing.T) {
+	day := 101 // Lunar New Year's day.
+	tests := []struct {
+		name  string
+		today string
+		days  int
+		next  string
+	}{
+		{"before lunar new year", "2024-01-01", 40, "2024-02-10"},
+		{"on lunar new year", "2024-02-10", 0, "2024-02-10"},
+		{"after lunar new year", "2024-02-11", 353, "2025-01-29"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			days, next := NextRenewal("lunar_yearly", day, mustDate(t, tt.today), nil)
+			if days != tt.days || next.Format("2006-01-02") != tt.next {
+				t.Fatalf("农历年付在 %s: 期望 %d 天后的 %s，实际 %d 天后的 %s", tt.today,
+					tt.days, tt.next, days, next.Format("2006-01-02"))
+			}
+		})
+	}
+}
+
+func TestLunarRenewalDayInput(t *testing.T) {
+	if got, ok := CoerceRenewalDay("五月初三", "lunar_yearly"); ok || got != 0 {
+		t.Fatalf("不支持的中文大写日期不应被猜测: %d, %v", got, ok)
+	}
+	if got, ok := CoerceRenewalDay("05-03", "lunar_yearly"); !ok || got != 503 {
+		t.Fatalf("农历月日解析错误: %d, %v", got, ok)
+	}
+}
+
 func mustDate(t *testing.T, value string) time.Time {
 	t.Helper()
 	parsed, err := time.ParseInLocation("2006-01-02", value, time.Local)

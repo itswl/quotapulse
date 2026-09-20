@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/6tail/lunar-go/calendar"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/store"
@@ -170,6 +171,16 @@ func NextRenewalFrom(cycleType string, renewalDay int, from time.Time) (time.Tim
 			return safeReplaceYear(from, from.Year()+1), nil
 		}
 		return safeMonthDate(from.Year()+1, time.Month(month), day, from.Location()), nil
+	case model.CycleLunarYearly:
+		from = startOfDay(from)
+		next := nextLunarYearlyDate(renewalDay, from)
+		if !next.After(from) {
+			lunarToday := calendar.NewLunarFromDate(from)
+			if candidate, ok := lunarDate(lunarToday.GetYear()+1, renewalDay, from.Location()); ok {
+				next = candidate
+			}
+		}
+		return next, nil
 	}
 	return time.Time{}, fmt.Errorf("Unsupported cycle type: %s", cycleType)
 }
