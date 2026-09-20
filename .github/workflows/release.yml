@@ -36,7 +36,7 @@ jobs:
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
-            echo "Localized messageNo Localized messageïLocalized message" >&2
+            echo "Localized messageNo Localized messageï¿½Localized message" >&2
             echo "$unformatted" >&2
             exit 1
           fi
@@ -68,7 +68,7 @@ jobs:
         run: |
           npm --prefix ui run build
           if ! git diff --quiet -- ui/dist; then
-            echo "ui/dist Localized messageïLocalized message npm --prefix ui run build Localized messageïLocalized message" >&2
+            echo "ui/dist Localized messageï¿½Localized message npm --prefix ui run build Localized messageï¿½Localized message" >&2
             git diff --stat -- ui/dist >&2
             exit 1
           fi
@@ -126,5 +126,33 @@ jobs:
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo
-            echo "Localized messageïLocalized message\`${{ github.ref_name }}\`ïLocalized message /health Localized messageïLocalized message"
+            echo "Localized messageï¿½Localized message\`${{ github.ref_name }}\`ï¿½Localized message /health Localized messageï¿½Localized message"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Publishes the GitHub Release for a tag. There is nothing to build here â€” the changelog is
+  # generated from the commits since the previous release â€” but it waits for the image job so
+  # the notes never announce a container that failed to build.
+  release:
+    needs: [test, image]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # A tag can already carry a hand-written release; creating another would fail, so leave
+      # the existing one untouched.
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; leaving it as it is"
+            exit 0
+          fi
+          # The image tag drops the leading v: git gets v0.1.9, the registry gets 0.1.9.
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --notes "Container image: \`${IMAGE}:${version}\` (also \`latest\`), linux/amd64 + linux/arm64."
