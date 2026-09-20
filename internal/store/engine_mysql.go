@@ -95,7 +95,7 @@ func (e mysqlQuerier) listBalanceHistory(ctx context.Context, since time.Time, p
 		Since:     nullTime(since),
 		ProjectID: projectID,
 		Provider:  provider,
-		Limit:     int32(limit),
+		Limit:     rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (e mysqlQuerier) listAlertHistory(ctx context.Context, since time.Time, pro
 		Since:     nullTime(since),
 		ProjectID: projectID,
 		AlertType: alertType,
-		Limit:     int32(limit),
+		Limit:     rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (e mysqlQuerier) listEmailAlertHistory(ctx context.Context, since time.Time
 	rows, err := e.q.ListEmailAlertHistory(ctx, gen.ListEmailAlertHistoryParams{
 		Since:   nullTime(since),
 		Mailbox: mailbox,
-		Limit:   int32(limit),
+		Limit:   rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err

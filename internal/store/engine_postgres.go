@@ -95,7 +95,7 @@ func (e postgresQuerier) listBalanceHistory(ctx context.Context, since time.Time
 		Since:     nullTime(since),
 		ProjectID: projectID,
 		Provider:  provider,
-		RowLimit:  int32(limit),
+		RowLimit:  rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (e postgresQuerier) listAlertHistory(ctx context.Context, since time.Time, 
 		Since:     nullTime(since),
 		ProjectID: projectID,
 		AlertType: alertType,
-		RowLimit:  int32(limit),
+		RowLimit:  rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (e postgresQuerier) listEmailAlertHistory(ctx context.Context, since time.T
 	rows, err := e.q.ListEmailAlertHistory(ctx, gen.ListEmailAlertHistoryParams{
 		Since:    nullTime(since),
 		Mailbox:  mailbox,
-		RowLimit: int32(limit),
+		RowLimit: rowLimit32(limit),
 	})
 	if err != nil {
 		return nil, err

@@ -6,7 +6,7 @@ package monitor
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -266,9 +266,11 @@ func deref[T any](p *T) T {
 	return *p
 }
 
-// Implementation note.
+// cacheKeyFor identifies one credential inside the in-memory response cache. The key never
+// leaves this process, so the hash only has to keep keys apart without storing the key
+// itself — SHA-256 rather than MD5 so the digest is not the weak link if it ever escapes.
 func cacheKeyFor(providerKey, apiKey string) string {
-	sum := md5.Sum([]byte(apiKey))
+	sum := sha256.Sum256([]byte(apiKey))
 	return providerKey + ":" + hex.EncodeToString(sum[:])
 }
 

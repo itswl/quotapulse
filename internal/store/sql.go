@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -534,11 +535,31 @@ func daysOf(days, fallback int) int {
 	return days
 }
 
+// maxRowLimit caps every history query. The HTTP layer already rejects limit > 1000 and the
+// MCP tools cap at 100, so this only protects future callers.
+const maxRowLimit = 1000
+
 func limitOf(limit, fallback int) int64 {
 	if limit <= 0 {
 		return int64(fallback)
 	}
+	if limit > maxRowLimit {
+		return maxRowLimit
+	}
 	return int64(limit)
+}
+
+// rowLimit32 narrows a row limit for the MySQL and PostgreSQL drivers, which take the LIMIT
+// parameter as int32. Out-of-range values are clamped, not wrapped: a wrapped limit reaches
+// the database as a negative LIMIT and fails the query.
+func rowLimit32(limit int64) int32 {
+	if limit < 0 {
+		return 0
+	}
+	if limit > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(limit)
 }
 
 func since(days, fallback int) time.Time { return sinceDays(daysOf(days, fallback)) }
