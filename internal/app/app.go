@@ -108,7 +108,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		OnEmailScanned:        app.Metrics.UpdateEmailScan,
 	}
 	if settings.EnableMCP {
-		app.Server.MCP = mcpserver.NewHandler(settings, app.State, st, log)
+		app.Server.MCP = mcpserver.NewHandler(settings, app.State, st, app.Resolver, log)
 	}
 	return app, nil
 }
