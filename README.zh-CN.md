@@ -20,8 +20,8 @@ go build -o quotapulse ./cmd/quotapulse
 ## MCP
 
 设置 `ENABLE_MCP=true` 后，服务会在 `/mcp` 暴露只读 Streamable HTTP MCP
-端点，并复用 `WEB_API_KEY` 鉴权。它提供当前余额、订阅、邮箱扫描、定时任务、
-健康状态和历史告警查询，不提供配置写入、立即刷新或立即扫描。
+端点，并复用 `WEB_API_KEY` 鉴权。它提供当前余额、健康/新鲜度、功能能力、脱敏配置、
+订阅、邮箱扫描、定时任务、告警统计和历史查询，不提供配置写入、立即刷新、立即扫描或 provider 调用。
 
 **没有配置文件**：环境变量里有 `DEEPSEEK_API_KEY` 就会自动监控 DeepSeek，阈值取 `DEEPSEEK_THRESHOLD`。
 要一次管很多账户、想在页面上增删改，打开数据库动态配置。

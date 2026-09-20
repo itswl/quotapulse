@@ -22,7 +22,7 @@ By default, QuotaPulse discovers any provider configured with `{PROVIDER}_API_KE
 
 ## MCP
 
-Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. It reuses `WEB_API_KEY` for authentication and provides current status, health, recent alerts, balance history, and trend data. The MCP server has no configuration, refresh, scan, or other write tools.
+Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. It reuses `WEB_API_KEY` for authentication and provides current status, health/freshness, capabilities, redacted configuration views, subscription status/configuration, alert statistics, recent alerts, balance history, and trend data. The MCP server has no configuration writes, refresh, scan, provider call, or other write tools.
 
 ## Providers
 
