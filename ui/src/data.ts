@@ -8,6 +8,7 @@
 import { byId, toggleDisplay } from './dom.js';
 import { getCredits, getFeatures, getSubscriptions, refresh as refreshApi } from './api/endpoints.js';
 import { AppState } from './state.js';
+import { emptyState } from './ui/empty.js';
 import { setLoading } from './ui/loading.js';
 import { renderProjects, updateProviderFilter } from './ui/projects.js';
 import { renderSubscriptions } from './ui/subscriptions.js';
@@ -80,8 +81,32 @@ export async function loadData(): Promise<void> {
   } catch (error) {
     console.error('Failed to load data:', error);
     showToast('Failed to load data; please try again', 'error');
+    renderLoadError(error);
   } finally {
     setLoading(false);
+  }
+}
+
+/* First-load failure: swap the skeletons for an explanation with a retry, and settle the counters. */
+function renderLoadError(error: unknown): void {
+  const container = byId('projects-container');
+  if (container && !container.innerHTML.includes('project-card')) {
+    const networkError = error instanceof TypeError || !(error instanceof Error) || !error.message;
+    const detail = networkError
+      ? 'The server did not respond. Check that QuotaPulse is running and that your API key is valid.'
+      : error.message;
+    container.removeAttribute?.('aria-busy');
+    container.innerHTML = emptyState(
+      'Balances could not be loaded',
+      detail,
+      'error',
+      false,
+      '<button type="button" class="btn-primary js-retry-load">Try again</button>',
+    );
+  }
+  for (const id of ['total-projects', 'normal-projects', 'alert-projects', 'shortest-runway']) {
+    const node = byId(id);
+    if (node && node.innerHTML.includes('skeleton')) node.textContent = '—';
   }
 }
 

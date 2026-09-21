@@ -1,45 +1,91 @@
-/* ==================== layout ====================
-   layout：layout，layout，layout。 */
+/* ==================== Design tokens ====================
+   One neutral family (cool grays), one accent, and semantic status colors.
+   Primary actions use "ink" (near-black on light, near-white on dark) so the accent stays
+   reserved for links, focus rings, live data and the chart line. */
 :root {
-    --accent: #3056d3;
-    --accent-hover: #2647b8;
-    --accent-soft: rgba(48, 86, 211, 0.10);
+    color-scheme: light;
 
-    --success: #1f9d55;
-    --success-soft: rgba(31, 157, 85, 0.12);
-    --warning: #d97706;
-    --warning-soft: rgba(217, 119, 6, 0.14);
+    --font: "Geist", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Geist Mono", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-muted: #f7f8fa;
+    --surface-sunken: #eef0f3;
+    --border: #e5e7eb;
+    --border-strong: #cfd4dc;
+    --text: #15171b;
+    --text-2: #5b626e;
+    --text-3: #8a919c;
+
+    --ink: #15171b;
+    --ink-hover: #2b2f37;
+    --on-ink: #ffffff;
+
+    --accent: #3358d4;
+    --accent-hover: #2a4ab8;
+    --accent-soft: rgba(51, 88, 212, 0.10);
+    --accent-ring: rgba(51, 88, 212, 0.28);
+    --chart-fill: rgba(51, 88, 212, 0.14);
+
+    --success: #1e9e5a;
+    --success-soft: rgba(30, 158, 90, 0.12);
+    --warning: #d47a06;
+    --warning-soft: rgba(212, 122, 6, 0.14);
     --danger: #d64545;
     --danger-soft: rgba(214, 69, 69, 0.12);
-    --info: #2f6fed;
-    --info-soft: rgba(47, 111, 237, 0.12);
 
-    --bg: #f5f6f8;
-    --surface: #ffffff;
-    --surface-muted: #f8f9fb;
-    --border: #e4e7eb;
-    --border-strong: #cfd4db;
-    --text: #17191d;
-    --text-2: #5c6470;
-    --text-3: #8b929d;
+    --glow: rgba(51, 88, 212, 0.09);
+    --noise-opacity: 0.035;
+    --scrim: rgba(20, 24, 33, 0.42);
 
-    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-    --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
-    --shadow-lg: 0 16px 48px rgba(16, 24, 40, 0.16);
+    /* Shadows carry the hue of the background instead of flat black. */
+    --shadow-sm: 0 1px 2px rgba(20, 24, 33, 0.05), 0 0 0 1px rgba(20, 24, 33, 0.02);
+    --shadow-md: 0 6px 20px -6px rgba(20, 24, 33, 0.14), 0 1px 3px rgba(20, 24, 33, 0.06);
+    --shadow-lg: 0 24px 64px -16px rgba(20, 24, 33, 0.28), 0 4px 12px rgba(20, 24, 33, 0.08);
 
-    --radius-sm: 6px;
+    --radius-xs: 5px;
+    --radius-sm: 7px;
     --radius: 10px;
     --radius-lg: 14px;
-    --ease: 160ms ease;
+    --radius-xl: 18px;
 
-    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
-    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease: 180ms var(--ease-out);
+    --ease-fast: 120ms var(--ease-out);
+
+    /* Layering scale. Nothing outside this list should set a z-index. */
+    --z-nav: 100;
+    --z-modal: 1000;
+    --z-auth: 1100;
+    --z-toast: 1200;
+    --z-loading: 1300;
+
+    --container: 1280px;
 }
 
 [data-theme="dark"] {
-    --accent: #6f8ff5;
-    --accent-hover: #86a1f7;
-    --accent-soft: rgba(111, 143, 245, 0.16);
+    color-scheme: dark;
+
+    --bg: #0e1013;
+    --surface: #15181d;
+    --surface-muted: #1b1f26;
+    --surface-sunken: #111418;
+    --border: #252a33;
+    --border-strong: #343b47;
+    --text: #e9ebef;
+    --text-2: #a4acb8;
+    --text-3: #6e7683;
+
+    --ink: #f2f3f5;
+    --ink-hover: #ffffff;
+    --on-ink: #0e1013;
+
+    --accent: #7b98f7;
+    --accent-hover: #93abf9;
+    --accent-soft: rgba(123, 152, 247, 0.16);
+    --accent-ring: rgba(123, 152, 247, 0.36);
+    --chart-fill: rgba(123, 152, 247, 0.16);
 
     --success: #3fb46f;
     --success-soft: rgba(63, 180, 111, 0.16);
@@ -47,30 +93,27 @@
     --warning-soft: rgba(232, 163, 61, 0.18);
     --danger: #ef6b6b;
     --danger-soft: rgba(239, 107, 107, 0.16);
-    --info: #6f9cf5;
-    --info-soft: rgba(111, 156, 245, 0.16);
 
-    --bg: #0f1115;
-    --surface: #171a20;
-    --surface-muted: #1d2129;
-    --border: #262b34;
-    --border-strong: #363c47;
-    --text: #e8eaee;
-    --text-2: #a3abb7;
-    --text-3: #6f7784;
+    --glow: rgba(123, 152, 247, 0.10);
+    --noise-opacity: 0.06;
+    --scrim: rgba(0, 0, 0, 0.6);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --shadow-lg: 0 32px 80px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* layout：layout */
+/* Legacy aliases so older selectors keep resolving. `--info` collapses into the accent:
+   the dashboard has exactly one accent color. */
 :root, [data-theme="dark"] {
+    --info: var(--accent);
+    --info-soft: var(--accent-soft);
     --primary: var(--accent);
     --primary-dark: var(--accent-hover);
     --text-primary: var(--text);
     --text-secondary: var(--text-2);
     --text-tertiary: var(--text-3);
+    --text-muted: var(--text-3);
     --bg-primary: var(--surface);
     --bg-secondary: var(--surface-muted);
     --bg-tertiary: var(--surface-muted);

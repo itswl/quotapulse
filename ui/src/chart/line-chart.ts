@@ -18,12 +18,42 @@ export interface Series {
   showPoints?: boolean;
 }
 
+/* Colors and fonts the chart draws with. Supplied from the page's CSS variables so the
+   chart follows the theme; `dark` alone picks a built-in fallback. */
+export interface ChartTheme {
+  text: string;
+  grid: string;
+  tooltipBg: string;
+  tooltipBorder: string;
+  font: string;
+  mono: string;
+}
+
 export interface LineChartOptions {
   labels: string[];
   series: Series[];
-  /* Implementation note. */
+  /* Formats a value for the hover tooltip. */
   formatValue: (value: number) => string;
   dark: boolean;
+  theme?: ChartTheme;
+}
+
+export function defaultTheme(dark: boolean): ChartTheme {
+  return dark
+    ? { text: '#a4acb8', grid: 'rgba(255, 255, 255, 0.08)', tooltipBg: '#15181d', tooltipBorder: '#343b47', font: 'sans-serif', mono: 'monospace' }
+    : { text: '#5b626e', grid: 'rgba(20, 24, 33, 0.08)', tooltipBg: '#ffffff', tooltipBorder: '#cfd4dc', font: 'sans-serif', mono: 'monospace' };
+}
+
+/* Rewrite a color the canvas already normalised (#rrggbb or rgb[a](...)) with a new alpha. */
+function withAlpha(color: string, alpha: number): string | null {
+  const hex = /^#([0-9a-f]{6})$/i.exec(color.trim());
+  if (hex) {
+    const n = Number.parseInt(hex[1]!, 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(color.trim());
+  if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`;
+  return null;
 }
 
 interface Layout {
@@ -97,12 +127,14 @@ export class LineChart {
   // Implementation note.
 
   /* Implementation note. */
+  /* The canvas fills its container. Ask the container first: a canvas without CSS size
+     reports its intrinsic 300x150 box, which would freeze the chart at that size. */
   private size(): { width: number; height: number } {
-    const rect = this.canvas.getBoundingClientRect();
     const parent = this.canvas.parentElement;
+    const rect = this.canvas.getBoundingClientRect();
     return {
-      width: Math.max(1, Math.round(rect.width || parent?.clientWidth || 0)),
-      height: Math.max(1, Math.round(rect.height || parent?.clientHeight || 0)),
+      width: Math.max(1, Math.round(parent?.clientWidth || rect.width || 0)),
+      height: Math.max(1, Math.round(parent?.clientHeight || rect.height || 0)),
     };
   }
 
@@ -116,10 +148,11 @@ export class LineChart {
     }
     if (values.length === 0) return { min: 0, max: 1 };
 
-    let min = Math.min(...values);
+    const lowest = Math.min(...values);
+    let min = lowest;
     let max = Math.max(...values);
     if (min === max) {
-      // Implementation note.
+      // A flat line still needs a visible band around it.
       const pad = Math.abs(min) * 0.1 || 1;
       min -= pad;
       max += pad;
@@ -128,6 +161,8 @@ export class LineChart {
       min -= pad;
       max += pad;
     }
+    // Balances never go below zero; padding must not invent a negative axis.
+    if (lowest >= 0) min = Math.max(0, min);
     return { min, max };
   }
 
@@ -179,32 +214,30 @@ export class LineChart {
 
     if (this.options.labels.length === 0) return;
 
-    const { dark } = this.options;
-    const textColor = dark ? '#e5e7eb' : '#374151';
-    const gridColor = dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const theme = this.options.theme ?? defaultTheme(this.options.dark);
     const { min, max } = this.range();
 
-    this.drawGrid(width, height, min, max, gridColor, textColor);
-    this.drawXLabels(width, height, textColor);
+    this.drawGrid(width, height, min, max, theme);
+    this.drawXLabels(width, height, theme);
 
     for (const series of this.options.series) {
-      this.drawSeries(series, width, height, min, max);
+      this.drawSeries(series, width, height, min, max, theme);
     }
 
-    this.drawLegend(width, textColor);
+    this.drawLegend(width, theme);
 
     if (this.hoverIndex >= 0) {
-      this.drawHover(width, height, min, max, dark, textColor, gridColor);
+      this.drawHover(width, height, min, max, theme);
     }
   }
 
-  private drawGrid(width: number, height: number, min: number, max: number, gridColor: string, textColor: string): void {
+  private drawGrid(width: number, height: number, min: number, max: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     ctx.save();
-    ctx.strokeStyle = gridColor;
+    ctx.strokeStyle = theme.grid;
     ctx.lineWidth = 1;
-    ctx.fillStyle = textColor;
-    ctx.font = '11px var(--mono, monospace)';
+    ctx.fillStyle = theme.text;
+    ctx.font = `11px ${theme.mono}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
@@ -221,15 +254,15 @@ export class LineChart {
   }
 
   /* Implementation note. */
-  private drawXLabels(width: number, height: number, textColor: string): void {
+  private drawXLabels(width: number, height: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     const labels = this.options.labels;
     const usable = width - PADDING.left - PADDING.right;
     const step = Math.max(1, Math.ceil(labels.length / Math.max(1, Math.floor(usable / 46))));
 
     ctx.save();
-    ctx.fillStyle = textColor;
-    ctx.font = '11px sans-serif';
+    ctx.fillStyle = theme.text;
+    ctx.font = `11px ${theme.mono}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let i = 0; i < labels.length; i += step) {
@@ -265,7 +298,24 @@ export class LineChart {
     }
   }
 
-  private drawSeries(series: Series, width: number, height: number, min: number, max: number): void {
+  /* The area under a line fades from the line color to transparent at the baseline.
+     Falls back to the flat `fill` color where gradients are unavailable. */
+  private areaFill(series: Series, top: number, bottom: number): string | CanvasGradient {
+    const ctx = this.ctx;
+    const flat = series.fill ?? 'transparent';
+    if (typeof ctx.createLinearGradient !== 'function') return flat;
+    ctx.fillStyle = series.color;
+    const normalised = typeof ctx.fillStyle === 'string' ? ctx.fillStyle : '';
+    const start = withAlpha(normalised, 0.24);
+    const end = withAlpha(normalised, 0);
+    if (!start || !end) return flat;
+    const gradient = ctx.createLinearGradient(0, top, 0, bottom);
+    gradient.addColorStop(0, start);
+    gradient.addColorStop(1, end);
+    return gradient;
+  }
+
+  private drawSeries(series: Series, width: number, height: number, min: number, max: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     const points: Array<{ x: number; y: number }> = [];
     series.values.forEach((value, index) => {
@@ -278,36 +328,42 @@ export class LineChart {
     ctx.save();
 
     if (series.fill) {
+      const baseline = height - PADDING.bottom;
+      const top = Math.min(...points.map((p) => p.y));
       this.tracePath(points);
-      ctx.lineTo(points[points.length - 1]!.x, height - PADDING.bottom);
-      ctx.lineTo(points[0]!.x, height - PADDING.bottom);
+      ctx.lineTo(points[points.length - 1]!.x, baseline);
+      ctx.lineTo(points[0]!.x, baseline);
       ctx.closePath();
-      ctx.fillStyle = series.fill;
+      ctx.fillStyle = this.areaFill(series, top, baseline);
       ctx.fill();
     }
 
     this.tracePath(points);
     ctx.strokeStyle = series.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = series.dashed ? 1.5 : 2;
     ctx.setLineDash(series.dashed ? [5, 5] : []);
     ctx.stroke();
     ctx.setLineDash([]);
 
     if (series.showPoints !== false) {
-      ctx.fillStyle = series.color;
+      // Solid dot with a background-colored ring so points read against the line and the area.
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = theme.tooltipBg;
       for (const point of points) {
         ctx.beginPath();
         ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = series.color;
         ctx.fill();
+        ctx.stroke();
       }
     }
     ctx.restore();
   }
 
-  private drawLegend(width: number, textColor: string): void {
+  private drawLegend(width: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     ctx.save();
-    ctx.font = '12px sans-serif';
+    ctx.font = `12px ${theme.font}`;
     ctx.textBaseline = 'middle';
 
     const entries = this.options.series.map((s) => ({ series: s, width: ctx.measureText(s.label).width + 24 }));
@@ -320,7 +376,7 @@ export class LineChart {
       ctx.beginPath();
       ctx.arc(x + 5, y, 5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = theme.text;
       ctx.textAlign = 'left';
       ctx.fillText(series.label, x + 16, y);
       x += entryWidth + 15;
@@ -329,21 +385,13 @@ export class LineChart {
   }
 
   /* Implementation note. */
-  private drawHover(
-    width: number,
-    height: number,
-    min: number,
-    max: number,
-    dark: boolean,
-    textColor: string,
-    gridColor: string,
-  ): void {
+  private drawHover(width: number, height: number, min: number, max: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     const index = this.hoverIndex;
     const x = this.xAt(index, width);
 
     ctx.save();
-    ctx.strokeStyle = gridColor;
+    ctx.strokeStyle = theme.tooltipBorder;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(Math.round(x) + 0.5, PADDING.top);
@@ -364,24 +412,26 @@ export class LineChart {
     }
 
     const title = this.options.labels[index] ?? '';
-    ctx.font = '12px sans-serif';
+    ctx.font = `12px ${theme.font}`;
     const boxWidth = Math.max(ctx.measureText(title).width, ...lines.map((l) => ctx.measureText(l).width)) + 24;
     const boxHeight = 24 + lines.length * 18;
     const boxX = Math.min(Math.max(x + 12, PADDING.left), width - PADDING.right - boxWidth);
     const boxY = PADDING.top + 8;
 
-    ctx.fillStyle = dark ? '#1f2937' : '#ffffff';
-    ctx.strokeStyle = gridColor;
+    ctx.fillStyle = theme.tooltipBg;
+    ctx.strokeStyle = theme.tooltipBorder;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 6);
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = textColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
+    ctx.fillStyle = theme.text;
+    ctx.font = `600 12px ${theme.mono}`;
     ctx.fillText(title, boxX + 12, boxY + 8);
+    ctx.font = `12px ${theme.font}`;
     lines.forEach((line, i) => {
       ctx.fillText(line, boxX + 12, boxY + 26 + i * 18);
     });

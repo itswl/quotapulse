@@ -13,7 +13,7 @@ import {
 import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, Features } from '../api/types.js';
 import { emptyState } from './empty.js';
-import { ICON_ARROW_RIGHT, ICON_DELETE, ICON_EDIT } from './icons.js';
+import { ICON_ARROW_RIGHT, ICON_DELETE, ICON_EDIT, ICON_PLUS } from './icons.js';
 
 /**
  * Implementation note.
@@ -74,7 +74,7 @@ export function renderProjectCard(project: CheckResult, features: Features): str
                             <span class="owner-project-badge">${escapeHTML(label)}</span>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="project-header-side">
                         ${optionalActions}
                         <div class="project-status ${projectStatus}"></div>
                     </div>
@@ -139,7 +139,7 @@ function renderFailedCard(project: CheckResult, features: Features): string {
                             <span class="owner-project-badge">${escapeHTML(ownerProject)}</span>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="project-header-side">
                         ${optionalActions}
                         <div class="project-status failed"></div>
                     </div>
@@ -179,23 +179,53 @@ export function filterProjects(
   return result;
 }
 
+/* Empty states say what happened and offer the next step instead of leaving a blank grid. */
+function renderProjectsEmpty(total: number, features: Features): string {
+  if (total === 0) {
+    const action = features.dynamic_config
+      ? `<button type="button" class="btn-primary js-open-add-project">${ICON_PLUS}Add project</button>`
+      : '';
+    const text = features.dynamic_config
+      ? 'Add a provider account here, or set {PROVIDER}_API_KEY in the environment and restart the service.'
+      : 'Set {PROVIDER}_API_KEY in the environment and restart the service, or enable ENABLE_DYNAMIC_CONFIG to add projects from the dashboard.';
+    return emptyState('No projects yet', text, 'info', false, action);
+  }
+
+  const filtering = Boolean(AppState.searchQuery) || AppState.currentFilter !== 'all';
+  if (!filtering && AppState.currentView === 'alerts') {
+    return emptyState('No alerts', 'Every monitored account is above its alert threshold.', 'check');
+  }
+  return emptyState(
+    'No matching projects',
+    'No projects match the filters',
+    'search',
+    false,
+    '<button type="button" class="btn-secondary js-clear-filters">Clear filters</button>',
+  );
+}
+
 export function renderProjects(data: CreditsResponse): void {
   const container = requireById('projects-container');
 
   const isList = AppState.projectViewStyle === 'list';
-  container.className = isList ? 'projects-list' : 'projects-grid';
-  byId('view-list-btn')?.classList.toggle('active', isList);
-  byId('view-grid-btn')?.classList.toggle('active', !isList);
-
-  const filtered = filterProjects(data.projects || [], {
+  const projects = data.projects || [];
+  const filtered = filterProjects(projects, {
     search: AppState.searchQuery,
     provider: AppState.currentFilter,
     alertsOnly: AppState.currentView === 'alerts',
   });
 
+  // Cards cascade in on the first paint only; refreshes and filter changes swap in place.
+  const firstPaint = !container.innerHTML.includes('project-card');
+  const stagger = firstPaint && filtered.length > 0 ? ' stagger' : '';
+  container.className = (isList ? 'projects-list' : 'projects-grid') + stagger;
+  container.removeAttribute?.('aria-busy');
+  byId('view-list-btn')?.classList.toggle('active', isList);
+  byId('view-grid-btn')?.classList.toggle('active', !isList);
+
   container.innerHTML =
     filtered.length === 0
-      ? emptyState('No data', 'No projects match the filters')
+      ? renderProjectsEmpty(projects.length, AppState.features)
       : filtered.map((p) => renderProjectCard(p, AppState.features)).join('');
 }
 

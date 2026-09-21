@@ -8,6 +8,8 @@ import { ENDPOINTS, getProviders } from '../api/endpoints.js';
 import type { BalanceType, ProjectConfig, ProjectPayload, ProjectsConfigResponse, ProviderOption } from '../api/types.js';
 import { byId, fillSelect, inputById, inputValue, isChecked, onClick, selectById, setChecked, setInputValue } from '../dom.js';
 import { reloadProjects } from '../data.js';
+import { confirmDialog } from '../ui/confirm.js';
+import { clearFieldErrors, requireFields } from '../ui/forms.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
 
@@ -32,7 +34,7 @@ function fillProviderOptions(selected = ''): void {
   if (!select) return;
   fillSelect(
     select,
-    providers.map(({ value, label }) => ({ value, label: `${label}（${value}）` })),
+    providers.map(({ value, label }) => ({ value, label: `${label} (${value})` })),
     selected,
   );
 }
@@ -59,6 +61,7 @@ function syncTypeHint(): void {
 export async function openProjectModal(project: ProjectConfig | null = null): Promise<void> {
   await loadProviders();
   byId<HTMLFormElement>('project-form')?.reset();
+  clearFieldErrors('project-form');
 
   const typeSelect = selectById('project-type');
   typeSelect.dataset['touched'] = project ? 'true' : '';
@@ -98,6 +101,12 @@ async function saveProject(event: Event): Promise<void> {
   event.preventDefault();
 
   const isEdit = inputById('project-edit-mode').value === 'true';
+
+  clearFieldErrors('project-form');
+  const required: Array<[string, string]> = [['project-name', 'Project name is required']];
+  if (!isEdit) required.push(['project-api-key', 'An API key is required for a new project']);
+  if (!requireFields(required)) return;
+
   const threshold = inputById('project-threshold').value;
   const typeValue = selectById('project-type').value;
 
@@ -112,15 +121,6 @@ async function saveProject(event: Event): Promise<void> {
   const apiKey = inputValue('project-api-key');
   if (apiKey) data.api_key = apiKey;
 
-  if (!data.name) {
-    showToast('Project name is required', 'warning');
-    return;
-  }
-  if (!isEdit && !apiKey) {
-    showToast('An API key is required for a new project', 'warning');
-    return;
-  }
-
   const result = await mutate(ENDPOINTS.saveProject, data, {
     success: isEdit ? 'Project updated' : 'Project added',
     fail: 'Save failed',
@@ -132,7 +132,12 @@ async function saveProject(event: Event): Promise<void> {
 }
 
 export async function deleteProject(name: string): Promise<void> {
-  if (!confirm(`Delete project "${name}"?\n\nHistory is retained, but the balance will no longer be checked.`)) return;
+  const confirmed = await confirmDialog({
+    title: `Delete project "${name}"?`,
+    message: 'History is retained, but the balance will no longer be checked.',
+    confirmLabel: 'Delete project',
+  });
+  if (!confirmed) return;
   if (await mutate(ENDPOINTS.deleteProject, { name }, { success: 'Project deleted', fail: 'Delete failed' })) {
     await reloadProjects();
   }

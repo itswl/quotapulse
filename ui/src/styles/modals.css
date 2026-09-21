@@ -1,44 +1,57 @@
-/* ==================== layout ==================== */
+/* ==================== Dialogs ==================== */
 .modal {
     display: none;
     position: fixed;
     inset: 0;
     align-items: center;
     justify-content: center;
-    background: rgba(15, 17, 21, 0.45);
-    z-index: 10000;
-    opacity: 0;
-    transition: opacity 0.15s ease;
+    padding: 24px;
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    z-index: var(--z-modal);
+    animation: fade-in 0.18s ease;
 }
 
 .modal.active {
     display: flex;
-    opacity: 1;
 }
 
 .modal-content {
-    width: 92%;
+    width: 100%;
     max-width: 560px;
     max-height: 90vh;
+    max-height: min(90dvh, 920px);
     overflow-y: auto;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     box-shadow: var(--shadow-lg);
-    animation: modalIn 0.18s ease;
+    animation: modal-in 0.26s var(--ease-out);
+}
+
+.modal-content.modal-wide {
+    max-width: 900px;
+}
+
+.modal-content.modal-narrow {
+    max-width: 420px;
 }
 
 .auth-modal {
-    z-index: 11000;
+    z-index: var(--z-auth);
 }
 
 .auth-modal-content {
     max-width: 400px;
 }
 
-@keyframes modalIn {
-    from { transform: translateY(8px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+@keyframes fade-in {
+    from { opacity: 0; }
+}
+
+@keyframes modal-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.985); }
 }
 
 .modal-header {
@@ -50,7 +63,7 @@
 }
 
 .modal-header h2 {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -62,7 +75,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--ease), color var(--ease);
+    transition: background var(--ease), color var(--ease), transform var(--ease-fast);
 }
 
 .modal-close:hover {
@@ -70,10 +83,14 @@
     color: var(--text);
 }
 
+.modal-close:active {
+    transform: scale(0.94);
+}
+
 .modal-close svg {
     width: 16px;
     height: 16px;
-    stroke-width: 1.8;
+    stroke-width: 1.75;
 }
 
 .modal-body {
@@ -86,9 +103,45 @@
     gap: 8px;
     padding: 14px 24px;
     border-top: 1px solid var(--border);
+    background: var(--surface-muted);
 }
 
-/* ==================== layout ==================== */
+/* Confirmation dialog: replaces window.confirm() for destructive actions. */
+.confirm-body {
+    padding: 28px 24px 22px;
+}
+
+.confirm-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.confirm-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.75;
+}
+
+.confirm-body h2 {
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.confirm-body p {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text-2);
+    white-space: pre-line;
+}
+
+/* ==================== Forms ==================== */
 .form-group {
     margin-bottom: 16px;
 }
@@ -105,35 +158,75 @@
 .form-group select {
     width: 100%;
     height: 36px;
-    padding: 0 10px;
+    padding: 0 11px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text);
     font-size: 13.5px;
-    transition: border-color var(--ease), box-shadow var(--ease);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
+}
+
+.form-group input::placeholder {
+    color: var(--text-3);
+}
+
+.form-group input:hover,
+.form-group select:hover {
+    border-color: var(--border-strong);
 }
 
 .form-group input:read-only {
     background: var(--surface-muted);
     color: var(--text-2);
+    box-shadow: none;
 }
 
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.form-group.invalid input,
+.form-group.invalid select {
+    border-color: var(--danger);
+}
+
+.form-group.invalid input:focus,
+.form-group.invalid select:focus {
+    box-shadow: 0 0 0 3px var(--danger-soft);
 }
 
 .form-group p {
     font-size: 12px;
+    line-height: 1.45;
     color: var(--text-3);
     margin-top: 6px;
 }
 
+.form-group p:empty {
+    display: none;
+}
+
+.form-group .field-error {
+    color: var(--danger);
+}
+
 .form-error {
     color: var(--danger);
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
+.form-note {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--warning-soft);
+    color: var(--text);
     font-size: 12.5px;
     line-height: 1.5;
 }
@@ -161,7 +254,7 @@
 }
 
 .settings-section {
-    margin-bottom: 20px;
+    margin-bottom: 22px;
 }
 
 .settings-section:last-child {
@@ -169,15 +262,19 @@
 }
 
 .settings-section h3 {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--text-3);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    color: var(--text);
     margin-bottom: 10px;
 }
 
-/* ==================== layout ==================== */
+.about-text {
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* ==================== Trend chart ==================== */
 .chart-container {
     position: relative;
     height: 360px;
@@ -205,20 +302,47 @@
 }
 
 .trend-stat-value {
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 600;
+    letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
 }
 
 .trend-stat-value.positive { color: var(--success); }
 .trend-stat-value.negative { color: var(--danger); }
 
-/* ==================== layout / layout ==================== */
+.trend-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-2);
+}
+
+.trend-empty svg {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 12px;
+    color: var(--text-3);
+    stroke-width: 1.4;
+}
+
+.trend-empty .hint {
+    font-size: 12.5px;
+    color: var(--text-3);
+    margin-top: 8px;
+}
+
+.trend-empty.error {
+    color: var(--danger);
+}
+
+/* ==================== Grid / list toggle ==================== */
 .view-toggle {
     display: inline-flex;
     gap: 2px;
     padding: 2px;
-    background: var(--surface-muted);
+    background: var(--surface-sunken);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
 }
@@ -226,12 +350,18 @@
 .view-btn {
     width: 28px;
     height: 28px;
-    border-radius: 4px;
+    border-radius: 5px;
     color: var(--text-3);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: background var(--ease), color var(--ease);
+}
+
+.view-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 1.75;
 }
 
 .view-btn:hover {

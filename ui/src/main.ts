@@ -46,6 +46,9 @@ function bindCardActions(): void {
       ['.js-clear-renewed', (el) => void clearSubscriptionRenewed(el.dataset['name'] ?? '')],
       ['.js-edit-subscription', (el) => void editSubscription(el.dataset['name'] ?? '')],
       ['.js-delete-subscription', (el) => void deleteSubscription(el.dataset['name'] ?? '')],
+      ['.js-clear-filters', () => clearProjectFilters()],
+      ['.js-retry-load', () => void loadData()],
+      ['.js-open-add-project', () => byId('add-project-btn')?.click()],
     ];
 
     for (const [selector, handler] of handlers) {
@@ -56,6 +59,17 @@ function bindCardActions(): void {
       }
     }
   });
+}
+
+/* Reset search and provider filter; the current view (all / alerts) stays. */
+function clearProjectFilters(): void {
+  AppState.searchQuery = '';
+  AppState.currentFilter = 'all';
+  const search = byId<HTMLInputElement>('search-input');
+  if (search) search.value = '';
+  const filter = byId<HTMLSelectElement>('provider-filter');
+  if (filter) filter.value = 'all';
+  if (AppState.balanceData) renderProjects(AppState.balanceData);
 }
 
 function setProjectViewStyle(style: ProjectViewStyle): void {

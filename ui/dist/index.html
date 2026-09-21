@@ -4,185 +4,266 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuotaPulse</title>
-    <link rel="stylesheet" href="/static/app.css?v=a65de664a48e">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2317191d'/><text x='16' y='21.5' text-anchor='middle' font-family='Menlo,monospace' font-size='15' font-weight='700' fill='white'>Q</text></svg>">
+    <meta name="description" content="API balance monitoring, runway estimates, subscription reminders, and billing email scanning in one dashboard.">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#f4f5f7">
+    <!-- Apply the saved (or system) theme before the first paint so dark mode never flashes light. -->
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('theme');
+                if (theme !== 'dark' && theme !== 'light') {
+                    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (error) { /* storage unavailable: fall back to the stylesheet default */ }
+        })();
+    </script>
+    <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/static/app.css?v=8e111d312134">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
+    <!-- Icon sprite. Every icon is a <symbol> on a 24px grid drawn for a 1.75px round stroke;
+         the page and the TypeScript render modules both reference these via <use href="#i-…">.
+         Fill and stroke are inherited from the referencing <svg class="icon">. -->
+    <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs>
+            <!-- Brand mark: a quota ring with the tail of a Q -->
+            <symbol id="i-logo" viewBox="0 0 24 24">
+                <path d="M14.39 18.58A7 7 0 1 1 18.58 14.39"/>
+                <path d="M15.4 15.4L20 20"/>
+            </symbol>
+            <!-- Appearance: half-filled disc, rotated in dark mode -->
+            <symbol id="i-theme" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8"/>
+                <path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
+            </symbol>
+            <symbol id="i-refresh" viewBox="0 0 24 24">
+                <path d="M19.05 14.57A7.5 7.5 0 1 1 17.3 6.7"/>
+                <path d="M17.3 2.7v4h-4"/>
+            </symbol>
+            <!-- Settings: sliders instead of a gear -->
+            <symbol id="i-sliders" viewBox="0 0 24 24">
+                <path d="M4 7h8.5M17.5 7H20M4 12h2.5M11.5 12H20M4 17h9.5M18.5 17H20"/>
+                <circle cx="15" cy="7" r="2"/>
+                <circle cx="9" cy="12" r="2"/>
+                <circle cx="16" cy="17" r="2"/>
+            </symbol>
+            <!-- All projects: an account card -->
+            <symbol id="i-card" viewBox="0 0 24 24">
+                <rect x="3" y="6.5" width="18" height="12" rx="2.5"/>
+                <path d="M3 10.5h18M15.5 15.5H18"/>
+            </symbol>
+            <!-- Alerts: a raised flag -->
+            <symbol id="i-flag" viewBox="0 0 24 24">
+                <path d="M5 21V4"/>
+                <path d="M5 4h13.5l-2.8 4.5 2.8 4.5H5"/>
+            </symbol>
+            <!-- Subscriptions: a renewal cycle -->
+            <symbol id="i-cycle" viewBox="0 0 24 24">
+                <path d="M4 11.5V10a4.5 4.5 0 0 1 4.5-4.5H20M17 2.5l3 3-3 3"/>
+                <path d="M20 12.5V14a4.5 4.5 0 0 1-4.5 4.5H4M7 21.5l-3-3 3-3"/>
+            </symbol>
+            <!-- Email: an at sign -->
+            <symbol id="i-at" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M16 8v4.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1"/>
+            </symbol>
+            <symbol id="i-grid" viewBox="0 0 24 24">
+                <rect x="3.5" y="3.5" width="7" height="7" rx="1.75"/>
+                <rect x="13.5" y="3.5" width="7" height="7" rx="1.75"/>
+                <rect x="3.5" y="13.5" width="7" height="7" rx="1.75"/>
+                <rect x="13.5" y="13.5" width="7" height="7" rx="1.75"/>
+            </symbol>
+            <symbol id="i-rows" viewBox="0 0 24 24">
+                <rect x="3.5" y="4" width="17" height="4" rx="1.5"/>
+                <rect x="3.5" y="10" width="17" height="4" rx="1.5"/>
+                <rect x="3.5" y="16" width="17" height="4" rx="1.5"/>
+            </symbol>
+            <symbol id="i-search" viewBox="0 0 24 24">
+                <circle cx="10.5" cy="10.5" r="6.5"/>
+                <path d="M15.5 15.5 20.5 20.5"/>
+            </symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"/>
+            </symbol>
+            <symbol id="i-close" viewBox="0 0 24 24">
+                <path d="M6 6l12 12M18 6 6 18"/>
+            </symbol>
+            <symbol id="i-edit" viewBox="0 0 24 24">
+                <path d="M4 20l1.5-4.5L16 5a2.12 2.12 0 0 1 3 3L8.5 18.5 4 20z"/>
+                <path d="M14.5 6.5l3 3"/>
+            </symbol>
+            <symbol id="i-trash" viewBox="0 0 24 24">
+                <path d="M4 7h16"/>
+                <path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2"/>
+                <path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/>
+            </symbol>
+            <symbol id="i-check" viewBox="0 0 24 24">
+                <path d="M5 12.5l4.5 4.5L19 7.5"/>
+            </symbol>
+            <symbol id="i-undo" viewBox="0 0 24 24">
+                <path d="M8.5 13.5 4 9l4.5-4.5"/>
+                <path d="M4 9h9.5a5.5 5.5 0 0 1 0 11H10"/>
+            </symbol>
+            <symbol id="i-arrow-right" viewBox="0 0 24 24">
+                <path d="M5 12h13M13 7l5 5-5 5"/>
+            </symbol>
+            <symbol id="i-info" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8.5"/>
+                <path d="M12 11.5v5"/>
+                <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/>
+            </symbol>
+            <symbol id="i-check-circle" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8.5"/>
+                <path d="M8.5 12.5l2.5 2.5 5-5"/>
+            </symbol>
+            <symbol id="i-error" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8.5"/>
+                <path d="M9 9l6 6M15 9l-6 6"/>
+            </symbol>
+        </defs>
+    </svg>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
     <!-- Top navigation -->
-    <nav class="navbar">
+    <nav class="navbar" aria-label="Primary">
         <div class="nav-container">
             <div class="nav-brand">
-                <span class="brand-icon" aria-hidden="true">Q</span>
+                <span class="brand-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-logo"></use></svg></span>
                 <span class="brand-text">QuotaPulse</span>
             </div>
+            <div class="nav-status" title="Time of the last successful balance update">
+                <span class="live-dot" aria-hidden="true"></span>
+                <span>Updated</span>
+                <strong id="last-update">—</strong>
+            </div>
             <div class="nav-actions">
-                <button class="btn-icon" id="theme-toggle" title="Toggle theme">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
+                <button class="btn-icon" id="theme-toggle" title="Toggle theme" aria-label="Toggle light and dark theme">
+                    <svg class="icon icon-theme" aria-hidden="true" focusable="false"><use href="#i-theme"></use></svg>
                 </button>
-                <button class="btn-icon" id="refresh-btn" title="Refresh data">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                    </svg>
+                <button class="btn-icon" id="refresh-btn" title="Refresh data" aria-label="Refresh data">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"></use></svg>
                 </button>
-                <button class="btn-icon" id="settings-btn" title="Settings">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6m5.656-14.142l-4.242 4.242M7.75 14.25l-4.243 4.242M23 12h-6m-6 0H1m14.142 5.656l-4.242-4.242M7.75 9.75l-4.243-4.242"></path>
-                    </svg>
+                <button class="btn-icon" id="settings-btn" title="Settings" aria-label="Open settings">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sliders"></use></svg>
                 </button>
             </div>
         </div>
     </nav>
 
-    <main class="main-container">
-        <!-- Implementation note. -->
-        <section class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                    </svg>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Total projects</div>
-                    <div class="stat-value" id="total-projects">-</div>
-                </div>
+    <main class="main-container" id="main-content">
+        <!-- Overview band: hero runway figure plus three counters -->
+        <section class="stats-grid" aria-label="Overview">
+            <div class="stat-card hero">
+                <div class="stat-label" id="shortest-runway-label">Shortest runway</div>
+                <div class="stat-value" id="shortest-runway"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                <p class="stat-hint" id="shortest-runway-hint"></p>
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon success">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Healthy projects</div>
-                    <div class="stat-value" id="normal-projects">-</div>
-                </div>
+                <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Total projects</span></div>
+                <div class="stat-value" id="total-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon warning">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label" id="alert-projects-label">Alerting projects</div>
-                    <div class="stat-value" id="alert-projects">-</div>
-                </div>
+                <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Healthy projects</span></div>
+                <div class="stat-value" id="normal-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"></path>
-                    </svg>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label" id="shortest-runway-label">Shortest runway</div>
-                    <div class="stat-value" id="shortest-runway">—</div>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon info">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-label">Last update</div>
-                    <div class="stat-value small" id="last-update">Just now</div>
-                </div>
+                <div class="stat-label"><span class="stat-dot danger" aria-hidden="true"></span><span id="alert-projects-label">Alerting projects</span></div>
+                <div class="stat-value" id="alert-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
             </div>
         </section>
 
-        <!-- Quick actions -->
-        <section class="quick-actions">
-            <button class="action-btn" id="view-all-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
+        <!-- View switcher -->
+        <section class="quick-actions" aria-label="Views">
+            <button class="action-btn active" id="view-all-btn" aria-pressed="true">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-card"></use></svg>
                 <span>All projects</span>
             </button>
-            <button class="action-btn" id="view-alerts-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                </svg>
+            <button class="action-btn" id="view-alerts-btn" aria-pressed="false">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
                 <span>Alerts only</span>
             </button>
-            <button class="action-btn" id="view-subscriptions-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
+            <button class="action-btn" id="view-subscriptions-btn" aria-pressed="false">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cycle"></use></svg>
                 <span>Subscriptions</span>
             </button>
-            <button class="action-btn" id="view-email-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
+            <button class="action-btn" id="view-email-btn" aria-pressed="false">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-at"></use></svg>
                 <span>Email scanning</span>
             </button>
         </section>
 
-        <!-- Implementation note. -->
+        <!-- Project balances -->
         <section class="content-section" id="projects-section">
             <div class="section-header">
-                <h2 class="section-title">Project balances</h2>
+                <div class="section-heading">
+                    <h2 class="section-title">Project balances</h2>
+                    <p class="section-subtitle">Current balance, alert threshold, and estimated runway for every monitored account.</p>
+                </div>
                 <div class="section-actions">
-                    <div class="view-toggle">
-                        <button class="view-btn active" id="view-grid-btn" title="Grid view">
-                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <div class="view-toggle" role="group" aria-label="Layout">
+                        <button class="view-btn active" id="view-grid-btn" title="Grid view" aria-label="Grid view">
+                            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-grid"></use></svg>
                         </button>
-                        <button class="view-btn" id="view-list-btn" title="List view">
-                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        <button class="view-btn" id="view-list-btn" title="List view" aria-label="List view">
+                            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-rows"></use></svg>
                         </button>
                     </div>
                     <div class="search-box">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                        <input type="text" id="search-input" placeholder="Search projects..." />
+                        <svg class="icon search-icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
+                        <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" autocomplete="off" />
                     </div>
-                    <select class="filter-select" id="provider-filter">
+                    <select class="filter-select" id="provider-filter" aria-label="Filter by provider">
                         <option value="all">All providers</option>
                     </select>
                     <button class="btn-primary" id="add-project-btn" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
+                        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
                         Add project
                     </button>
                 </div>
             </div>
 
-            <div id="projects-container" class="projects-grid">
-                <!-- Project cards are rendered by JavaScript -->
+            <div id="projects-container" class="projects-grid" aria-busy="true">
+                <!-- Skeletons are replaced by the rendered cards after the first request -->
+                <div class="skeleton-card" aria-hidden="true">
+                    <div class="skeleton skeleton-line w-45"></div>
+                    <div class="skeleton skeleton-line w-30"></div>
+                    <div class="skeleton skeleton-line lg"></div>
+                    <div class="skeleton skeleton-line w-100"></div>
+                    <div class="skeleton skeleton-line w-60"></div>
+                </div>
+                <div class="skeleton-card" aria-hidden="true">
+                    <div class="skeleton skeleton-line w-45"></div>
+                    <div class="skeleton skeleton-line w-30"></div>
+                    <div class="skeleton skeleton-line lg"></div>
+                    <div class="skeleton skeleton-line w-100"></div>
+                    <div class="skeleton skeleton-line w-60"></div>
+                </div>
+                <div class="skeleton-card" aria-hidden="true">
+                    <div class="skeleton skeleton-line w-45"></div>
+                    <div class="skeleton skeleton-line w-30"></div>
+                    <div class="skeleton skeleton-line lg"></div>
+                    <div class="skeleton skeleton-line w-100"></div>
+                    <div class="skeleton skeleton-line w-60"></div>
+                </div>
             </div>
         </section>
 
-        <!-- Implementation note. -->
+        <!-- Subscription reminders -->
         <section class="content-section" id="subscriptions-section" style="display: none;">
             <div class="section-header">
-                <h2 class="section-title">Subscription reminders</h2>
+                <div class="section-heading">
+                    <h2 class="section-title">Subscription reminders</h2>
+                    <p class="section-subtitle">Upcoming renewals sorted by date, with the reminder window you configured.</p>
+                </div>
                 <button class="btn-primary" id="add-subscription-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
                     Add subscription
                 </button>
             </div>
@@ -195,9 +276,12 @@
         <!-- Email scanning -->
         <section class="content-section" id="email-section" style="display: none;">
             <div class="section-header">
-                <h2 class="section-title">Email scanning</h2>
+                <div class="section-heading">
+                    <h2 class="section-title">Email scanning</h2>
+                    <p class="section-subtitle">Billing and renewal emails found in your IMAP mailboxes.</p>
+                </div>
                 <div class="section-actions">
-                    <select class="filter-select" id="email-scan-days" title="Scan recent email">
+                    <select class="filter-select" id="email-scan-days" title="Scan recent email" aria-label="Scan window">
                         <option value="1">Last 1 day</option>
                         <option value="3">Last 3 days</option>
                         <option value="7">Last 7 days</option>
@@ -205,10 +289,7 @@
                         <option value="30">Last 30 days</option>
                     </select>
                     <button class="btn-primary" id="email-scan-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
+                        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
                         Scan now
                     </button>
                     <button class="btn-secondary" id="add-email-btn" style="display: none;">
@@ -221,7 +302,7 @@
                 <!-- Scan summary is rendered by JavaScript -->
             </div>
 
-            <h3 class="subsection-title">Email account</h3>
+            <h3 class="subsection-title">Mailboxes</h3>
             <div id="mailboxes-container" class="subscriptions-list">
                 <!-- Mailbox cards are rendered by JavaScript -->
             </div>
@@ -240,27 +321,28 @@
         </section>
     </main>
 
-    <!-- Loading state -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p>Loading...</p>
-        </div>
+    <footer class="site-footer">
+        <span>QuotaPulse · API balance monitoring</span>
+        <nav aria-label="Service links">
+            <a href="/health" target="_blank" rel="noopener">Health check</a>
+        </nav>
+    </footer>
+
+    <!-- Loading indicator: a thin bar at the top of the viewport -->
+    <div id="loading-overlay" class="loading-overlay" role="progressbar" aria-label="Loading" aria-hidden="true">
+        <div class="loading-bar"></div>
     </div>
 
     <!-- Toast notifications -->
-    <div id="toast-container" class="toast-container"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-    <!-- Implementation note. -->
-    <div id="trend-modal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
+    <!-- Balance trend -->
+    <div id="trend-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="trend-modal-title">
+        <div class="modal-content modal-wide">
             <div class="modal-header">
                 <h2 id="trend-modal-title">Balance trend</h2>
-                <button class="modal-close js-close-trend-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="modal-close js-close-trend-modal" aria-label="Close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
             <div class="modal-body">
@@ -268,25 +350,22 @@
                     <!-- Statistics are rendered by JavaScript -->
                 </div>
                 <div class="chart-container">
-                    <canvas id="trend-chart"></canvas>
+                    <canvas id="trend-chart" role="img" aria-label="Balance history chart"></canvas>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary js-close-trend-modal">Close</button>
+                <button type="button" class="btn-ghost js-close-trend-modal">Close</button>
             </div>
         </div>
     </div>
 
-    <!-- Implementation note. -->
-    <div id="settings-modal" class="modal">
+    <!-- Settings -->
+    <div id="settings-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>System settings</h2>
-                <button class="modal-close js-close-settings-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <h2 id="settings-modal-title">Settings</h2>
+                <button class="modal-close js-close-settings-modal" aria-label="Close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
             <div class="modal-body">
@@ -305,7 +384,7 @@
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="setting-auto-refresh" checked>
-                            <span>Enable auto-refresh (every 5 minutes)</span>
+                            <span>Refresh automatically every 5 minutes</span>
                         </label>
                     </div>
                 </div>
@@ -313,38 +392,38 @@
                 <div class="settings-section">
                     <h3>Authentication</h3>
                     <div class="form-group">
-                        <label for="setting-api-key">API Key</label>
+                        <label for="setting-api-key">API key</label>
                         <input type="password" id="setting-api-key" autocomplete="current-password">
                     </div>
                 </div>
 
                 <div class="settings-section">
                     <h3>About</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">
+                    <p class="about-text">
                         <strong>QuotaPulse</strong><br>
                         API balance monitoring, subscription reminders, and email scanning
                     </p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary js-close-settings-modal">Close</button>
+                <button type="button" class="btn-primary js-close-settings-modal">Done</button>
             </div>
         </div>
     </div>
 
-    <!-- API key authentication modal -->
-    <div id="auth-modal" class="modal auth-modal">
+    <!-- API key authentication -->
+    <div id="auth-modal" class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
         <div class="modal-content auth-modal-content">
             <div class="modal-header">
-                <h2>Enter API key</h2>
+                <h2 id="auth-modal-title">Enter API key</h2>
             </div>
             <form id="auth-form">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="auth-api-key">API Key</label>
+                        <label for="auth-api-key">API key</label>
                         <input type="password" id="auth-api-key" autocomplete="current-password" required>
                     </div>
-                    <p id="auth-error" class="form-error" style="display: none;"></p>
+                    <p id="auth-error" class="form-error" role="alert" style="display: none;"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn-primary">Save and continue</button>
@@ -353,22 +432,36 @@
         </div>
     </div>
 
-    <!-- Project management modal -->
-    <div id="project-modal" class="modal">
+    <!-- Confirmation for destructive actions -->
+    <div id="confirm-modal" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+        <div class="modal-content modal-narrow">
+            <div class="confirm-body">
+                <div class="confirm-icon" aria-hidden="true">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
+                </div>
+                <h2 id="confirm-title">Are you sure?</h2>
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-ghost" id="confirm-cancel">Cancel</button>
+                <button type="button" class="btn-danger" id="confirm-accept">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project management -->
+    <div id="project-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="project-modal-title">Add project</h2>
-                <button class="modal-close js-close-project-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="modal-close js-close-project-modal" aria-label="Close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
-            <form id="project-form" class="modal-body">
+            <form id="project-form" class="modal-body" novalidate>
                 <input type="hidden" id="project-edit-mode" value="false">
 
-                <p id="project-env-note" class="form-error" style="display: none;">
+                <p id="project-env-note" class="form-note" style="display: none;">
                     This project was discovered from environment variables. Saving it here persists it to the database.
                 </p>
 
@@ -419,25 +512,22 @@
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary js-close-project-modal">Cancel</button>
+                <button type="button" class="btn-ghost js-close-project-modal">Cancel</button>
                 <button type="button" class="btn-primary js-save-project">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Implementation note. -->
-    <div id="subscription-modal" class="modal">
+    <!-- Subscription management -->
+    <div id="subscription-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-title">Add subscription</h2>
-                <button class="modal-close js-close-subscription-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="modal-close js-close-subscription-modal" aria-label="Close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
-            <form id="subscription-form" class="modal-body">
+            <form id="subscription-form" class="modal-body" novalidate>
                 <input type="hidden" id="edit-mode" value="false">
                 <input type="hidden" id="original-name" value="">
 
@@ -455,8 +545,12 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="sub-amount">Renewal amount</label>
+                        <label for="sub-amount">Renewal amount *</label>
                         <input type="number" id="sub-amount" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="sub-alert-days">Alert days before *</label>
+                        <input type="number" id="sub-alert-days" min="1" max="90" value="7" required>
                     </div>
                 </div>
 
@@ -472,13 +566,8 @@
                     </div>
                     <div class="form-group">
                         <label for="sub-renewal-day">Renewal day *</label>
-                        <input type="text" id="sub-renewal-day" required placeholder="1-31">
+                        <input type="text" id="sub-renewal-day" required placeholder="1-31" inputmode="numeric">
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="sub-alert-days">Alert days before *</label>
-                    <input type="number" id="sub-alert-days" min="1" max="90" value="7" required>
                 </div>
 
                 <div class="form-group">
@@ -494,25 +583,22 @@
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary js-close-subscription-modal">Cancel</button>
+                <button type="button" class="btn-ghost js-close-subscription-modal">Cancel</button>
                 <button type="button" class="btn-primary js-save-subscription">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Mailbox configuration modal -->
-    <div id="email-modal" class="modal">
+    <!-- Mailbox configuration -->
+    <div id="email-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="email-modal-title">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="email-modal-title">Add mailbox</h2>
-                <button class="modal-close js-close-email-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="modal-close js-close-email-modal" aria-label="Close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
-            <form id="email-form" class="modal-body">
+            <form id="email-form" class="modal-body" novalidate>
                 <input type="hidden" id="email-edit-mode" value="false">
 
                 <div class="form-group">
@@ -556,13 +642,13 @@
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary js-close-email-modal">Cancel</button>
+                <button type="button" class="btn-ghost js-close-email-modal">Cancel</button>
                 <button type="button" class="btn-primary js-save-email">Save</button>
             </div>
         </div>
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=a65de664a48e"></script>
+    <script defer src="/static/app.js?v=8e111d312134"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import type { CheckResult, CreditsResponse, Features, Runway, SubscriptionResult
 import { filterProjects, renderProjectCard, renderProjects } from '../src/ui/projects.js';
 import { renderSubscriptionCard, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
 import { shortestRunway, updateFailedHint, updateStats } from '../src/ui/stats.js';
+import { AppState } from '../src/state.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
 const ALL_OFF: Features = { subscriptions: false, dynamic_config: false, history: false, email_scan: false };
@@ -277,6 +278,7 @@ describe('桩 DOM 上的顶部概览', () => {
     const lastUpdate = stubElement('last-update');
     const runwayValue = stubElement('shortest-runway');
     const runwayLabel = stubElement('shortest-runway-label');
+    const runwayHint = stubElement('shortest-runway-hint');
 
     const data: CreditsResponse = {
       last_update: new Date().toISOString(),
@@ -296,6 +298,7 @@ describe('桩 DOM 上的顶部概览', () => {
     assert.equal(runwayValue.textContent, '2.0 days');
     assert.equal(runwayValue.className, 'stat-value runway-danger');
     assert.equal(runwayLabel.textContent, 'Shortest runway · a');
+    assert.match(runwayHint.textContent, /estimated to deplete around/);
   });
 
   it('一个Project都估算不出跑道时退回破折号', () => {
@@ -316,13 +319,58 @@ describe('桩 DOM 上的顶部概览', () => {
 });
 
 describe('桩 DOM 上的Project列表', () => {
-  it('筛不出结果时渲染空Status而不是空白', () => {
+  it('一个Project都没有时渲染「开始使用」空Status而不是空白', () => {
     resetStubDom();
     const container = stubElement('projects-container');
     renderProjects({ last_update: null, projects: [], summary: {} });
 
     assert.match(container.innerHTML, /empty-state/);
+    assert.match(container.innerHTML, /No projects yet/);
+    assert.ok(!container.innerHTML.includes('js-open-add-project'), '动态配置关闭时不给「Add project」按钮');
+    assert.equal(container.className, 'projects-grid');
+  });
+
+  it('开了动态配置的空Status带「Add project」入口', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    AppState.features = { ...AppState.features, dynamic_config: true };
+    renderProjects({ last_update: null, projects: [], summary: {} });
+    AppState.features = { ...AppState.features, dynamic_config: false };
+
+    assert.match(container.innerHTML, /js-open-add-project/);
+  });
+
+  it('有Project但筛不出结果时提示清除筛选', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    AppState.searchQuery = 'nothing-matches-this';
+    renderProjects({ last_update: null, projects: [project()], summary: {} });
+    AppState.searchQuery = '';
+
     assert.match(container.innerHTML, /No projects match the filters/);
+    assert.match(container.innerHTML, /js-clear-filters/);
+  });
+
+  it('「仅Alert」视图里没有Alert时说明一切正常', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    AppState.currentView = 'alerts';
+    renderProjects({ last_update: null, projects: [project()], summary: {} });
+    AppState.currentView = 'all';
+
+    assert.match(container.innerHTML, /No alerts/);
+    assert.ok(!container.innerHTML.includes('js-clear-filters'));
+  });
+
+  it('首次渲染带 stagger 入场类，再次渲染不重复动画', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    const data = { last_update: null, projects: [project({ project: 'a' })], summary: {} };
+
+    renderProjects(data);
+    assert.equal(container.className, 'projects-grid stagger');
+
+    renderProjects(data);
     assert.equal(container.className, 'projects-grid');
   });
 

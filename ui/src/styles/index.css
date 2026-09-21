@@ -1,6 +1,7 @@
-/* layout。layout static/css/style.css，layout；
-   layout —— tokens layout，responsive layout。 */
+/* Style entry point. Order matters: fonts and tokens first, base resets next,
+   components after that, and responsive overrides last so they win. */
 
+@import './fonts.css';
 @import './tokens.css';
 @import './base.css';
 @import './layout.css';

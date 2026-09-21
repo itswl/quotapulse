@@ -44,14 +44,17 @@ export function updateFailedHint(projects: CheckResult[]): void {
 export function updateRunwayStat(projects: CheckResult[]): void {
   const value = byId('shortest-runway');
   const label = byId('shortest-runway-label');
+  const hint = byId('shortest-runway-hint');
   if (!value || !label) return;
 
   const first = shortestRunway(projects);
   if (!first) {
+    const reason = 'Enable the database and collect balance history to estimate runway';
     value.textContent = '—';
     value.className = 'stat-value';
     label.textContent = 'Shortest runway';
-    label.title = 'Enable the database and collect balance history to estimate runway';
+    label.title = reason;
+    if (hint) hint.textContent = reason;
     return;
   }
 
@@ -60,4 +63,9 @@ export function updateRunwayStat(projects: CheckResult[]): void {
   value.className = `stat-value runway-${runway.level}`;
   label.textContent = `Shortest runway · ${first.project}`;
   label.title = runway.hint;
+  // The hero card has room to say why, not just how many days.
+  if (hint) {
+    hint.textContent =
+      runway.hint || `Estimated from the last ${first.runway?.window_days ?? 7} days of balance history`;
+  }
 }

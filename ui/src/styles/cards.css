@@ -1,25 +1,65 @@
-/* ==================== layout ==================== */
+/* ==================== Project cards (grid view) ==================== */
 .projects-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 14px;
 }
 
+.projects-grid > .empty-state {
+    grid-column: 1 / -1;
+}
+
 .project-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    transition: border-color var(--ease), box-shadow var(--ease);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 16px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--ease), box-shadow var(--ease), transform var(--ease);
 }
 
 .project-card:hover {
     border-color: var(--border-strong);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 .project-card[data-status="alert"] {
-    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 5%, var(--surface)), var(--surface) 55%);
+}
+
+.project-card.failed {
+    border-style: dashed;
+    border-color: var(--border-strong);
+}
+
+/* First paint: cards cascade in. `backwards` fill releases the animation afterwards so
+   the hover transform still applies. */
+.stagger .project-card {
+    animation: card-in 0.5s var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.stagger .project-card:nth-child(1) { --i: 0; }
+.stagger .project-card:nth-child(2) { --i: 1; }
+.stagger .project-card:nth-child(3) { --i: 2; }
+.stagger .project-card:nth-child(4) { --i: 3; }
+.stagger .project-card:nth-child(5) { --i: 4; }
+.stagger .project-card:nth-child(6) { --i: 5; }
+.stagger .project-card:nth-child(7) { --i: 6; }
+.stagger .project-card:nth-child(8) { --i: 7; }
+.stagger .project-card:nth-child(9) { --i: 8; }
+.stagger .project-card:nth-child(10) { --i: 9; }
+.stagger .project-card:nth-child(11) { --i: 10; }
+.stagger .project-card:nth-child(n + 12) { --i: 11; }
+
+@keyframes card-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
 }
 
 .project-header {
@@ -28,6 +68,12 @@
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 16px;
+}
+
+.project-header-side {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .project-info {
@@ -53,20 +99,22 @@
 .project-provider,
 .owner-project-badge {
     display: inline-block;
-    padding: 1px 7px;
-    border-radius: 5px;
+    border-radius: var(--radius-xs);
     font-size: 11.5px;
     line-height: 18px;
 }
 
 .project-provider {
+    padding: 1px 7px;
     font-family: var(--mono);
+    font-size: 11px;
     background: var(--surface-muted);
     color: var(--text-2);
     border: 1px solid var(--border);
 }
 
 .owner-project-badge {
+    padding: 1px 2px;
     color: var(--text-3);
 }
 
@@ -75,16 +123,29 @@
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 6px;
+    margin: 0 3px;
 }
 
 .project-status.normal {
     background: var(--success);
+    box-shadow: 0 0 0 3px var(--success-soft);
 }
 
 .project-status.alert {
     background: var(--danger);
     box-shadow: 0 0 0 3px var(--danger-soft);
+    animation: alert-pulse 2s var(--ease-out) infinite;
+}
+
+.project-status.failed {
+    background: var(--text-3);
+    box-shadow: 0 0 0 3px var(--surface-sunken);
+}
+
+@keyframes alert-pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 45%, transparent); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 .project-balance {
@@ -98,14 +159,16 @@
 }
 
 .balance-value {
-    font-size: 26px;
+    font-family: var(--mono);
+    font-size: 28px;
     font-weight: 600;
     letter-spacing: -0.02em;
-    line-height: 1.15;
+    line-height: 1.1;
     font-variant-numeric: tabular-nums;
 }
 
 .balance-value .unit {
+    font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
     color: var(--text-3);
@@ -113,10 +176,18 @@
     letter-spacing: 0;
 }
 
+.balance-value.unavailable {
+    font-family: var(--font);
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text-3);
+}
+
 .balance-progress {
     width: 100%;
     height: 4px;
-    background: var(--surface-muted);
+    background: var(--surface-sunken);
     border-radius: 999px;
     overflow: hidden;
     margin-top: 12px;
@@ -125,7 +196,7 @@
 .balance-progress-bar {
     height: 100%;
     border-radius: 999px;
-    transition: width 0.4s ease;
+    transition: width 0.6s var(--ease-out);
 }
 
 .balance-progress-bar.normal { background: var(--success); }
@@ -143,7 +214,12 @@
 .detail-item {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
+    min-width: 0;
+}
+
+.detail-item.full-width {
+    grid-column: 1 / -1;
 }
 
 .detail-label {
@@ -155,6 +231,14 @@
     font-size: 13px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
+}
+
+.detail-value.failure-reason {
+    color: var(--danger);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+    word-break: break-word;
 }
 
 .status-text {
@@ -175,22 +259,24 @@
 .status-text.alert::before { background: var(--danger); }
 .status-text.alert { color: var(--danger); }
 
+/* Pinned to the bottom so the trend links line up across cards of different heights. */
 .project-actions {
     display: flex;
     justify-content: flex-end;
-    padding-top: 12px;
-    margin-top: 12px;
-    border-top: 1px solid var(--border);
+    margin-top: auto;
+    padding-top: 14px;
 }
 
 .btn-link {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    padding: 2px 0;
+    border-radius: 4px;
     font-size: 13px;
     font-weight: 500;
     color: var(--accent);
-    padding: 2px 0;
+    transition: color var(--ease);
 }
 
 .btn-link:hover {
@@ -198,22 +284,65 @@
 }
 
 .btn-link svg {
-    stroke-width: 1.8;
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.75;
+    transition: transform var(--ease);
 }
 
-/* layout */
+.btn-link:hover svg {
+    transform: translateX(2px);
+}
+
+/* Card actions appear on hover or keyboard focus. */
+.project-card .action-icon-btn {
+    opacity: 0;
+    transition: opacity var(--ease), background var(--ease), color var(--ease), border-color var(--ease);
+}
+
+.project-card:hover .action-icon-btn,
+.project-card:focus-within .action-icon-btn {
+    opacity: 1;
+}
+
+/* ==================== Project rows (list view) ====================
+   One surface with hairline dividers instead of a stack of small cards. */
 .projects-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
 }
 
-.projects-list .project-card {
+.projects-list .project-card,
+.projects-list .project-card.failed {
     display: grid;
-    grid-template-columns: 2fr 3fr 3fr auto;
+    grid-template-columns: minmax(220px, 1.6fr) minmax(200px, 2fr) max-content max-content;
     align-items: center;
     gap: 20px;
     padding: 12px 18px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.projects-list .project-card:last-child {
+    border-bottom: 0;
+}
+
+.projects-list .project-card:hover {
+    transform: none;
+    box-shadow: none;
+    background: var(--surface-muted);
+}
+
+.projects-list .project-card[data-status="alert"] {
+    background: color-mix(in srgb, var(--danger) 4%, transparent);
 }
 
 .projects-list .project-header {
@@ -237,6 +366,10 @@
     min-width: 96px;
 }
 
+.projects-list .balance-value.unavailable {
+    font-size: 14px;
+}
+
 .projects-list .balance-progress {
     margin-top: 0;
     flex: 1;
@@ -245,23 +378,37 @@
 .projects-list .project-details {
     padding-top: 0;
     border-top: none;
-    grid-template-columns: repeat(4, auto);
-    gap: 16px;
+    grid-template-columns: repeat(4, max-content);
+    gap: 20px;
 }
 
 .projects-list .detail-item {
     flex-direction: row;
     align-items: baseline;
     gap: 5px;
+    white-space: nowrap;
+}
+
+.projects-list .detail-value.failure-reason {
+    white-space: normal;
+}
+
+.projects-list .detail-item.full-width {
+    grid-column: auto;
 }
 
 .projects-list .project-actions {
     padding-top: 0;
     margin-top: 0;
-    border-top: none;
 }
 
-/* ==================== layout（layout / layout / layout） ==================== */
+.projects-list .empty-state {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+/* ==================== Subscriptions, mailboxes, alert emails ==================== */
 .subscriptions-list,
 .email-alerts-list {
     display: grid;
@@ -279,12 +426,14 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    transition: border-color var(--ease);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--ease), box-shadow var(--ease);
 }
 
 .subscription-card:hover,
 .email-alert-card:hover {
     border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
 }
 
 .subscription-info,
@@ -308,6 +457,7 @@
     gap: 4px 0;
     font-size: 12.5px;
     color: var(--text-2);
+    font-variant-numeric: tabular-nums;
 }
 
 .meta-item + .meta-item::before {
@@ -335,19 +485,22 @@
 }
 
 .days-remaining {
+    font-family: var(--mono);
     font-size: 22px;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
-    min-width: 56px;
+    min-width: 64px;
     text-align: right;
 }
 
 .days-remaining .unit {
+    font-family: var(--font);
     font-size: 12px;
     font-weight: 400;
     color: var(--text-3);
     margin-left: 2px;
+    letter-spacing: 0;
 }
 
 .days-remaining.warning { color: var(--warning); }
@@ -365,17 +518,6 @@
     opacity: 1;
 }
 
-/* layout，layout */
-.project-card .action-icon-btn {
-    opacity: 0;
-    transition: opacity var(--ease);
-}
-
-.project-card:hover .action-icon-btn,
-.project-card:focus-within .action-icon-btn {
-    opacity: 1;
-}
-
 .action-icon-btn {
     width: 28px;
     height: 28px;
@@ -386,13 +528,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--ease), color var(--ease), border-color var(--ease);
+    transition: background var(--ease), color var(--ease), border-color var(--ease), transform var(--ease-fast);
 }
 
 .action-icon-btn:hover {
     color: var(--text);
     border-color: var(--border-strong);
     background: var(--surface-muted);
+}
+
+.action-icon-btn:active {
+    transform: scale(0.94);
 }
 
 .action-icon-btn.danger:hover {
@@ -410,7 +556,7 @@
 .action-icon-btn svg {
     width: 14px;
     height: 14px;
-    stroke-width: 1.8;
+    stroke-width: 1.75;
 }
 
 .mailbox-card.disabled {
@@ -443,20 +589,21 @@
 
 .keyword-tag {
     padding: 1px 7px;
-    border-radius: 5px;
+    border-radius: var(--radius-xs);
     font-size: 11.5px;
     line-height: 18px;
     background: var(--accent-soft);
     color: var(--accent);
 }
 
-/* ==================== layout ==================== */
+/* ==================== Status badges ====================
+   Square-cornered, dot + label. Color only where it carries meaning. */
 .status-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 2px 9px;
-    border-radius: 999px;
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
@@ -470,40 +617,63 @@
     height: 6px;
     border-radius: 50%;
     background: currentColor;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .status-badge.success { background: var(--success-soft); color: var(--success); }
 .status-badge.warning { background: var(--warning-soft); color: var(--warning); }
 .status-badge.danger { background: var(--danger-soft); color: var(--danger); }
-.status-badge.info { background: var(--info-soft); color: var(--info); }
+.status-badge.info { background: var(--accent-soft); color: var(--accent); }
 .status-badge.muted { color: var(--text-3); }
 
 .error-text {
     color: var(--danger);
 }
 
-/* layout：layout，layout，layout */
-.project-card.failed {
-    border-color: var(--danger-border, var(--border));
+/* ==================== Skeletons ====================
+   Placeholders that match the card layout while the first request is in flight. */
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-sunken);
+    border-radius: 6px;
 }
 
-.project-card.failed .balance-value.unavailable {
-    color: var(--text-muted);
-    font-style: normal;
+.skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--surface), transparent);
+    opacity: 0.7;
+    animation: shimmer 1.4s ease-in-out infinite;
 }
 
-.project-status.failed {
-    background: var(--danger);
+@keyframes shimmer {
+    to { transform: translateX(100%); }
 }
 
-.detail-item.full-width {
-    grid-column: 1 / -1;
+.skeleton-text {
+    display: inline-block;
+    height: 0.9em;
+    width: 3ch;
+    vertical-align: middle;
 }
 
-.detail-value.failure-reason {
-    color: var(--danger);
-    font-size: 12px;
-    line-height: 1.4;
-    word-break: break-word;
+.skeleton-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 224px;
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
 }
+
+.skeleton-line { height: 12px; }
+.skeleton-line.lg { height: 28px; margin-top: 8px; }
+.skeleton-line.w-30 { width: 30%; }
+.skeleton-line.w-45 { width: 45%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-100 { width: 100%; height: 4px; margin-top: 4px; }

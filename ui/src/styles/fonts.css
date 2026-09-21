@@ -1,0 +1,20 @@
+/* Self-hosted Geist (UI text) and Geist Mono (figures). Both are variable fonts, so one
+   file covers weights 100-900. The url() paths point into the `geist` npm package;
+   build.mjs copies the files to /static/fonts so nothing is fetched from a third-party CDN
+   and the dashboard renders the same offline or behind a strict egress policy. */
+
+@font-face {
+    font-family: "Geist";
+    src: url("../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Geist Mono";
+    src: url("../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}

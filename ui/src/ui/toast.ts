@@ -1,11 +1,12 @@
-/* Implementation note. */
+/* Toast notifications: status dot, message, dismiss button. */
 
 import { byId } from '../dom.js';
+import { ICON_CLOSE } from './icons.js';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
-const AUTO_DISMISS_MS = 3000;
-const FADE_OUT_MS = 300;
+const AUTO_DISMISS_MS = 3200;
+const FADE_OUT_MS = 220;
 
 export function showToast(message: unknown, type: ToastType = 'info'): void {
   const container = byId('toast-container');
@@ -13,23 +14,33 @@ export function showToast(message: unknown, type: ToastType = 'info'): void {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
+  toast.setAttribute('role', type === 'error' || type === 'warning' ? 'alert' : 'status');
+
+  const dot = document.createElement('span');
+  dot.className = 'toast-dot';
+  dot.setAttribute('aria-hidden', 'true');
 
   const text = document.createElement('div');
-  text.style.flex = '1';
+  text.className = 'toast-message';
+  // Strip any leading emoji a server message might carry; the dot already signals the type.
   text.textContent = String(message).replace(/^[\p{Extended_Pictographic}️\s]+/u, '');
 
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
-  closeBtn.textContent = '×';
-  closeBtn.style.cssText =
-    'background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem; padding: 0; width: 24px; height: 24px;';
-  closeBtn.addEventListener('click', () => toast.remove());
+  closeBtn.className = 'toast-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.innerHTML = ICON_CLOSE;
 
-  toast.append(text, closeBtn);
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.animation = 'slideIn 0.3s ease reverse';
+  let dismissed = false;
+  const dismiss = (): void => {
+    if (dismissed) return;
+    dismissed = true;
+    toast.classList.add('leaving');
     setTimeout(() => toast.remove(), FADE_OUT_MS);
-  }, AUTO_DISMISS_MS);
+  };
+  closeBtn.addEventListener('click', dismiss);
+
+  toast.append(dot, text, closeBtn);
+  container.appendChild(toast);
+  setTimeout(dismiss, AUTO_DISMISS_MS);
 }

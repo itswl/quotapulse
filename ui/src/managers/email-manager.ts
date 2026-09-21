@@ -11,7 +11,9 @@ import type { EmailAlert, EmailAlertRecord, EmailScanState, MailboxConfig, Mailb
 import { byId, inputById, inputValue, isChecked, onClick, setChecked, setInputValue, toggleDisplay } from '../dom.js';
 import { escapeAttr, escapeHTML, formatCurrency, formatDate, getRelativeTime } from '../format.js';
 import { AppState } from '../state.js';
+import { confirmDialog } from '../ui/confirm.js';
 import { emptyState } from '../ui/empty.js';
+import { clearFieldErrors, requireFields } from '../ui/forms.js';
 import { ICON_DELETE, ICON_EDIT } from '../ui/icons.js';
 import { setLoading } from '../ui/loading.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
@@ -334,6 +336,7 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
 
 export function openEmailModal(mailbox: MailboxConfig | null = null): void {
   byId<HTMLFormElement>('email-form')?.reset();
+  clearFieldErrors('email-form');
   setInputValue('email-port', DEFAULT_PORT);
   setChecked('email-use-ssl', true);
   setChecked('email-enabled', true);
@@ -371,6 +374,16 @@ async function saveEmail(event: Event): Promise<void> {
   event.preventDefault();
 
   const isEdit = inputById('email-edit-mode').value === 'true';
+
+  clearFieldErrors('email-form');
+  const required: Array<[string, string]> = [
+    ['email-name', 'Display name is required'],
+    ['email-host', 'IMAP server is required'],
+    ['email-username', 'Email account is required'],
+  ];
+  if (!isEdit) required.push(['email-password', 'A password or app password is required for a new mailbox']);
+  if (!requireFields(required)) return;
+
   const data: MailboxPayload = {
     name: inputValue('email-name'),
     host: inputValue('email-host'),
@@ -382,15 +395,6 @@ async function saveEmail(event: Event): Promise<void> {
   // An empty password preserves the existing value.
   const password = inputById('email-password').value;
   if (password) data.password = password;
-
-  if (!data.name || !data.host || !data.username) {
-    showToast('Display name, IMAP server, and mailbox account are required', 'warning');
-    return;
-  }
-  if (!isEdit && !password) {
-    showToast('A password or app password is required for a new mailbox', 'warning');
-    return;
-  }
 
   const result = await mutate(ENDPOINTS.saveEmail, data, { success: isEdit ? 'Mailbox updated' : 'Mailbox added', fail: 'Save failed' });
   if (result) {
@@ -409,7 +413,12 @@ export function editEmail(name: string): void {
 }
 
 export async function deleteEmail(name: string): Promise<void> {
-  if (!confirm(`Delete mailbox "${name}"?\n\nThis action cannot be undone.`)) return;
+  const confirmed = await confirmDialog({
+    title: `Delete mailbox "${name}"?`,
+    message: 'This action cannot be undone.',
+    confirmLabel: 'Delete mailbox',
+  });
+  if (!confirmed) return;
   if (await mutate(ENDPOINTS.deleteEmail, { name }, { success: 'Mailbox deleted', fail: 'Delete failed' })) {
     await EmailManager.load(true);
   }

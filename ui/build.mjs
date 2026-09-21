@@ -5,7 +5,7 @@
 // Implementation note.
 
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, context } from 'esbuild';
@@ -28,6 +28,23 @@ const shared = {
   absWorkingDir: root,
 };
 
+/**
+ * Self-hosted web fonts. The CSS references the woff2 files inside the `geist` npm package;
+ * esbuild copies them next to app.css so the dashboard never loads fonts from a third-party CDN.
+ */
+const fontAssets = {
+  loader: { '.woff2': 'file' },
+  assetNames: 'fonts/[name]',
+  publicPath: '/static',
+};
+
+/* The Geist fonts are OFL-1.1 licensed; redistribution must ship the license text alongside them. */
+async function copyFontLicense() {
+  const fontsDir = join(staticDir, 'fonts');
+  await mkdir(fontsDir, { recursive: true });
+  await copyFile(resolve(root, 'node_modules/geist/LICENSE.txt'), join(fontsDir, 'OFL.txt'));
+}
+
 /* Implementation note. */
 async function emitHtml() {
   const [js, css] = await Promise.all([
@@ -41,7 +58,7 @@ async function emitHtml() {
 }
 
 async function reportSizes(buildId) {
-  const files = ['index.html', 'static/app.js', 'static/app.css'];
+  const files = ['index.html', 'static/app.js', 'static/app.css', 'static/fonts/Geist-Variable.woff2', 'static/fonts/GeistMono-Variable.woff2'];
   const { gzipSync, brotliCompressSync } = await import('node:zlib');
   console.log(`\nBuild ID ${buildId}`);
   for (const file of files) {
@@ -49,7 +66,7 @@ async function reportSizes(buildId) {
     const gz = gzipSync(buf, { level: 9 }).length;
     const br = brotliCompressSync(buf).length;
     console.log(
-      `  ${file.padEnd(16)} ${String(buf.length).padStart(7)} B  gzip ${String(gz).padStart(6)} B  br ${String(br).padStart(6)} B`,
+      `  ${file.padEnd(38)} ${String(buf.length).padStart(7)} B  gzip ${String(gz).padStart(6)} B  br ${String(br).padStart(6)} B`,
     );
   }
 }
@@ -60,6 +77,7 @@ async function buildApp() {
 
   await build({
     ...shared,
+    ...fontAssets,
     entryPoints: [
       { in: resolve(root, 'src/main.ts'), out: 'app' },
       { in: resolve(root, 'src/styles/index.css'), out: 'app' },
@@ -68,6 +86,7 @@ async function buildApp() {
     minify: true,
     sourcemap: false,
   });
+  await copyFontLicense();
 
   const buildId = await emitHtml();
   await reportSizes(buildId);
@@ -75,8 +94,10 @@ async function buildApp() {
 
 async function watchApp() {
   await mkdir(staticDir, { recursive: true });
+  await copyFontLicense();
   const ctx = await context({
     ...shared,
+    ...fontAssets,
     entryPoints: [
       { in: resolve(root, 'src/main.ts'), out: 'app' },
       { in: resolve(root, 'src/styles/index.css'), out: 'app' },

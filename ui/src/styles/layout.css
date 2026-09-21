@@ -1,20 +1,24 @@
-/* ==================== layout ==================== */
+/* ==================== Navigation ==================== */
 .navbar {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: var(--z-nav);
     background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    backdrop-filter: saturate(160%) blur(14px);
     border-bottom: 1px solid var(--border);
 }
 
 .nav-container {
-    max-width: 1280px;
+    max-width: var(--container);
     margin: 0 auto;
     padding: 0 24px;
     height: 56px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
 }
 
 .nav-brand {
@@ -23,30 +27,67 @@
     gap: 10px;
     font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.01em;
 }
 
 .brand-icon {
     width: 26px;
     height: 26px;
-    border-radius: 7px;
-    background: var(--text);
-    color: var(--surface);
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--on-ink);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    font-family: var(--mono);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.brand-icon .icon {
+    width: 17px;
+    height: 17px;
+    stroke-width: 2.4;
 }
 
 .brand-text {
     color: var(--text);
 }
 
+/* Live status: last successful data update, pushed to the right of the brand. */
+.nav-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+    padding-left: 18px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.nav-status strong {
+    font-weight: 500;
+    color: var(--text-2);
+}
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+    animation: live-pulse 2.6s var(--ease-out) infinite;
+}
+
+@keyframes live-pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 45%, transparent); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 .nav-actions {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
 .btn-icon {
@@ -58,7 +99,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--ease), color var(--ease), border-color var(--ease);
+    transition: background var(--ease), color var(--ease), border-color var(--ease), transform var(--ease-fast);
 }
 
 .btn-icon:hover {
@@ -67,10 +108,14 @@
     border-color: var(--border);
 }
 
+.btn-icon:active {
+    transform: scale(0.94);
+}
+
 .btn-icon .icon {
     width: 16px;
     height: 16px;
-    stroke-width: 1.8;
+    stroke-width: 1.75;
 }
 
 .btn-icon.rotating .icon {
@@ -81,30 +126,43 @@
     to { transform: rotate(360deg); }
 }
 
-/* ==================== layout ==================== */
-.main-container {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 28px 24px 64px;
+/* The theme toggle is a half-filled disc; the filled half swaps sides with the theme. */
+.icon-theme {
+    transition: transform 0.45s var(--ease-out);
 }
 
-/* ==================== layout ====================
-   layout，layout。 */
+[data-theme="dark"] .icon-theme {
+    transform: rotate(180deg);
+}
+
+/* ==================== Page ==================== */
+.main-container {
+    max-width: var(--container);
+    margin: 0 auto;
+    padding: 32px 24px 56px;
+}
+
+/* ==================== Overview band ====================
+   One instrument panel: the shortest runway is the hero figure, the three counters
+   sit beside it. Deliberately asymmetric so the eye lands on what matters. */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr));
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
     overflow: hidden;
 }
 
 .stat-card {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 18px 22px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 22px 24px;
     border-right: 1px solid var(--border);
 }
 
@@ -112,66 +170,84 @@
     border-right: none;
 }
 
-.stat-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: var(--surface-muted);
-    color: var(--text-2);
-}
-
-.stat-icon svg {
-    width: 16px;
-    height: 16px;
-    stroke-width: 1.8;
-}
-
-.stat-icon.primary { background: var(--accent-soft); color: var(--accent); }
-.stat-icon.success { background: var(--success-soft); color: var(--success); }
-.stat-icon.warning { background: var(--warning-soft); color: var(--warning); }
-.stat-icon.info { background: var(--info-soft); color: var(--info); }
-
-.stat-content {
-    min-width: 0;
+.stat-card.hero {
+    padding: 24px 28px;
+    background: linear-gradient(135deg, var(--accent-soft), transparent 62%);
 }
 
 .stat-label {
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 500;
     color: var(--text-3);
-    margin-bottom: 2px;
 }
+
+.stat-label > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stat-card.hero .stat-label {
+    white-space: normal;
+}
+
+.stat-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-3);
+}
+
+.stat-dot.success { background: var(--success); }
+.stat-dot.danger { background: var(--danger); }
 
 .stat-value {
-    font-size: 24px;
+    font-family: var(--mono);
+    font-size: 26px;
     font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+    color: var(--text);
 }
 
-.stat-value.small {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text-2);
+.stat-card.hero .stat-value {
+    font-size: clamp(26px, 2.4vw + 8px, 40px);
+    letter-spacing: -0.03em;
+    overflow-wrap: anywhere;
 }
 
-/* layout：layout，layout */
+.stat-hint {
+    margin-top: 2px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-3);
+    max-width: 46ch;
+}
+
+.stat-hint:empty {
+    display: none;
+}
+
+/* Runway urgency colors are shared by the hero figure and the card detail rows. */
 .runway-danger { color: var(--danger); }
 .runway-warning { color: var(--warning); }
 .runway-unknown { color: var(--text-3); }
 .detail-item[title] { cursor: help; }
 
-/* ==================== layout（layout） ==================== */
+/* ==================== View switcher (segmented control) ==================== */
 .quick-actions {
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    margin-bottom: 20px;
-    background: var(--surface);
+    margin-bottom: 28px;
+    background: var(--surface-sunken);
     border: 1px solid var(--border);
     border-radius: var(--radius);
 }
@@ -180,59 +256,71 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 14px;
+    padding: 6px 13px;
     border-radius: 7px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-2);
-    transition: background var(--ease), color var(--ease);
+    transition: background var(--ease), color var(--ease), box-shadow var(--ease), transform var(--ease-fast);
 }
 
 .action-btn svg {
     width: 15px;
     height: 15px;
-    stroke-width: 1.8;
+    stroke-width: 1.75;
 }
 
 .action-btn:hover {
     color: var(--text);
-    background: var(--surface-muted);
+}
+
+.action-btn:active {
+    transform: scale(0.98);
 }
 
 .action-btn.active {
     color: var(--text);
-    background: var(--surface-muted);
-    box-shadow: inset 0 0 0 1px var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
 }
 
-/* ==================== layout ==================== */
+/* ==================== Content sections ====================
+   Sections are plain regions on the page background; only the cards inside them are
+   surfaces. This avoids the box-inside-a-box look. */
 .content-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    margin-bottom: 20px;
+    margin-bottom: 44px;
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-end;
+    gap: 16px 24px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
+}
+
+.section-heading {
+    min-width: 0;
 }
 
 .section-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+}
+
+.section-subtitle {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--text-3);
 }
 
 .section-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -248,7 +336,7 @@
     width: 14px;
     height: 14px;
     color: var(--text-3);
-    stroke-width: 1.8;
+    stroke-width: 1.75;
     pointer-events: none;
 }
 
@@ -261,6 +349,7 @@
     background: var(--surface);
     color: var(--text);
     font-size: 13px;
+    box-shadow: var(--shadow-sm);
     transition: border-color var(--ease), box-shadow var(--ease);
 }
 
@@ -273,17 +362,52 @@
     color: var(--text-3);
 }
 
+#search-input:hover,
+.filter-select:hover {
+    border-color: var(--border-strong);
+}
+
 #search-input:focus,
 .filter-select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .filter-select {
     padding-right: 28px;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b929d' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a919c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
+}
+
+/* ==================== Footer ==================== */
+.site-footer {
+    max-width: var(--container);
+    margin: 0 auto;
+    padding: 0 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+
+.site-footer a {
+    color: var(--text-2);
+    text-decoration: none;
+    transition: color var(--ease);
+}
+
+.site-footer a:hover {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.site-footer nav {
+    display: flex;
+    gap: 16px;
 }

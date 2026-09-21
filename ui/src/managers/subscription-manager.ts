@@ -6,6 +6,8 @@ import type { CycleType, SubscriptionConfig, SubscriptionPayload, SubscriptionRe
 import { byId, inputById, inputValue, isChecked, onClick, selectById, setChecked, setInputValue } from '../dom.js';
 import { reloadSubscriptions } from '../data.js';
 import { AppState } from '../state.js';
+import { confirmDialog } from '../ui/confirm.js';
+import { clearFieldErrors, requireFields } from '../ui/forms.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
 
@@ -67,6 +69,7 @@ type EditableSubscription = SubscriptionConfig | SubscriptionResult;
 
 export function openSubscriptionModal(subscription: EditableSubscription | null = null): void {
   byId<HTMLFormElement>('subscription-form')?.reset();
+  clearFieldErrors('subscription-form');
   populateProjectOptions(subscription?.owner_project ?? '');
 
   const title = byId('modal-title');
@@ -103,6 +106,14 @@ async function saveSubscription(event: Event): Promise<void> {
 
   const isEdit = inputById('edit-mode').value === 'true';
   const originalName = inputById('original-name').value;
+
+  clearFieldErrors('subscription-form');
+  const valid = requireFields([
+    ['sub-name', 'Subscription name is required'],
+    ['sub-amount', 'Renewal amount is required'],
+    ['sub-renewal-day', 'Renewal day is required'],
+  ]);
+  if (!valid) return;
 
   const data: SubscriptionPayload = {
     name: inputValue('sub-name'),
@@ -154,7 +165,12 @@ export async function editSubscription(name: string): Promise<void> {
 }
 
 export async function deleteSubscription(name: string): Promise<void> {
-  if (!confirm(`Delete subscription "${name}"?\n\nThis action cannot be undone.`)) return;
+  const confirmed = await confirmDialog({
+    title: `Delete subscription "${name}"?`,
+    message: 'This action cannot be undone.',
+    confirmLabel: 'Delete subscription',
+  });
+  if (!confirmed) return;
   if (await mutate(ENDPOINTS.deleteSubscription, { name }, { success: 'Subscription deleted', fail: 'Delete failed' })) {
     await reloadSubscriptions();
   }

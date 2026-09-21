@@ -1,6 +1,10 @@
-/* ==================== layout ==================== */
+/* ==================== Buttons ====================
+   Primary = ink (near-black / near-white). Secondary = bordered surface.
+   Ghost = text only, used for Cancel. Danger = destructive confirmation. */
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-ghost,
+.btn-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -10,35 +14,54 @@
     border-radius: var(--radius-sm);
     font-size: 13px;
     font-weight: 500;
-    transition: background var(--ease), border-color var(--ease), color var(--ease);
+    white-space: nowrap;
+    transition: background var(--ease), border-color var(--ease), color var(--ease), box-shadow var(--ease), transform var(--ease-fast);
 }
 
-.btn-primary {
-    background: var(--accent);
-    color: #fff;
-    border: 1px solid var(--accent);
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-danger:active {
+    transform: translateY(1px) scale(0.99);
 }
 
-.btn-primary:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-}
-
-.btn-primary:disabled {
-    opacity: 0.55;
-    cursor: wait;
-}
-
-.btn-primary svg {
+.btn-primary svg,
+.btn-secondary svg,
+.btn-ghost svg,
+.btn-danger svg {
     width: 14px;
     height: 14px;
     stroke-width: 2;
+}
+
+.btn-primary {
+    background: var(--ink);
+    color: var(--on-ink);
+    border: 1px solid var(--ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.btn-primary:hover {
+    background: var(--ink-hover);
+    border-color: var(--ink-hover);
+}
+
+[data-theme="dark"] .btn-primary {
+    box-shadow: none;
+}
+
+.btn-primary:disabled,
+.btn-danger:disabled {
+    opacity: 0.55;
+    cursor: wait;
+    transform: none;
 }
 
 .btn-secondary {
     background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
@@ -46,99 +69,195 @@
     background: var(--surface-muted);
 }
 
-/* ==================== layout ==================== */
+.btn-ghost {
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid transparent;
+}
+
+.btn-ghost:hover {
+    color: var(--text);
+    background: var(--surface-muted);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #ffffff;
+    border: 1px solid var(--danger);
+}
+
+.btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 88%, #000);
+    border-color: color-mix(in srgb, var(--danger) 88%, #000);
+}
+
+/* ==================== Loading ====================
+   A thin indeterminate bar at the top of the viewport instead of a blocking overlay. */
 .loading-overlay {
     position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(15, 17, 21, 0.35);
-    z-index: 9999;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: var(--z-loading);
+    background: var(--accent-soft);
     opacity: 0;
     pointer-events: none;
+    overflow: hidden;
     transition: opacity 0.2s ease;
 }
 
 .loading-overlay.active {
     opacity: 1;
-    pointer-events: all;
 }
 
-.loading-spinner {
-    background: var(--surface);
-    padding: 20px 28px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-lg);
-    text-align: center;
-    font-size: 13px;
-    color: var(--text-2);
+.loading-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+    animation: loading-slide 1.2s var(--ease-out) infinite;
 }
 
-.spinner {
-    width: 22px;
-    height: 22px;
-    margin: 0 auto 10px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: rotate 0.8s linear infinite;
+@keyframes loading-slide {
+    0% { transform: translateX(-100%); }
+    60% { transform: translateX(170%); }
+    100% { transform: translateX(260%); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .loading-bar {
+        animation: none;
+        width: 100%;
+        opacity: 0.7;
+    }
+}
+
+/* ==================== Toasts ==================== */
 .toast-container {
     position: fixed;
     top: 68px;
     right: 24px;
-    z-index: 10000;
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
     gap: 8px;
+    pointer-events: none;
 }
 
 .toast {
+    pointer-events: auto;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    align-items: flex-start;
+    gap: 10px;
     min-width: 260px;
     max-width: 380px;
-    padding: 10px 14px;
+    padding: 11px 10px 11px 14px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
     font-size: 13px;
-    animation: slideIn 0.2s ease;
+    line-height: 1.45;
+    animation: toast-in 0.32s var(--ease-out);
 }
 
-@keyframes slideIn {
-    from { transform: translateY(-6px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+.toast.leaving {
+    animation: toast-out 0.22s ease-in forwards;
 }
 
-.toast.success { border-left-color: var(--success); }
-.toast.error { border-left-color: var(--danger); }
-.toast.warning { border-left-color: var(--warning); }
-.toast.info { border-left-color: var(--info); }
+.toast-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+}
 
-/* ==================== layout ==================== */
+.toast.success .toast-dot { background: var(--success); }
+.toast.error .toast-dot { background: var(--danger); }
+.toast.warning .toast-dot { background: var(--warning); }
+
+.toast-message {
+    flex: 1;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.toast-close {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    color: var(--text-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--ease), color var(--ease);
+}
+
+.toast-close:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+}
+
+.toast-close svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes toast-out {
+    to { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+/* ==================== Empty, error and getting-started states ==================== */
 .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
-    padding: 48px 24px;
+    padding: 56px 24px;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+}
+
+.empty-state.compact {
+    padding: 32px 16px;
+}
+
+.empty-icon {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
     color: var(--text-2);
 }
 
-.empty-state svg {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 12px;
-    color: var(--text-3);
-    stroke-width: 1.4;
+.empty-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.6;
 }
 
 .empty-state h3 {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 4px;
@@ -146,9 +265,24 @@
 
 .empty-state p {
     font-size: 13px;
+    line-height: 1.55;
     color: var(--text-3);
+    max-width: 46ch;
 }
 
-.empty-state.compact {
-    padding: 28px 16px;
+.empty-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.empty-state.error {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.empty-state.error .empty-icon {
+    background: var(--danger-soft);
+    border-color: transparent;
+    color: var(--danger);
 }

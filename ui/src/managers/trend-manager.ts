@@ -2,9 +2,10 @@
 
 import { getTrend } from '../api/endpoints.js';
 import type { TrendData, TrendResponse } from '../api/types.js';
-import { LineChart } from '../chart/line-chart.js';
+import { LineChart, type ChartTheme } from '../chart/line-chart.js';
 import { byId, requireById } from '../dom.js';
 import { escapeHTML, formatCurrency } from '../format.js';
+import { ICON_INFO_CIRCLE } from '../ui/icons.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
 import { setLoading } from '../ui/loading.js';
 
@@ -35,19 +36,12 @@ export async function showProjectTrend(projectName: string, provider: string): P
       if (statsContainer) {
         const message = data && 'message' in data && data.message ? data.message : 'No historical data yet';
         statsContainer.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto 1rem;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <p>${escapeHTML(message)}</p>
-                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">
-                        Hint: enable the database to view trend charts<br>
-                        Set ENABLE_DATABASE=true in Settings and restart the service
-                    </p>
-                </div>
-            `;
+            <div class="trend-empty">
+                ${ICON_INFO_CIRCLE}
+                <p>${escapeHTML(message)}</p>
+                <p class="hint">Trend charts need balance history. Set ENABLE_DATABASE=true and ENABLE_HISTORY_API=true, then restart the service.</p>
+            </div>
+        `;
       }
       return;
     }
@@ -61,8 +55,8 @@ export async function showProjectTrend(projectName: string, provider: string): P
     if (statsContainer) {
       const message = error instanceof Error ? error.message : String(error);
       statsContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--danger);">
-                <p>Load failed：${escapeHTML(message)}</p>
+            <div class="trend-empty error">
+                <p>Load failed: ${escapeHTML(message)}</p>
             </div>
         `;
     }
@@ -104,6 +98,24 @@ export function renderTrendStats(trendData: TrendData): string {
     .join('');
 }
 
+/* Read a design token so the chart uses the same palette and fonts as the page. */
+function cssVar(name: string, fallback: string): string {
+  if (typeof getComputedStyle !== 'function') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function chartTheme(dark: boolean): ChartTheme {
+  return {
+    text: cssVar('--text-2', dark ? '#a4acb8' : '#5b626e'),
+    grid: cssVar('--border', dark ? '#252a33' : '#e5e7eb'),
+    tooltipBg: cssVar('--surface', dark ? '#15181d' : '#ffffff'),
+    tooltipBorder: cssVar('--border-strong', dark ? '#343b47' : '#cfd4dc'),
+    font: cssVar('--font', 'sans-serif'),
+    mono: cssVar('--mono', 'monospace'),
+  };
+}
+
 function renderTrendChart(trendData: TrendData): void {
   const canvas = requireById<HTMLCanvasElement>('trend-chart');
   const history = trendData.history || [];
@@ -113,18 +125,19 @@ function renderTrendChart(trendData: TrendData): void {
   const options = {
     labels,
     dark,
+    theme: chartTheme(dark),
     formatValue: (value: number): string => formatCurrency(value),
     series: [
       {
         label: 'Balance',
         values: history.map((h) => h.balance),
-        color: '#6366f1',
-        fill: 'rgba(99, 102, 241, 0.1)',
+        color: cssVar('--accent', '#3358d4'),
+        fill: cssVar('--chart-fill', 'rgba(51, 88, 212, 0.14)'),
       },
       {
         label: 'Alert threshold',
         values: labels.map(() => trendData.threshold),
-        color: '#ef4444',
+        color: cssVar('--danger', '#d64545'),
         dashed: true,
         showPoints: false,
       },
