@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3.5 -3.5 31 31" width="44" height="44" role="img" aria-label="sliders">
+  <rect x="-3.5" y="-3.5" width="31" height="31" rx="6" fill="#ffffff" stroke="#e2e5ea" stroke-width="0.4"/>
+  <g fill="none" stroke="#15171b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8.5M17.5 7H20M4 12h2.5M11.5 12H20M4 17h9.5M18.5 17H20"/>
+                <circle cx="15" cy="7" r="2"/>
+                <circle cx="9" cy="12" r="2"/>
+                <circle cx="16" cy="17" r="2"/></g>
+</svg>
