@@ -6,7 +6,7 @@ to match what each control actually does — the theme toggle is a half-filled d
 than a sun, settings are sliders rather than a gear, subscriptions are a renewal cycle
 rather than a calendar.
 
-For how the interface looks in practice, see [screenshots.md](screenshots.md).
+For how the interface looks in practice, see [overview.md](overview.md).
 
 ## Where the icons live
 
