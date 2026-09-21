@@ -6,6 +6,8 @@
 
 默认只开余额检查、Webhook 告警和 Web 看板；数据库、动态配置、订阅、Prometheus 用 `ENABLE_*` 开关按需打开。
 
+界面与各功能的截图速览见 [docs/overview.md](docs/overview.md)，图标系统说明见 [docs/icons.md](docs/icons.md)。
+
 ## 快速开始
 
 ```bash
