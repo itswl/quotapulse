@@ -10,8 +10,6 @@ on:
   push:
     tags:
       - "v*"
-  # Implementation note.
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -75,7 +73,11 @@ jobs:
 
   image:
     needs: test
+    if: ${{ github.event.created }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -134,7 +136,7 @@ jobs:
   # the notes never announce a container that failed to build.
   release:
     needs: [test, image]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event.created
     runs-on: ubuntu-latest
     permissions:
       contents: write
