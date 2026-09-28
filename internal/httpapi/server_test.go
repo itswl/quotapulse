@@ -17,6 +17,7 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/monitor"
 	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/push"
 	"github.com/itswl/quotapulse/internal/state"
 	"github.com/itswl/quotapulse/internal/store"
 	"github.com/itswl/quotapulse/internal/subscription"
@@ -427,6 +428,63 @@ func TestNotifyTestEndpoint(t *testing.T) {
 	rec = post(build(nil))
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "not configured") {
 		t.Fatalf("未配置 webhook 应报 400 并说明: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPushEndpoints(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1"}
+	st := store.Null()
+	s := &Server{
+		Settings: settings, Resolver: config.NewResolver(settings, st, log), Store: st,
+		State: state.New(), Log: log, Push: push.New(st),
+	}
+	handler := s.Handler()
+	call := func(method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("X-API-Key", testAPIKey)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := call(http.MethodGet, "/api/push/config", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("push config 应返回 VAPID 公钥: %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "publicKey") {
+		t.Fatalf("push config 应带 publicKey 字段: %s", rec.Body.String())
+	}
+
+	subscribe := `{"endpoint":"https://push.example.com/sub/1","keys":{"p256dh":"k1","auth":"a1"}}`
+	if rec := call(http.MethodPost, "/api/push/subscribe", subscribe); rec.Code != http.StatusOK {
+		t.Fatalf("订阅应成功: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := call(http.MethodPost, "/api/push/subscribe", `{"endpoint":""}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("缺 endpoint 应拒绝: %d", rec.Code)
+	}
+
+	// 用真实存储验证订阅确实被持久化
+	realStore, storeErr := store.Open(context.Background(), store.Options{DatabaseURL: "sqlite://" + filepath.Join(t.TempDir(), "push.db")})
+	if storeErr != nil {
+		t.Fatalf("open store: %v", storeErr)
+	}
+	defer realStore.Close()
+	s2 := &Server{
+		Settings: settings, Resolver: config.NewResolver(settings, realStore, log), Store: realStore,
+		State: state.New(), Log: log, Push: push.New(realStore),
+	}
+	handler2 := s2.Handler()
+	req := httptest.NewRequest(http.MethodPost, "/api/push/subscribe", strings.NewReader(subscribe))
+	req.Header.Set("X-API-Key", testAPIKey)
+	rec2 := httptest.NewRecorder()
+	handler2.ServeHTTP(rec2, req)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("持久化订阅应成功: %d", rec2.Code)
+	}
+	subs, listErr := realStore.ListPushSubscriptions(context.Background())
+	if listErr != nil || len(subs) != 1 || subs[0].Endpoint != "https://push.example.com/sub/1" {
+		t.Fatalf("订阅应落库: %v %v", subs, listErr)
 	}
 }
 

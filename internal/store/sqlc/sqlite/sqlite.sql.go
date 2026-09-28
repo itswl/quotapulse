@@ -197,6 +197,15 @@ func (q *Queries) DeleteProjectConfig(ctx context.Context, name string) error {
 	return err
 }
 
+const deletePushSubscription = `-- name: DeletePushSubscription :exec
+DELETE FROM push_subscriptions WHERE endpoint = ?
+`
+
+func (q *Queries) DeletePushSubscription(ctx context.Context, endpoint string) error {
+	_, err := q.db.ExecContext(ctx, deletePushSubscription, endpoint)
+	return err
+}
+
 const deleteSubscriptionConfig = `-- name: DeleteSubscriptionConfig :exec
 DELETE FROM subscription_config WHERE name = ?
 `
@@ -204,6 +213,17 @@ DELETE FROM subscription_config WHERE name = ?
 func (q *Queries) DeleteSubscriptionConfig(ctx context.Context, name string) error {
 	_, err := q.db.ExecContext(ctx, deleteSubscriptionConfig, name)
 	return err
+}
+
+const getAppSetting = `-- name: GetAppSetting :one
+SELECT setting_value FROM app_settings WHERE setting_key = ?
+`
+
+func (q *Queries) GetAppSetting(ctx context.Context, settingKey string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getAppSetting, settingKey)
+	var setting_value string
+	err := row.Scan(&setting_value)
+	return setting_value, err
 }
 
 const insertAlertHistory = `-- name: InsertAlertHistory :exec
@@ -648,6 +668,39 @@ func (q *Queries) ListProjectConfigs(ctx context.Context) ([]ProjectConfig, erro
 	return items, nil
 }
 
+const listPushSubscriptions = `-- name: ListPushSubscriptions :many
+SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY id
+`
+
+type ListPushSubscriptionsRow struct {
+	Endpoint string
+	P256dh   string
+	Auth     string
+}
+
+func (q *Queries) ListPushSubscriptions(ctx context.Context) ([]ListPushSubscriptionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPushSubscriptions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPushSubscriptionsRow{}
+	for rows.Next() {
+		var i ListPushSubscriptionsRow
+		if err := rows.Scan(&i.Endpoint, &i.P256dh, &i.Auth); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSubscriptionConfigs = `-- name: ListSubscriptionConfigs :many
 SELECT id, name, owner_project, cycle_type, renewal_day, alert_days_before, amount, enabled, last_renewed_date, snoozed_until, timezone, webhook_url, created_at, updated_at FROM subscription_config ORDER BY id
 `
@@ -688,6 +741,21 @@ func (q *Queries) ListSubscriptionConfigs(ctx context.Context) ([]SubscriptionCo
 		return nil, err
 	}
 	return items, nil
+}
+
+const setAppSetting = `-- name: SetAppSetting :exec
+INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+ON CONFLICT (setting_key) DO UPDATE SET setting_value = excluded.setting_value
+`
+
+type SetAppSettingParams struct {
+	SettingKey   string
+	SettingValue string
+}
+
+func (q *Queries) SetAppSetting(ctx context.Context, arg SetAppSettingParams) error {
+	_, err := q.db.ExecContext(ctx, setAppSetting, arg.SettingKey, arg.SettingValue)
+	return err
 }
 
 const setSubscriptionSnooze = `-- name: SetSubscriptionSnooze :exec
@@ -838,6 +906,32 @@ func (q *Queries) UpsertProjectConfig(ctx context.Context, arg UpsertProjectConf
 		arg.Enabled,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+	)
+	return err
+}
+
+const upsertPushSubscription = `-- name: UpsertPushSubscription :exec
+INSERT INTO push_subscriptions (endpoint, p256dh, auth, created_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (endpoint) DO UPDATE SET
+    p256dh = excluded.p256dh,
+    auth = excluded.auth,
+    created_at = excluded.created_at
+`
+
+type UpsertPushSubscriptionParams struct {
+	Endpoint  string
+	P256dh    string
+	Auth      string
+	CreatedAt sql.NullTime
+}
+
+func (q *Queries) UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) error {
+	_, err := q.db.ExecContext(ctx, upsertPushSubscription,
+		arg.Endpoint,
+		arg.P256dh,
+		arg.Auth,
+		arg.CreatedAt,
 	)
 	return err
 }

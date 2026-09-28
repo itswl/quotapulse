@@ -88,6 +88,9 @@ export const ENDPOINTS = {
   subscriptionWebhook: '/api/subscription/webhook',
   emailSuppressionAdd: '/api/email/suppression',
   emailSuppressionDelete: '/api/email/suppression/delete',
+  pushConfig: '/api/push/config',
+  pushSubscribe: '/api/push/subscribe',
+  pushUnsubscribe: '/api/push/unsubscribe',
     saveEmail: '/api/config/email',
   deleteEmail: '/api/config/email/delete',
 } as const;

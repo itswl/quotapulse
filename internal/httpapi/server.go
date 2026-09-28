@@ -13,6 +13,7 @@ import (
 	"github.com/itswl/quotapulse/internal/mailscan"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/monitor"
+	"github.com/itswl/quotapulse/internal/push"
 	"github.com/itswl/quotapulse/internal/state"
 	"github.com/itswl/quotapulse/internal/store"
 	"github.com/itswl/quotapulse/internal/subscription"
@@ -41,6 +42,7 @@ type Server struct {
 
 	refreshGuard cooldown
 	scanGuard    cooldown
+	Push         *push.Manager
 }
 
 // Implementation note.
@@ -66,6 +68,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
+	mux.HandleFunc("GET /api/push/config", s.handlePushConfig)
+	mux.HandleFunc("POST /api/push/subscribe", s.handlePushSubscribe)
+	mux.HandleFunc("POST /api/push/unsubscribe", s.handlePushUnsubscribe)
 	mux.HandleFunc("POST /api/subscription/snooze", s.handleSubscriptionSnooze)
 	mux.HandleFunc("POST /api/subscription/timezone", s.handleSubscriptionTimezone)
 	mux.HandleFunc("POST /api/subscription/webhook", s.handleSubscriptionWebhook)

@@ -318,3 +318,10 @@ type EmailSuppression struct {
 	Mailbox string `json:"mailbox"`
 	Sender  string `json:"sender"`
 }
+
+// PushSubscription is one browser's Web Push registration.
+type PushSubscription struct {
+	Endpoint string `json:"endpoint"`
+	P256dh   string `json:"p256dh"`
+	Auth     string `json:"auth"`
+}

@@ -20,6 +20,11 @@ type AlertHistory struct {
 	Timestamp      sql.NullTime
 }
 
+type AppSetting struct {
+	SettingKey   string
+	SettingValue string
+}
+
 type BalanceHistory struct {
 	ID          int64
 	ProjectID   string
@@ -76,6 +81,14 @@ type ProjectConfig struct {
 	Enabled      sql.NullBool
 	CreatedAt    sql.NullTime
 	UpdatedAt    sql.NullTime
+}
+
+type PushSubscription struct {
+	ID        int64
+	Endpoint  string
+	P256dh    string
+	Auth      string
+	CreatedAt sql.NullTime
 }
 
 type SubscriptionConfig struct {

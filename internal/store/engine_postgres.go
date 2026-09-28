@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	gen "github.com/itswl/quotapulse/internal/store/sqlc/postgres"
@@ -214,4 +215,35 @@ func (e postgresQuerier) listEmailSuppressions(ctx context.Context) ([]emailSupp
 		return nil, err
 	}
 	return mapRows(rows, func(r gen.ListEmailSuppressionsRow) emailSuppressionRow { return emailSuppressionRow(r) }), nil
+}
+
+func (e postgresQuerier) listPushSubscriptions(ctx context.Context) ([]pushSubscriptionRow, error) {
+	rows, err := e.q.ListPushSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapRows(rows, func(r gen.ListPushSubscriptionsRow) pushSubscriptionRow { return pushSubscriptionRow(r) }), nil
+}
+
+func (e postgresQuerier) upsertPushSubscription(ctx context.Context, arg upsertPushSubscriptionParams) error {
+	return e.q.UpsertPushSubscription(ctx, gen.UpsertPushSubscriptionParams(arg))
+}
+
+func (e postgresQuerier) deletePushSubscription(ctx context.Context, arg deletePushSubscriptionParams) error {
+	return e.q.DeletePushSubscription(ctx, arg.Endpoint)
+}
+
+func (e postgresQuerier) getAppSetting(ctx context.Context, key string) (string, error) {
+	value, err := e.q.GetAppSetting(ctx, key)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return value, nil
+}
+
+func (e postgresQuerier) setAppSetting(ctx context.Context, arg setAppSettingParams) error {
+	return e.q.SetAppSetting(ctx, gen.SetAppSettingParams(arg))
 }

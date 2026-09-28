@@ -41,6 +41,8 @@ const fontAssets = {
 /** Hand-maintained web app assets: the installable-app manifest and home-screen icons. */
 async function copyWebAssets() {
   await cp(resolve(root, 'www'), staticDir, { recursive: true });
+  // The service worker lives at the dist root so its scope covers the whole origin.
+  await copyFile(resolve(root, 'www/sw.js'), join(outdir, 'sw.js'));
 }
 
 /* The Geist fonts are OFL-1.1 licensed; redistribution must ship the license text alongside them. */

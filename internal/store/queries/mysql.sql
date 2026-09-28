@@ -165,3 +165,21 @@ DELETE FROM email_suppressions WHERE mailbox = ? AND sender = ?;
 -- name: ListEmailSuppressions :many
 SELECT mailbox, sender FROM email_suppressions ORDER BY id;
 
+-- name: ListPushSubscriptions :many
+SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY id;
+
+-- name: UpsertPushSubscription :exec
+INSERT INTO push_subscriptions (endpoint, p256dh, auth, created_at)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE p256dh = VALUES(p256dh), auth = VALUES(auth), created_at = VALUES(created_at);
+
+-- name: DeletePushSubscription :exec
+DELETE FROM push_subscriptions WHERE endpoint = ?;
+
+-- name: GetAppSetting :one
+SELECT setting_value FROM app_settings WHERE setting_key = ?;
+
+-- name: SetAppSetting :exec
+INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
+

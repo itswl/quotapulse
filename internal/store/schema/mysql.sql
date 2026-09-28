@@ -116,3 +116,18 @@ CREATE TABLE IF NOT EXISTS email_suppressions (
     UNIQUE KEY uq_email_suppressions_mailbox_sender (mailbox, sender)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    endpoint VARCHAR(500) NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_push_subscriptions_endpoint (endpoint)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(200) NOT NULL PRIMARY KEY,
+    setting_value TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

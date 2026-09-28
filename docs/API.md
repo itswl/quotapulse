@@ -24,6 +24,9 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `POST /api/subscription/timezone` | Evaluates one subscription in `timezone` (IANA name); empty resets to server time | `ENABLE_DYNAMIC_CONFIG` |
 | `POST /api/subscription/webhook` | Points one subscription at its own webhook URL; empty resets to the global webhook | `ENABLE_DYNAMIC_CONFIG` |
 | `GET /api/email/suppressions` | Lists the mailbox+sender pairs muted as false positives | History API |
+| `GET /api/push/config` | Returns the VAPID public key browsers subscribe with (generated and persisted on first use) | `WEB_API_KEY` |
+| `POST /api/push/subscribe` | Registers or refreshes one browser's Web Push subscription (`endpoint`, `keys.p256dh`, `keys.auth`) | `WEB_API_KEY` |
+| `POST /api/push/unsubscribe` | Removes one browser's push registration by `endpoint` | `WEB_API_KEY` |
 | `POST /api/email/suppression` | Mutes a mailbox+sender pair; matched emails stay in history but stop notifying | History API |
 | `POST /api/email/suppression/delete` | Removes a suppression so the sender notifies again | History API |
 | `GET /api/events` | Unified event timeline merging alert history and email alerts, newest first; accepts `days`, `limit`, `type` | History API |

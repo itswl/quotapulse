@@ -13,6 +13,7 @@ import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.j
 import { AppState, parseRefreshMinutes, writeStorage } from '../state.js';
 import { bindModalClose, openModal } from '../ui/modal.js';
 import { formatServerCadence } from '../format.js';
+import { disablePush, enablePush, pushState } from '../ui/push.js';
 import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'settings-modal';
@@ -37,6 +38,7 @@ export function openSettingsModal(): void {
   openModal(MODAL_ID);
   void loadServerCadence();
   void loadAboutVersion();
+  void syncPushButton();
 }
 
 /**
@@ -55,6 +57,50 @@ async function loadAboutVersion(): Promise<void> {
   } catch (error) {
     console.warn('Version unavailable:', error);
     line.hidden = true;
+  }
+}
+
+/** Reflect the browser push state on the toggle button and status line. */
+async function syncPushButton(): Promise<void> {
+  const button = byId<HTMLButtonElement>('push-toggle-btn');
+  const status = byId('push-status');
+  if (!button || !status) return;
+
+  let state;
+  try {
+    state = await pushState();
+  } catch {
+    return;
+  }
+  if (!state.supported) {
+    button.hidden = true;
+    status.hidden = false;
+    status.textContent = 'Push notifications are not supported in this browser';
+    return;
+  }
+  button.hidden = false;
+  button.textContent = state.enabled ? 'Disable browser push' : 'Enable browser push';
+  if (state.permission === 'denied') {
+    status.hidden = false;
+    status.textContent = 'Notifications are blocked for this site in the browser settings';
+  } else {
+    status.hidden = true;
+  }
+}
+
+async function togglePush(): Promise<void> {
+  const button = byId<HTMLButtonElement>('push-toggle-btn');
+  if (!button) return;
+  const enabling = (button.textContent ?? '').startsWith('Enable');
+  button.disabled = true;
+  try {
+    const state = enabling ? await enablePush() : await disablePush();
+    showToast(state.enabled ? 'Browser push enabled' : 'Browser push disabled', 'success');
+  } catch (error) {
+    showToast(error instanceof Error && error.message ? error.message : 'Push setup failed', 'error');
+  } finally {
+    button.disabled = false;
+    await syncPushButton();
   }
 }
 
@@ -93,6 +139,7 @@ async function loadServerCadence(): Promise<void> {
 export function bindSettingsManager(): void {
   onClick('settings-btn', openSettingsModal);
   onClick('test-notify-btn', () => void sendTestNotification());
+  onClick('push-toggle-btn', () => void togglePush());
   bindModalClose(MODAL_ID, '.js-close-settings-modal');
 
   byId('setting-auto-refresh')?.addEventListener('change', (event) => {

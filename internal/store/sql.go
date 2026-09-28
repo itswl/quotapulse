@@ -537,6 +537,36 @@ func (s *sqlStore) AddEmailSuppression(ctx context.Context, mailbox, sender stri
 func (s *sqlStore) DeleteEmailSuppression(ctx context.Context, mailbox, sender string) error {
 	return s.q.deleteEmailSuppression(ctx, deleteEmailSuppressionParams{Mailbox: mailbox, Sender: sender})
 }
+func (s *sqlStore) ListPushSubscriptions(ctx context.Context) ([]model.PushSubscription, error) {
+	rows, err := s.q.listPushSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.PushSubscription, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, model.PushSubscription{Endpoint: row.Endpoint, P256dh: row.P256dh, Auth: row.Auth})
+	}
+	return out, nil
+}
+
+func (s *sqlStore) UpsertPushSubscription(ctx context.Context, sub model.PushSubscription) error {
+	return s.q.upsertPushSubscription(ctx, upsertPushSubscriptionParams{
+		Endpoint: sub.Endpoint, P256dh: sub.P256dh, Auth: sub.Auth,
+		CreatedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	})
+}
+
+func (s *sqlStore) DeletePushSubscription(ctx context.Context, endpoint string) error {
+	return s.q.deletePushSubscription(ctx, deletePushSubscriptionParams{Endpoint: endpoint})
+}
+
+func (s *sqlStore) GetAppSetting(ctx context.Context, key string) (string, error) {
+	return s.q.getAppSetting(ctx, key)
+}
+
+func (s *sqlStore) SetAppSetting(ctx context.Context, key, value string) error {
+	return s.q.setAppSetting(ctx, setAppSettingParams{SettingKey: key, SettingValue: value})
+}
 
 func (s *sqlStore) RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error) {
 	rows, err := s.q.listAlertHistory(ctx,

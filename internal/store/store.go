@@ -52,6 +52,11 @@ type Store interface {
 	ListEmailSuppressions(ctx context.Context) ([]model.EmailSuppression, error)
 	AddEmailSuppression(ctx context.Context, mailbox, sender string) error
 	DeleteEmailSuppression(ctx context.Context, mailbox, sender string) error
+	ListPushSubscriptions(ctx context.Context) ([]model.PushSubscription, error)
+	UpsertPushSubscription(ctx context.Context, sub model.PushSubscription) error
+	DeletePushSubscription(ctx context.Context, endpoint string) error
+	GetAppSetting(ctx context.Context, key string) (string, error)
+	SetAppSetting(ctx context.Context, key, value string) error
 	RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error)
 	AlertStats(ctx context.Context, days int) (*Stats, error)
 

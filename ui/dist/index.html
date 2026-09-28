@@ -27,7 +27,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=6fbcbe0a95cc">
+    <link rel="stylesheet" href="/static/app.css?v=0b5e11d2fb91">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
@@ -418,6 +418,12 @@
                         <p class="settings-note">Sends a canary message through the configured webhook (WEBHOOK_URL) so you can verify the channel.</p>
                         <button type="button" class="btn-secondary" id="test-notify-btn">Send test notification</button>
                     </div>
+                    <div class="form-group">
+                        <label>Browser push</label>
+                        <p class="settings-note">Get system notifications for balance and subscription alerts even when the app runs in the background. Uses the Web Push protocol.</p>
+                        <button type="button" class="btn-secondary" id="push-toggle-btn" hidden>Enable browser push</button>
+                        <p class="settings-note" id="push-status" hidden></p>
+                    </div>
                 </div>
 
                 <div class="settings-section">
@@ -691,6 +697,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=6fbcbe0a95cc"></script>
+    <script defer src="/static/app.js?v=0b5e11d2fb91"></script>
 </body>
 </html>

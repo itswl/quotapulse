@@ -76,6 +76,28 @@ type deleteEmailSuppressionParams struct {
 	Sender  string
 }
 
+type pushSubscriptionRow struct {
+	Endpoint string
+	P256dh   string
+	Auth     string
+}
+
+type upsertPushSubscriptionParams struct {
+	Endpoint  string
+	P256dh    string
+	Auth      string
+	CreatedAt sql.NullTime
+}
+
+type deletePushSubscriptionParams struct {
+	Endpoint string
+}
+
+type setAppSettingParams struct {
+	SettingKey   string
+	SettingValue string
+}
+
 type emailConfigRow struct {
 	ID        int64
 	Name      string
@@ -248,6 +270,11 @@ type querier interface {
 	addEmailSuppression(ctx context.Context, arg addEmailSuppressionParams) error
 	deleteEmailSuppression(ctx context.Context, arg deleteEmailSuppressionParams) error
 	listEmailSuppressions(ctx context.Context) ([]emailSuppressionRow, error)
+	listPushSubscriptions(ctx context.Context) ([]pushSubscriptionRow, error)
+	upsertPushSubscription(ctx context.Context, arg upsertPushSubscriptionParams) error
+	deletePushSubscription(ctx context.Context, arg deletePushSubscriptionParams) error
+	getAppSetting(ctx context.Context, key string) (string, error)
+	setAppSetting(ctx context.Context, arg setAppSettingParams) error
 	listEmailAlertHistory(ctx context.Context, since time.Time, mailbox string, limit int64) ([]emailAlertHistoryRow, error)
 }
 
