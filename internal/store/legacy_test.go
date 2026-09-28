@@ -10,6 +10,12 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
+// fixtureWindowDays：testdata/legacy.db 里的时间戳是固定的，而所有查询窗口都相对
+// 「现在」计算。7 天、30 天这样的窗口迟早滑出快照日期，让测试在某一天开始失败
+// （2026-09-28 就炸过一次）。这里统一用一个不会过期的窗口（约 100 年）：被测的是
+// 读取与折算逻辑，窗口大小只是参数。
+const fixtureWindowDays = 36500
+
 // Implementation note.
 //
 // Implementation note.
@@ -96,7 +102,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 	})
 
 	t.Run("余额历史与跑道输入", func(t *testing.T) {
-		series, err := st.BalanceSeries(ctx, 7)
+		series, err := st.BalanceSeries(ctx, fixtureWindowDays)
 		if err != nil {
 			t.Fatalf("读取失败: %v", err)
 		}
@@ -121,8 +127,11 @@ func TestReadsLegacyDatabase(t *testing.T) {
 	})
 
 	t.Run("余额趋势", func(t *testing.T) {
-		series, _ := st.BalanceSeries(ctx, 7)
-		trend, err := st.BalanceTrend(ctx, series[0].ProjectID, 30)
+		series, _ := st.BalanceSeries(ctx, fixtureWindowDays)
+		if len(series) == 0 {
+			t.Fatal("旧库里读不到任何快照，无法构造趋势输入")
+		}
+		trend, err := st.BalanceTrend(ctx, series[0].ProjectID, fixtureWindowDays)
 		if err != nil {
 			t.Fatalf("读取失败: %v", err)
 		}
@@ -148,7 +157,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 	})
 
 	t.Run("告警历史与冷却", func(t *testing.T) {
-		alerts, err := st.RecentAlerts(ctx, AlertQuery{Days: 7, Limit: 50})
+		alerts, err := st.RecentAlerts(ctx, AlertQuery{Days: fixtureWindowDays, Limit: 50})
 		if err != nil {
 			t.Fatalf("读取失败: %v", err)
 		}
@@ -160,7 +169,10 @@ func TestReadsLegacyDatabase(t *testing.T) {
 		}
 
 		// Implementation note.
-		series, _ := st.BalanceSeries(ctx, 7)
+		series, _ := st.BalanceSeries(ctx, fixtureWindowDays)
+		if len(series) == 0 {
+			t.Fatal("旧库里读不到任何快照，无法构造冷却输入")
+		}
 		cooling, err := st.HasRecentAlert(ctx, series[0].ProjectID, "low_balance", 365*24*time.Hour)
 		if err != nil {
 			t.Fatalf("查询冷却失败: %v", err)
@@ -171,7 +183,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 	})
 
 	t.Run("邮件告警历史", func(t *testing.T) {
-		rows, err := st.EmailAlerts(ctx, EmailAlertQuery{Days: 30, Limit: 100})
+		rows, err := st.EmailAlerts(ctx, EmailAlertQuery{Days: fixtureWindowDays, Limit: 100})
 		if err != nil {
 			t.Fatalf("读取失败: %v", err)
 		}
@@ -194,7 +206,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 
 		// Implementation note.
 		seen, err := st.HasRecentEmailAlert(ctx, "工作邮箱", "noreply@aliyun.com",
-			"【阿里云】余额不足提醒", "Mon, 01 Sep 2026 10:00:00 +0800", 30)
+			"【阿里云】余额不足提醒", "Mon, 01 Sep 2026 10:00:00 +0800", fixtureWindowDays)
 		if err != nil {
 			t.Fatalf("查询去重失败: %v", err)
 		}
