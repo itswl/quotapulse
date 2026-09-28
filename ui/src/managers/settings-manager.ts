@@ -5,8 +5,9 @@
  * Implementation note.
  */
 
-import { getApiKey, setApiKey } from '../api/client.js';
+import { fetchJson, getApiKey, setApiKey } from '../api/client.js';
 import { getJobs } from '../api/endpoints.js';
+import type { HealthResponse } from '../api/types.js';
 import { byId, inputById, onClick } from '../dom.js';
 import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.js';
 import { AppState, parseRefreshMinutes, writeStorage } from '../state.js';
@@ -35,6 +36,26 @@ export function openSettingsModal(): void {
   syncSettingsForm();
   openModal(MODAL_ID);
   void loadServerCadence();
+  void loadAboutVersion();
+}
+
+/**
+ * Show the deployed version in About. The health endpoint answers without the API key
+ * and returns 503 when degraded, so read the body regardless of status and hide the
+ * line when it says nothing.
+ */
+async function loadAboutVersion(): Promise<void> {
+  const line = byId('about-version');
+  if (!line) return;
+  try {
+    const { data } = await fetchJson<HealthResponse>('/health');
+    const version = data && 'version' in data ? String(data.version) : '';
+    line.textContent = version;
+    line.hidden = !version;
+  } catch (error) {
+    console.warn('Version unavailable:', error);
+    line.hidden = true;
+  }
 }
 
 /**

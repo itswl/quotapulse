@@ -494,31 +494,3 @@
 }
 
 /* ==================== Footer ==================== */
-.site-footer {
-    max-width: var(--container);
-    margin: 0 auto;
-    padding: 0 24px calc(40px + env(safe-area-inset-bottom));
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    font-size: 12.5px;
-    color: var(--text-3);
-}
-
-.site-footer a {
-    color: var(--text-2);
-    text-decoration: none;
-    transition: color var(--ease);
-}
-
-.site-footer a:hover {
-    color: var(--text);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.site-footer nav {
-    display: flex;
-    gap: 16px;
-}

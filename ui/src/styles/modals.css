@@ -318,6 +318,13 @@
     line-height: 1.6;
 }
 
+.about-version {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-3);
+}
+
 /* ==================== Trend chart ==================== */
 .chart-container {
     position: relative;

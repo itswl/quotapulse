@@ -27,7 +27,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=85c80176c207">
+    <link rel="stylesheet" href="/static/app.css?v=c66a233c5761">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
@@ -355,13 +355,6 @@
         </section>
     </main>
 
-    <footer class="site-footer">
-        <span>QuotaPulse · API balance monitoring</span>
-        <nav aria-label="Service links">
-            <a href="/health" target="_blank" rel="noopener">Health check</a>
-        </nav>
-    </footer>
-
     <!-- Loading indicator: a thin bar at the top of the viewport -->
     <div id="loading-overlay" class="loading-overlay" role="progressbar" aria-label="Loading" aria-hidden="true">
         <div class="loading-bar"></div>
@@ -430,7 +423,7 @@
                 <div class="settings-section">
                     <h3>About</h3>
                     <p class="about-text">
-                        <strong>QuotaPulse</strong><br>
+                        <strong>QuotaPulse</strong><span class="about-version" id="about-version" hidden></span><br>
                         API balance monitoring, subscription reminders, and email scanning
                     </p>
                 </div>
@@ -679,6 +672,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=85c80176c207"></script>
+    <script defer src="/static/app.js?v=c66a233c5761"></script>
 </body>
 </html>
