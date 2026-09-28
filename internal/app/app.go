@@ -113,6 +113,8 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		Timeout:   time.Duration(settings.RequestTimeout) * time.Second,
 		OnNotify:  app.Metrics.RecordNotification,
 	}
+	app.Push = pushManager
+
 	app.Server = &httpapi.Server{
 		Settings: settings, Resolver: app.Resolver, Store: st, State: app.State,
 		Monitor: app.Monitor, Subs: app.Subs, Scanner: app.Scanner, Push: app.Push,
