@@ -359,15 +359,28 @@ describe('桩 DOM 上的Project列表', () => {
     assert.match(container.innerHTML, /js-clear-filters/);
   });
 
-  it('「仅Alert」视图里没有Alert时说明一切正常', () => {
+  it('Alerts only 筛选打开且没有告警时说明一切正常', () => {
     resetStubDom();
     const container = stubElement('projects-container');
-    AppState.currentView = 'alerts';
+    AppState.alertsOnly = true;
     renderProjects({ last_update: null, projects: [project()], summary: {} });
-    AppState.currentView = 'all';
+    AppState.alertsOnly = false;
 
     assert.match(container.innerHTML, /No alerts/);
     assert.ok(!container.innerHTML.includes('js-clear-filters'));
+  });
+
+  it('Alerts only 筛选下有告警但被搜索滤掉时，提示清除筛选', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    AppState.alertsOnly = true;
+    AppState.searchQuery = 'nothing-matches-this';
+    renderProjects({ last_update: null, projects: [project({ need_alarm: true })], summary: {} });
+    AppState.searchQuery = '';
+    AppState.alertsOnly = false;
+
+    assert.match(container.innerHTML, /No projects match the filters/);
+    assert.match(container.innerHTML, /js-clear-filters/);
   });
 
   it('首次渲染带 stagger 入场类，再次渲染不重复动画', () => {
@@ -559,7 +572,7 @@ describe('refreshOverview 跟随视图', () => {
     refreshOverview();
     assert.equal(grid.dataset['view'], 'email');
 
-    AppState.currentView = 'alerts';
+    AppState.currentView = 'all';
     AppState.balanceData = { last_update: null, projects: [], summary: {} };
     refreshOverview();
     assert.equal(grid.dataset['view'], 'projects');

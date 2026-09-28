@@ -21,7 +21,7 @@
     </script>
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=9233a23375e5">
+    <link rel="stylesheet" href="/static/app.css?v=3a9ce93bba14">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
@@ -212,10 +212,6 @@
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-card"></use></svg>
                 <span>All projects</span>
             </button>
-            <button class="action-btn" id="view-alerts-btn" aria-pressed="false">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
-                <span>Alerts only</span><span class="btn-badge" id="alerts-badge" hidden></span>
-            </button>
             <button class="action-btn" id="view-subscriptions-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cycle"></use></svg>
                 <span>Subscriptions</span><span class="btn-badge" id="subs-badge" hidden></span>
@@ -242,6 +238,11 @@
                             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-rows"></use></svg>
                         </button>
                     </div>
+                    <button class="toggle-chip" id="filter-alerts-btn" type="button" aria-pressed="false" title="Show only projects below their alert threshold">
+                        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
+                        <span>Alerts only</span>
+                        <span class="btn-badge" id="alerts-badge" hidden></span>
+                    </button>
                     <div class="search-box">
                         <svg class="icon search-icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
                         <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" autocomplete="off" />
@@ -676,6 +677,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=9233a23375e5"></script>
+    <script defer src="/static/app.js?v=3a9ce93bba14"></script>
 </body>
 </html>

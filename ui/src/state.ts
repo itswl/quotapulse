@@ -7,9 +7,9 @@
 
 import type { CreditsResponse, Features, SubscriptionsResponse } from './api/types.js';
 
-export type ViewName = 'all' | 'alerts' | 'subscriptions' | 'email';
+export type ViewName = 'all' | 'subscriptions' | 'email';
 
-export const VIEW_NAMES: readonly ViewName[] = ['all', 'alerts', 'subscriptions', 'email'];
+export const VIEW_NAMES: readonly ViewName[] = ['all', 'subscriptions', 'email'];
 
 export type Theme = 'light' | 'dark';
 export type ProjectViewStyle = 'grid' | 'list';
@@ -17,6 +17,8 @@ export type ProjectViewStyle = 'grid' | 'list';
 export interface AppStateShape {
   currentTheme: Theme;
   currentView: ViewName;
+  /* Projects toolbar filter: show only accounts below their alert threshold. */
+  alertsOnly: boolean;
   projectViewStyle: ProjectViewStyle;
   /* Provider filter value; 'all' disables the filter. */
   currentFilter: string;
@@ -67,6 +69,7 @@ export function initialTheme(): Theme {
 export const AppState: AppStateShape = {
   currentTheme: initialTheme(),
   currentView: 'all',
+  alertsOnly: false,
   projectViewStyle: readStorage('projectViewStyle') === 'list' ? 'list' : 'grid',
   currentFilter: 'all',
   searchQuery: '',

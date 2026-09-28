@@ -192,7 +192,7 @@ function renderProjectsEmpty(total: number, features: Features): string {
   }
 
   const filtering = Boolean(AppState.searchQuery) || AppState.currentFilter !== 'all';
-  if (!filtering && AppState.currentView === 'alerts') {
+  if (AppState.alertsOnly && !filtering) {
     return emptyState('No alerts', 'Every monitored account is above its alert threshold.', 'check');
   }
   return emptyState(
@@ -212,7 +212,7 @@ export function renderProjects(data: CreditsResponse): void {
   const filtered = filterProjects(projects, {
     search: AppState.searchQuery,
     provider: AppState.currentFilter,
-    alertsOnly: AppState.currentView === 'alerts',
+    alertsOnly: AppState.alertsOnly,
   });
 
   // Cards cascade in on the first paint only; refreshes and filter changes swap in place.

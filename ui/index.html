@@ -212,10 +212,6 @@
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-card"></use></svg>
                 <span>All projects</span>
             </button>
-            <button class="action-btn" id="view-alerts-btn" aria-pressed="false">
-                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
-                <span>Alerts only</span><span class="btn-badge" id="alerts-badge" hidden></span>
-            </button>
             <button class="action-btn" id="view-subscriptions-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cycle"></use></svg>
                 <span>Subscriptions</span><span class="btn-badge" id="subs-badge" hidden></span>
@@ -242,6 +238,11 @@
                             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-rows"></use></svg>
                         </button>
                     </div>
+                    <button class="toggle-chip" id="filter-alerts-btn" type="button" aria-pressed="false" title="Show only projects below their alert threshold">
+                        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
+                        <span>Alerts only</span>
+                        <span class="btn-badge" id="alerts-badge" hidden></span>
+                    </button>
                     <div class="search-box">
                         <svg class="icon search-icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
                         <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" autocomplete="off" />

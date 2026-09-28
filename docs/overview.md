@@ -18,11 +18,13 @@ accounts — here `volc-1` has 1.2 days left — followed by the total, healthy,
 alerting project counters. The time of the last successful check sits in the top
 navigation, next to the theme toggle, refresh, and settings.
 
-The view switcher carries live counts: a red badge on Alerts only and an amber one on
-Subscriptions appear only when something needs attention, so a quiet system stays quiet.
-Each view also reshapes the overview band to answer its own question — projects show
-runway and counters, subscriptions show renewal stats, and on the email view the band
-steps aside for the scan summary chips.
+A live amber badge appears on Subscriptions in the view switcher when renewals enter
+their reminder window, and it disappears at zero, so a quiet system stays quiet. In the
+projects toolbar, an Alerts only chip narrows the cards down to accounts below their
+threshold and carries the same red count — a filter that lives with the list it
+filters, not a second kind of page. Each view also reshapes the overview band to answer
+its own question — projects show runway and counters, subscriptions show renewal
+stats, and on the email view the band steps aside for the scan summary chips.
 
 ![Dashboard, light theme, grid view](images/dashboard-light.png)
 

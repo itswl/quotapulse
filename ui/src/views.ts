@@ -9,10 +9,27 @@ import { refreshOverview } from './ui/stats.js';
 
 const VIEW_BUTTONS: Record<ViewName, string> = {
   all: 'view-all-btn',
-  alerts: 'view-alerts-btn',
   subscriptions: 'view-subscriptions-btn',
   email: 'view-email-btn',
 };
+
+/**
+ * Toggle the "Alerts only" filter on the projects toolbar. It is a filter, not a view:
+ * the projects section stays put and the cards re-render.
+ */
+export function setAlertsFilter(on: boolean): void {
+  AppState.alertsOnly = on;
+  syncAlertsChip();
+  if (AppState.balanceData) renderProjects(AppState.balanceData);
+}
+
+/** Reflect AppState.alertsFilter on the chip's pressed state. */
+export function syncAlertsChip(): void {
+  const chip = byId('filter-alerts-btn');
+  if (!chip) return;
+  chip.classList.toggle('active', AppState.alertsOnly);
+  chip.setAttribute('aria-pressed', AppState.alertsOnly ? 'true' : 'false');
+}
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute('data-theme', theme);
@@ -68,7 +85,7 @@ export function switchView(view: ViewName): void {
     if (section) section.style.display = name === visible ? 'block' : 'none';
   }
 
-  if (view === 'all' || view === 'alerts') {
+  if (view === 'all') {
     if (AppState.balanceData) renderProjects(AppState.balanceData);
   } else if (view === 'subscriptions') {
     if (AppState.subscriptionData) renderSubscriptions(AppState.subscriptionData);
@@ -76,6 +93,7 @@ export function switchView(view: ViewName): void {
     void EmailManager.load();
   }
 
-  // Band content and switcher badges follow the active view.
+  // Band content and switcher badges follow the active view; the filter chip follows state.
+  syncAlertsChip();
   refreshOverview();
 }

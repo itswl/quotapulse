@@ -23,7 +23,7 @@ import { bindTrendManager, showProjectTrend } from './managers/trend-manager.js'
 import { AppState, isViewName, writeStorage, type ProjectViewStyle } from './state.js';
 import { renderProjects } from './ui/projects.js';
 import { showToast } from './ui/toast.js';
-import { initTheme, switchView, toggleTheme } from './views.js';
+import { initTheme, setAlertsFilter, switchView, syncAlertsChip, toggleTheme } from './views.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -65,6 +65,8 @@ function bindCardActions(): void {
 function clearProjectFilters(): void {
   AppState.searchQuery = '';
   AppState.currentFilter = 'all';
+  AppState.alertsOnly = false;
+  syncAlertsChip();
   const search = byId<HTMLInputElement>('search-input');
   if (search) search.value = '';
   const filter = byId<HTMLSelectElement>('provider-filter');
@@ -83,7 +85,7 @@ function bindEvents(): void {
   onClick('refresh-btn', () => void refreshNow());
 
   onClick('view-all-btn', () => switchView('all'));
-  onClick('view-alerts-btn', () => switchView('alerts'));
+  onClick('filter-alerts-btn', () => setAlertsFilter(!AppState.alertsOnly));
   onClick('view-subscriptions-btn', () => {
     if (!AppState.features.subscriptions) {
       showToast('Subscriptions are disabled', 'info');
@@ -128,7 +130,10 @@ async function init(): Promise<void> {
 
   // Implementation note.
   const initialView = window.location.hash.slice(1);
-  if (isViewName(initialView) && initialView !== 'all') {
+  if (initialView === 'alerts') {
+    // Legacy hash: "Alerts only" is a projects filter now, not a view.
+    setAlertsFilter(true);
+  } else if (isViewName(initialView) && initialView !== 'all') {
     switchView(initialView);
   }
 
