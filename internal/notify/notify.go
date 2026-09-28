@@ -38,6 +38,7 @@ const (
 	KindSpendSpike   = "spend_spike"
 	KindWeeklyReport = "weekly_report"
 	KindTest         = "test"
+	KindJobFailure   = "job_failure"
 )
 
 // Implementation note.

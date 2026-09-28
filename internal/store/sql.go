@@ -6,9 +6,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/itswl/quotapulse/internal/model"
@@ -426,6 +429,74 @@ func (s *sqlStore) LastSentAlert(ctx context.Context, alertID, alertType string,
 		}
 	}
 	return newest, nil
+}
+
+// Backup writes a consistent copy of the database into dir (SQLite only), proves the
+// copy can answer queries, and prunes old backups beyond keep. Returns the backup path.
+func (s *sqlStore) Backup(ctx context.Context, dir string, keep int) (string, error) {
+	if s.engine != EngineSQLite {
+		return "", fmt.Errorf("backup is only supported for the sqlite engine")
+	}
+	if keep < 1 {
+		keep = 1
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create backup dir: %w", err)
+	}
+	target := filepath.Join(dir, fmt.Sprintf("quotapulse-backup-%s.db", time.Now().UTC().Format("20060102-150405")))
+	if _, err := s.db.ExecContext(ctx, "VACUUM INTO ?", target); err != nil {
+		return "", fmt.Errorf("VACUUM INTO: %w", err)
+	}
+	if err := verifySQLiteBackup(ctx, target); err != nil {
+		_ = os.Remove(target)
+		return "", err
+	}
+	pruneBackups(dir, keep)
+	return target, nil
+}
+
+// verifySQLiteBackup proves the copy is a real, readable database before success is
+// claimed: header magic first, then a quick_check through a read-only handle.
+func verifySQLiteBackup(ctx context.Context, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open backup: %w", err)
+	}
+	defer file.Close()
+	header := make([]byte, 16)
+	if _, err := io.ReadFull(file, header); err != nil || string(header) != "SQLite format 3\x00" {
+		return fmt.Errorf("backup file is not a valid sqlite database")
+	}
+	db, err := sql.Open("sqlite", path+"?mode=ro")
+	if err != nil {
+		return fmt.Errorf("open backup for check: %w", err)
+	}
+	defer db.Close()
+	var result string
+	if err := db.QueryRowContext(ctx, "PRAGMA quick_check").Scan(&result); err != nil {
+		return fmt.Errorf("quick_check: %w", err)
+	}
+	if result != "ok" {
+		return fmt.Errorf("quick_check reported: %s", result)
+	}
+	return nil
+}
+
+func pruneBackups(dir string, keep int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	var backups []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "quotapulse-backup-") && strings.HasSuffix(entry.Name(), ".db") {
+			backups = append(backups, entry.Name())
+		}
+	}
+	sort.Strings(backups) // timestamp-ordered names, newest last
+	for i := 0; i < len(backups)-keep; i++ {
+		_ = os.Remove(filepath.Join(dir, backups[i]))
+	}
 }
 
 func (s *sqlStore) RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error) {

@@ -5,10 +5,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
@@ -26,6 +29,7 @@ import (
 	"github.com/itswl/quotapulse/internal/state"
 	"github.com/itswl/quotapulse/internal/store"
 	"github.com/itswl/quotapulse/internal/subscription"
+	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
 // Implementation note.
@@ -43,6 +47,10 @@ type App struct {
 	Server   *httpapi.Server
 
 	scheduler *scheduler.Scheduler
+
+	jobFailures  map[string]int
+	jobEscalated map[string]bool
+	jobFailMu    sync.Mutex
 }
 
 // Implementation note.
@@ -158,7 +166,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		webAlarmNote = "Send real alerts"
 	}
 
-	return []*scheduler.Task{
+	tasks := []*scheduler.Task{
 		{
 			Name:        "dashboard_refresh",
 			Description: fmt.Sprintf("operation(%s)", webAlarmNote),
@@ -190,8 +198,29 @@ func (a *App) BuildTasks() []*scheduler.Task {
 			DailyTimes:  settings.WeeklyReportTimes,
 			Weekdays:    settings.WeeklyReportWeekdays,
 			Run:         a.SendWeeklyReport,
-		},
+		}}
+
+	if timeout := time.Duration(settings.JobTimeoutSecondsValue()) * time.Second; timeout > 0 {
+		for _, task := range tasks {
+			task.Timeout = timeout
+		}
 	}
+
+	if settings.BackupSchedule != "" {
+		times, parseErr := timeutil.ParseDailyTimes(settings.BackupSchedule)
+		if parseErr != nil {
+			a.Log.Error("Invalid DB_BACKUP_SCHEDULE; backup task disabled", "error", parseErr)
+		} else {
+			tasks = append(tasks, &scheduler.Task{
+				Name:        "database_backup",
+				Description: "SQLite backup with recovery check",
+				DailyTimes:  times,
+				Run:         a.RunDatabaseBackup,
+			})
+		}
+	}
+
+	return tasks
 }
 
 // Implementation note.
@@ -305,6 +334,70 @@ func (a *App) onJobResult(result scheduler.Result) {
 	a.State.RecordJobRun(result.Name, result.Success, result.StartedAt,
 		result.Duration, result.Err, result.Detail, result.NextRun)
 	a.Metrics.RecordJobRun(result.Name, result.Success, result.StartedAt, result.Duration)
+	a.maybeEscalateJobFailure(result)
+}
+
+// maybeEscalateJobFailure sends one webhook per failure streak once a task has failed
+// threshold times in a row. A success resets the streak; the streak is only marked
+// escalated after the webhook accepted it, so a broken channel still reports when it
+// recovers.
+func (a *App) maybeEscalateJobFailure(result scheduler.Result) {
+	threshold := a.Settings.JobFailureAlertThresholdValue()
+	if threshold <= 0 {
+		return
+	}
+	if a.jobFailures == nil {
+		a.jobFailures = map[string]int{}
+		a.jobEscalated = map[string]bool{}
+	}
+
+	a.jobFailMu.Lock()
+	if result.Success {
+		delete(a.jobFailures, result.Name)
+		delete(a.jobEscalated, result.Name)
+		a.jobFailMu.Unlock()
+		return
+	}
+	a.jobFailures[result.Name]++
+	count := a.jobFailures[result.Name]
+	already := a.jobEscalated[result.Name]
+	shouldEscalate := count >= threshold && !already
+	a.jobFailMu.Unlock()
+
+	if !shouldEscalate {
+		return
+	}
+
+	lines := []string{
+		"Task: " + result.Name,
+		fmt.Sprintf("Consecutive failures: %d", count),
+	}
+	if result.Err != nil {
+		lines = append(lines, "Last error: "+result.Err.Error())
+	}
+	msg := notify.Custom("QuotaPulse job keeps failing", lines, notify.KindJobFailure)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := a.Notifier.Send(ctx, msg); err != nil {
+		a.Log.Error("Failed to send job failure escalation", "task", result.Name, "error", err)
+		return
+	}
+	a.jobFailMu.Lock()
+	a.jobEscalated[result.Name] = true
+	a.jobFailMu.Unlock()
+	a.Log.Warn("Job failure escalation sent", "task", result.Name, "failures", count)
+}
+
+// RunDatabaseBackup writes a verified SQLite snapshot and prunes old ones.
+func (a *App) RunDatabaseBackup(ctx context.Context) (any, error) {
+	if !a.Settings.EnableDatabase {
+		return nil, errors.New("database is disabled (ENABLE_DATABASE=false)")
+	}
+	path, err := a.Store.Backup(ctx, a.Settings.BackupDir, a.Settings.BackupKeepValue())
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"file": filepath.Base(path)}, nil
 }
 
 // Implementation note.

@@ -24,7 +24,7 @@ By default, QuotaPulse discovers any provider configured with `{PROVIDER}_API_KE
 
 ## MCP
 
-Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. It reuses `WEB_API_KEY` for authentication and provides current status, health/freshness, capabilities, a provider catalog, redacted configuration views, subscription status/configuration, alert statistics, recent alerts, balance history, and trend data. balance_status accepts optional project/provider filters. The MCP server has no configuration writes, refresh, scan, provider call, or other write tools.
+Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. It reuses `WEB_API_KEY` for authentication and provides current status, health/freshness, capabilities, a provider catalog, redacted configuration views, subscription status/configuration, alert statistics, recent alerts, balance history, trend data, and a unified event timeline. balance_status accepts optional project/provider filters. The MCP server has no configuration writes, refresh, scan, provider call, or other write tools.
 
 ## Providers
 
@@ -54,7 +54,7 @@ The most important variables are:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `WEB_API_KEY` | unset | Authentication for `/api/*`; requests return 503 when unset |
+| `WEB_API_KEY` | unset | Authentication for `/api/*`; comma-separated keys enable rotation; requests return 503 when unset |
 | `ENABLE_MCP` | `false` | Enable the read-only `/mcp` endpoint |
 | `WEBHOOK_URL` / `WEBHOOK_TYPE` | unset / `custom` | Alert destination; supported types include `feishu`, `dingtalk`, `wecom`, and `custom` |
 | `BALANCE_REFRESH_INTERVAL_SECONDS` | `3600` | Dashboard refresh interval |
@@ -66,6 +66,10 @@ The most important variables are:
 | `BURN_RATE_WINDOW_DAYS` / `RUNWAY_ALERT_DAYS` | `7` / `7` | Runway calculation and alert threshold |
 | `SPEND_SPIKE_RATIO` | `3` | Spending-spike multiplier; `0` disables the alert |
 | `ALERT_COOLDOWN_SECONDS` | `86400` | Per-alert notification cooldown |
+| `JOB_FAILURE_ALERT_THRESHOLD` | `3` | Consecutive failures before a job escalates to the webhook; `0` disables |
+| `JOB_TIMEOUT_SECONDS` | `600` | Per-run timeout for scheduled jobs; `0` disables |
+| `DB_BACKUP_SCHEDULE` | unset | Daily times for SQLite backups, e.g. `03:00`; unset disables backups |
+| `DB_BACKUP_DIR` / `DB_BACKUP_KEEP` | `backups` / `7` | Where SQLite backups live and how many are kept |
 
 See [.env.example](.env.example) for the complete reference.
 

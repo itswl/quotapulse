@@ -38,6 +38,12 @@ type Settings struct {
 	MaxConcurrentChecks             *int
 	AlertCooldownSeconds            *int
 	SubscriptionAlertCooldownSecond *int
+	JobFailureAlertThreshold        *int
+	JobTimeoutSeconds               *int
+	BackupSchedule                  string
+	BackupTimes                     []timeutil.ClockTime
+	BackupDir                       string
+	BackupKeep                      *int
 
 	// Implementation note.
 	WebhookURL    string
@@ -106,6 +112,10 @@ const (
 	DefaultMaxConcurrent   = 20
 	MaxConcurrentUpper     = 50
 	DefaultCooldownSeconds = 86400
+
+	DefaultJobFailureAlertThreshold = 3
+	DefaultJobTimeoutSeconds        = 600
+	DefaultBackupKeep               = 7
 )
 
 // Implementation note.
@@ -154,12 +164,17 @@ func Load() (*Settings, error) {
 		AutoEncryptOnRead:    e.boolean("AUTO_ENCRYPT_ON_READ", true),
 		ConfigEncryptionKey:  e.text("CONFIG_ENCRYPTION_KEY", ""),
 
-		WebPort:       e.integer("WEB_PORT", 8080),
-		MetricsPort:   e.integer("METRICS_PORT", 9100),
-		AppVersion:    e.text("APP_VERSION", Version),
-		WebEnableCORS: e.boolean("WEB_ENABLE_CORS", false),
-		CORSOrigins:   e.text("CORS_ORIGINS", ""),
-		WebAPIKey:     strings.TrimSpace(e.text("WEB_API_KEY", "")),
+		WebPort:                  e.integer("WEB_PORT", 8080),
+		MetricsPort:              e.integer("METRICS_PORT", 9100),
+		AppVersion:               e.text("APP_VERSION", Version),
+		WebEnableCORS:            e.boolean("WEB_ENABLE_CORS", false),
+		CORSOrigins:              e.text("CORS_ORIGINS", ""),
+		WebAPIKey:                strings.TrimSpace(e.text("WEB_API_KEY", "")),
+		JobFailureAlertThreshold: e.optionalInt("JOB_FAILURE_ALERT_THRESHOLD"),
+		JobTimeoutSeconds:        e.optionalInt("JOB_TIMEOUT_SECONDS"),
+		BackupSchedule:           strings.TrimSpace(e.text("DB_BACKUP_SCHEDULE", "")),
+		BackupDir:                e.text("DB_BACKUP_DIR", "backups"),
+		BackupKeep:               e.optionalInt("DB_BACKUP_KEEP"),
 
 		ShutdownDelaySeconds: e.integer("SHUTDOWN_DELAY_SECONDS", 0),
 	}
@@ -185,6 +200,11 @@ func (s *Settings) parseSchedules() error {
 	}
 	if s.EmailScanTimes, err = timeutil.ParseDailyTimes(s.EmailScanSchedule); err != nil {
 		return fmt.Errorf("EMAIL_SCAN_SCHEDULE: %w", err)
+	}
+	if s.BackupSchedule != "" {
+		if s.BackupTimes, err = timeutil.ParseDailyTimes(s.BackupSchedule); err != nil {
+			return err
+		}
 	}
 	if s.WeeklyReportWeekdays, s.WeeklyReportTimes, err = timeutil.ParseWeeklySchedule(s.WeeklyReportSchedule); err != nil {
 		return fmt.Errorf("WEEKLY_REPORT_SCHEDULE: %w", err)
@@ -233,6 +253,34 @@ func (s *Settings) AlertKeywordExtras() []string { return splitList(s.EmailExtra
 
 // Implementation note.
 func (s *Settings) CORSOriginList() []string { return splitList(s.CORSOrigins) }
+
+// JobFailureAlertThresholdValue is how many consecutive job failures trigger one
+// escalation webhook; zero disables escalation entirely.
+func (s *Settings) JobFailureAlertThresholdValue() int {
+	if s.JobFailureAlertThreshold == nil {
+		return DefaultJobFailureAlertThreshold
+	}
+	return max(0, *s.JobFailureAlertThreshold)
+}
+
+// JobTimeoutSecondsValue caps a single scheduled run; zero disables the cap.
+func (s *Settings) JobTimeoutSecondsValue() int {
+	if s.JobTimeoutSeconds == nil {
+		return DefaultJobTimeoutSeconds
+	}
+	return max(0, *s.JobTimeoutSeconds)
+}
+
+func (s *Settings) BackupKeepValue() int {
+	if s.BackupKeep == nil {
+		return DefaultBackupKeep
+	}
+	return max(1, *s.BackupKeep)
+}
+
+// APIKeys splits WEB_API_KEY on commas: add a replacement key before retiring the old
+// one and both stay valid until the old entry is dropped.
+func (s *Settings) APIKeys() []string { return splitList(s.WebAPIKey) }
 
 func splitList(text string) []string {
 	var out []string

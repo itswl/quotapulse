@@ -52,6 +52,12 @@ type emailAlertHistoryInput struct {
 	Mailbox string `json:"mailbox,omitempty" jsonschema:"optional mailbox filter"`
 }
 
+type eventsInput struct {
+	Days  int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
+	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of events, between 1 and 500"`
+	Type  string `json:"type,omitempty" jsonschema:"optional event type filter, e.g. low_balance or email_alert"`
+}
+
 type statsInput struct {
 	Days int `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
 }
@@ -207,6 +213,32 @@ func addStateTools(server *sdkmcp.Server, settings *config.Settings, runtime *st
 			return nil, nil, err
 		}
 		return jsonResult(map[string]any{"count": len(rows), "data": rows})
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "events",
+		Description: "Unified timeline of balance, subscription, runway, spike, and email-alert events, newest first.",
+	}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, in eventsInput) (*sdkmcp.CallToolResult, any, error) {
+		days := bounded(in.Days, 30, 1, 365)
+		alerts, err := history.RecentAlerts(ctx, store.AlertQuery{Days: days, Limit: 500})
+		if err != nil {
+			return nil, nil, err
+		}
+		emails, err := history.EmailAlerts(ctx, store.EmailAlertQuery{Days: days, Limit: 500})
+		if err != nil {
+			return nil, nil, err
+		}
+		events := store.MergeEvents(alerts, emails, bounded(in.Limit, 100, 1, 500))
+		if in.Type != "" {
+			filtered := make([]store.EventRow, 0, len(events))
+			for _, event := range events {
+				if event.Type == in.Type {
+					filtered = append(filtered, event)
+				}
+			}
+			events = filtered
+		}
+		return jsonResult(map[string]any{"count": len(events), "data": events})
 	})
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{

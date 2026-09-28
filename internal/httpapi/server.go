@@ -62,6 +62,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/credits", s.handleCredits)
 	mux.HandleFunc("GET /api/subscriptions", s.handleSubscriptions)
 	mux.HandleFunc("GET /api/jobs", s.handleJobs)
+	mux.HandleFunc("GET /api/events", s.handleEvents)
 	mux.HandleFunc("GET /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
@@ -118,13 +119,20 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		expected := s.Settings.WebAPIKey
-		if expected == "" {
+		keys := s.Settings.APIKeys()
+		if len(keys) == 0 {
 			fail(w, http.StatusServiceUnavailable, "API Key operation,operation WEB_API_KEY")
 			return
 		}
 		token := extractAPIKey(r)
-		if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(expected)) != 1 {
+		matched := false
+		for _, key := range keys {
+			if subtle.ConstantTimeCompare([]byte(token), []byte(key)) == 1 {
+				matched = true
+				break
+			}
+		}
+		if token == "" || !matched {
 			fail(w, http.StatusUnauthorized, "API Key operation")
 			return
 		}

@@ -45,6 +45,8 @@ func (nullStore) LastSentAlert(context.Context, string, string, time.Duration) (
 	return nil, nil
 }
 
+func (nullStore) Backup(context.Context, string, int) (string, error) { return "", ErrDisabled }
+
 func (nullStore) RecentAlerts(context.Context, AlertQuery) ([]AlertRow, error) { return nil, nil }
 
 func (nullStore) AlertStats(context.Context, int) (*Stats, error) { return nil, nil }

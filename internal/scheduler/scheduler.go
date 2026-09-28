@@ -9,6 +9,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -28,6 +29,9 @@ type Task struct {
 	DailyTimes []timeutil.ClockTime
 	Weekdays   map[int]bool // ISO weekdays: 1=Monday through 7=Sunday.
 	RunAtStart bool
+	// Timeout caps a single run; the run context is cancelled at the deadline and the
+	// result records a timeout error. Zero disables the cap.
+	Timeout time.Duration
 
 	nextRun time.Time
 }
@@ -182,7 +186,22 @@ func (s *Scheduler) RunTask(ctx context.Context, t *Task) Result {
 	startedAt := time.Now()
 	s.log.Info("Task started", "task", t.Name)
 
-	detail, err := t.Run(ctx)
+	runCtx, cancel := context.WithCancel(ctx)
+	if t.Timeout > 0 {
+		var withDeadline context.CancelFunc
+		runCtx, withDeadline = context.WithTimeout(ctx, t.Timeout)
+		defer withDeadline()
+	}
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
+	detail, err := t.Run(runCtx)
+	if err != nil && ctx.Err() == nil && t.Timeout > 0 && errors.Is(err, context.DeadlineExceeded) {
+		err = fmt.Errorf("timed out after %s: %w", t.Timeout, err)
+	}
 	result := Result{
 		Name:      t.Name,
 		Success:   err == nil,

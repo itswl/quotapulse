@@ -45,6 +45,7 @@ type Store interface {
 	// Implementation note.
 	HasRecentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (bool, error)
 	LastSentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (*time.Time, error)
+	Backup(ctx context.Context, dir string, keep int) (string, error)
 	RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error)
 	AlertStats(ctx context.Context, days int) (*Stats, error)
 
