@@ -21,11 +21,13 @@ import {
 } from './managers/subscription-manager.js';
 import { bindTrendManager, showProjectTrend } from './managers/trend-manager.js';
 import { AppState, isViewName, writeStorage, type ProjectViewStyle } from './state.js';
+import { updateNavFreshness } from './ui/stats.js';
 import { renderProjects } from './ui/projects.js';
 import { showToast } from './ui/toast.js';
 import { initTheme, setAlertsFilter, switchView, syncAlertsChip, toggleTheme } from './views.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const NAV_TICK_MS = 30_000;
 
 /**
  * Implementation note.
@@ -118,7 +120,12 @@ function bindEvents(): void {
   bindSettingsManager();
   bindTrendManager();
 
-  window.addEventListener('beforeunload', stopAutoRefresh);
+  // Relative times freeze between fetches; tick them, then clean up on unload.
+  const navTick = window.setInterval(() => updateNavFreshness(AppState.balanceData), NAV_TICK_MS);
+  window.addEventListener('beforeunload', () => {
+    stopAutoRefresh();
+    window.clearInterval(navTick);
+  });
 }
 
 async function init(): Promise<void> {

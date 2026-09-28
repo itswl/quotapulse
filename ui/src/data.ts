@@ -12,7 +12,7 @@ import { emptyState } from './ui/empty.js';
 import { setLoading } from './ui/loading.js';
 import { renderProjects, updateProviderFilter } from './ui/projects.js';
 import { renderSubscriptions } from './ui/subscriptions.js';
-import { refreshOverview } from './ui/stats.js';
+import { refreshOverview, updateNavFreshness } from './ui/stats.js';
 import { showToast } from './ui/toast.js';
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -109,6 +109,7 @@ function renderLoadError(error: unknown): void {
     const node = byId(id);
     if (node && node.innerHTML.includes('skeleton')) node.textContent = '—';
   }
+  updateNavFreshness(AppState.balanceData, true);
 }
 
 /* Implementation note. */

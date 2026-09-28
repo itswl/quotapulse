@@ -11,15 +11,11 @@ import { startAutoRefresh, stopAutoRefresh } from '../data.js';
 import { AppState } from '../state.js';
 import { bindModalClose, openModal } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
-import { toggleTheme } from '../views.js';
 
 const MODAL_ID = 'settings-modal';
 
 /* Implementation note. */
 function syncSettingsForm(): void {
-  const darkMode = byId<HTMLInputElement>('setting-dark-mode');
-  if (darkMode) darkMode.checked = AppState.currentTheme === 'dark';
-
   const autoRefresh = byId<HTMLInputElement>('setting-auto-refresh');
   if (autoRefresh) autoRefresh.checked = AppState.autoRefreshTimer !== null;
 
@@ -35,11 +31,6 @@ export function openSettingsModal(): void {
 export function bindSettingsManager(): void {
   onClick('settings-btn', openSettingsModal);
   bindModalClose(MODAL_ID, '.js-close-settings-modal');
-
-  byId('setting-dark-mode')?.addEventListener('change', (event) => {
-    const wantDark = (event.target as HTMLInputElement).checked;
-    if (wantDark !== (AppState.currentTheme === 'dark')) toggleTheme();
-  });
 
   byId('setting-auto-refresh')?.addEventListener('change', (event) => {
     if ((event.target as HTMLInputElement).checked) {

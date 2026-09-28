@@ -14,6 +14,7 @@ import {
   shortestRunway,
   updateBadges,
   updateFailedHint,
+  updateNavFreshness,
   updateStats,
   updateSubscriptionStats,
 } from '../src/ui/stats.js';
@@ -581,5 +582,28 @@ describe('refreshOverview 跟随视图', () => {
     AppState.features = { ...AppState.features, subscriptions: false };
     refreshOverview();
     assert.equal(grid.dataset['view'], 'projects');
+  });
+});
+
+describe('导航状态时间戳与状态点', () => {
+  it('新数据绿点 + 相对时间，超时变黄，长期失联或失败变红', () => {
+    resetStubDom();
+    const stamp = stubElement('last-update');
+    const dot = stubElement('nav-live-dot');
+
+    updateNavFreshness({ last_update: new Date().toISOString(), projects: [], summary: {} });
+    assert.equal(stamp.textContent, 'Just now');
+    assert.equal(dot.className, 'live-dot');
+
+    updateNavFreshness({ last_update: new Date(Date.now() - 2 * 3600_000).toISOString(), projects: [], summary: {} });
+    assert.equal(stamp.textContent, '2 hr ago');
+    assert.equal(dot.className, 'live-dot stale');
+
+    updateNavFreshness({ last_update: new Date(Date.now() - 30 * 3600_000).toISOString(), projects: [], summary: {} });
+    assert.equal(dot.className, 'live-dot down');
+
+    updateNavFreshness(null, true);
+    assert.equal(stamp.textContent, '—');
+    assert.equal(dot.className, 'live-dot down');
   });
 });

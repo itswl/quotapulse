@@ -85,6 +85,16 @@
     100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+.live-dot.stale {
+    background: var(--warning);
+    animation: none;
+}
+
+.live-dot.down {
+    background: var(--danger);
+    animation: none;
+}
+
 .nav-actions {
     display: flex;
     gap: 4px;

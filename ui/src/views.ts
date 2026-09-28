@@ -34,6 +34,11 @@ export function syncAlertsChip(): void {
 export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute('data-theme', theme);
   syncThemeColor();
+  // The toggle describes the action it offers, not the state you are in.
+  const toggle = typeof document.getElementById === 'function' ? document.getElementById('theme-toggle') : null;
+  const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  toggle?.setAttribute('title', label);
+  toggle?.setAttribute('aria-label', label);
 }
 
 /* Keep the browser chrome (mobile address bar, PWA title bar) in step with the page background. */

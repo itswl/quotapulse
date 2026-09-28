@@ -17,10 +17,10 @@ export function shortestRunway(projects: CheckResult[]): CheckResult | null {
 export function updateStats(data: CreditsResponse): void {
   const projects = data.projects || [];
 
+  updateNavFreshness(data);
   setText('total-projects', String(projects.length));
   setText('normal-projects', String(projects.filter((p) => !p.need_alarm && p.success).length));
   setText('alert-projects', String(projects.filter((p) => p.need_alarm).length));
-  setText('last-update', getRelativeTime(data.last_update));
   updateFailedHint(projects);
   updateRunwayStat(projects);
 }
@@ -170,4 +170,26 @@ export function refreshOverview(): void {
       : AppState.currentView === 'subscriptions' && AppState.features.subscriptions
         ? 'subscriptions'
         : 'projects';
+}
+
+/* ==================== Navigation status ====================
+   The stamp and the dot in the top bar. Green means the data is fresh; amber that it
+   has aged past a typical refresh cycle; red that the load failed or the API has gone
+   quiet for a day. The dot used to pulse unconditionally, which lied on both counts. */
+
+const FRESH_MS = 90 * 60 * 1000;
+const STALE_MS = 24 * 60 * 60 * 1000;
+
+export function updateNavFreshness(data: CreditsResponse | null, failed = false): void {
+  const stamp = byId('last-update');
+  const dot = byId('nav-live-dot');
+  if (!stamp && !dot) return;
+
+  const last = data?.last_update ?? null;
+  const text = last ? getRelativeTime(last) : failed ? '—' : 'Unknown';
+  const age = last ? Date.now() - new Date(last).getTime() : Number.POSITIVE_INFINITY;
+  const state = failed || !last || age > STALE_MS ? ' down' : age > FRESH_MS ? ' stale' : '';
+
+  if (stamp) stamp.textContent = text;
+  if (dot) dot.className = `live-dot${state}`;
 }
