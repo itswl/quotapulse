@@ -642,7 +642,7 @@ describe('订阅卡上的通知状态徽标', () => {
     }));
     assert.match(cooldown, /Cooldown · next in 17 min/);
     const whole = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'cooldown_skipped', next_eligible_at: new Date(Date.now() + 9 * 3600_000).toISOString() }));
-    assert.match(whole, /next in 9 hr ·|next in 9 hr /);
+    assert.match(whole, /next in 9 hr</);
 
     const sent = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'sent' }));
     assert.match(sent, />Notified</);
