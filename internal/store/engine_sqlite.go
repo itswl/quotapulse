@@ -174,3 +174,44 @@ func (e sqliteQuerier) listEmailAlertHistory(ctx context.Context, since time.Tim
 	}
 	return mapRows(rows, func(r gen.EmailAlertHistory) emailAlertHistoryRow { return emailAlertHistoryRow(r) }), nil
 }
+
+func (e sqliteQuerier) setSubscriptionSnooze(ctx context.Context, arg setSubscriptionSnoozeParams) error {
+	return e.q.SetSubscriptionSnooze(ctx, gen.SetSubscriptionSnoozeParams{
+		SnoozedUntil: sql.NullString{String: arg.SnoozedUntil, Valid: true},
+		Name:         arg.Name,
+	})
+}
+
+func (e sqliteQuerier) updateSubscriptionTimezone(ctx context.Context, arg updateSubscriptionTimezoneParams) error {
+	return e.q.UpdateSubscriptionTimezone(ctx, gen.UpdateSubscriptionTimezoneParams{
+		Timezone: sql.NullString{String: arg.Timezone, Valid: true},
+		Name:     arg.Name,
+	})
+}
+
+func (e sqliteQuerier) updateSubscriptionWebhook(ctx context.Context, arg updateSubscriptionWebhookParams) error {
+	return e.q.UpdateSubscriptionWebhook(ctx, gen.UpdateSubscriptionWebhookParams{
+		WebhookUrl: sql.NullString{String: arg.WebhookUrl, Valid: true},
+		Name:       arg.Name,
+	})
+}
+
+func (e sqliteQuerier) addEmailSuppression(ctx context.Context, arg addEmailSuppressionParams) error {
+	return e.q.AddEmailSuppression(ctx, gen.AddEmailSuppressionParams{
+		Mailbox:   arg.Mailbox,
+		Sender:    arg.Sender,
+		CreatedAt: sql.NullTime{Time: arg.CreatedAt, Valid: true},
+	})
+}
+
+func (e sqliteQuerier) deleteEmailSuppression(ctx context.Context, arg deleteEmailSuppressionParams) error {
+	return e.q.DeleteEmailSuppression(ctx, gen.DeleteEmailSuppressionParams(arg))
+}
+
+func (e sqliteQuerier) listEmailSuppressions(ctx context.Context) ([]emailSuppressionRow, error) {
+	rows, err := e.q.ListEmailSuppressions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapRows(rows, func(r gen.ListEmailSuppressionsRow) emailSuppressionRow { return emailSuppressionRow(r) }), nil
+}

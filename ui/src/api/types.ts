@@ -78,6 +78,7 @@ export interface Runway {
   today_consumed: number | null;
   baseline_consumed: number | null;
   spike_ratio: number | null;
+  monthly_projection?: number | null;
 }
 
 /**
@@ -140,7 +141,8 @@ export interface SubscriptionResult {
   already_renewed: boolean;
   last_renewed_date: string | null;
   /** Notification outcome from the last check; absent on older responses. */
-  alert_state?: 'sent' | 'cooldown_skipped' | 'failed' | 'dry_run' | string;
+  alert_state?: 'sent' | 'cooldown_skipped' | 'failed' | 'dry_run' | 'snoozed' | string;
+  snoozed_until?: string | null;
   next_eligible_at?: string | null;
   last_error?: string | null;
 }
@@ -163,6 +165,8 @@ export interface SubscriptionConfig {
   amount: number;
   enabled: boolean;
   last_renewed_date: string | null;
+  timezone?: string;
+  snoozed_until?: string | null;
 }
 
 export interface SubscriptionsConfigResponse {

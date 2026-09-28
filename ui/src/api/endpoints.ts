@@ -83,6 +83,11 @@ export const ENDPOINTS = {
   markRenewed: '/api/subscription/mark_renewed',
   clearRenewed: '/api/subscription/clear_renewed',
   testNotify: '/api/notify/test',
+  snoozeSubscription: '/api/subscription/snooze',
+  subscriptionTimezone: '/api/subscription/timezone',
+  subscriptionWebhook: '/api/subscription/webhook',
+  emailSuppressionAdd: '/api/email/suppression',
+  emailSuppressionDelete: '/api/email/suppression/delete',
     saveEmail: '/api/config/email',
   deleteEmail: '/api/config/email/delete',
 } as const;

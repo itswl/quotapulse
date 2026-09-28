@@ -275,6 +275,11 @@ func (s *Scanner) send(ctx context.Context, alert model.EmailAlert) bool {
 		s.log().Error("Webhook URL is not configured")
 		return false
 	}
+	if s.suppressed(ctx, alert) {
+		s.log().Info("Email alert suppressed as false positive", "mailbox", alert.Mailbox, "sender", alert.Sender)
+		s.record(ctx, alert, false)
+		return false
+	}
 
 	msg := notify.EmailAlert(alert.Mailbox, alert.Subject, alert.Sender, alert.Date,
 		alert.Keywords, alert.ServiceName, alert.Amount)
@@ -287,14 +292,38 @@ func (s *Scanner) send(ctx context.Context, alert model.EmailAlert) bool {
 	}
 
 	sent := err == nil
+	s.record(ctx, alert, sent)
+	return sent
+}
+
+// suppressed reports whether this mailbox+sender pair was muted as a false positive.
+func (s *Scanner) suppressed(ctx context.Context, alert model.EmailAlert) bool {
+	if s.Store == nil {
+		return false
+	}
+	list, err := s.Store.ListEmailSuppressions(ctx)
+	if err != nil {
+		s.log().Warn("Failed to load email suppressions", "error", err)
+		return false
+	}
+	for _, item := range list {
+		if item.Mailbox == alert.Mailbox && item.Sender == alert.Sender {
+			return true
+		}
+	}
+	return false
+}
+
+// record persists an email alert row even when nothing was sent, so the history shows
+// the full story.
+func (s *Scanner) record(ctx context.Context, alert model.EmailAlert, sent bool) {
 	if err := s.Store.SaveEmailAlert(ctx, store.EmailAlertRecord{
 		Mailbox: alert.Mailbox, Sender: alert.Sender, Subject: alert.Subject, Date: alert.Date,
 		ServiceName: alert.ServiceName, Amount: alert.Amount,
 		Keywords: alert.Keywords, AlertSent: sent,
 	}); err != nil {
-		s.log().Warn("operationEmail alertoperation", "mailbox", alert.Mailbox, "error", err)
+		s.log().Warn("Failed to record email alert", "mailbox", alert.Mailbox, "error", err)
 	}
-	return sent
 }
 
 // Implementation note.

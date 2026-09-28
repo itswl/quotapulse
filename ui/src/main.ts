@@ -14,6 +14,7 @@ import { bindProjectManager, deleteProject, editProject } from './managers/proje
 import { bindSettingsManager } from './managers/settings-manager.js';
 import {
   bindSubscriptionManager,
+  snoozeSubscription,
   clearSubscriptionRenewed,
   deleteSubscription,
   editSubscription,
@@ -46,6 +47,7 @@ function bindCardActions(): void {
       ['.js-delete-email', (el) => void deleteEmail(el.dataset['name'] ?? '')],
       ['.js-mark-renewed', (el) => void markSubscriptionRenewed(el.dataset['name'] ?? '')],
       ['.js-clear-renewed', (el) => void clearSubscriptionRenewed(el.dataset['name'] ?? '')],
+      ['.js-snooze-subscription', (el) => void snoozeSubscription(el.dataset['name'] ?? '')],
       ['.js-edit-subscription', (el) => void editSubscription(el.dataset['name'] ?? '')],
       ['.js-delete-subscription', (el) => void deleteSubscription(el.dataset['name'] ?? '')],
       ['.js-clear-filters', () => clearProjectFilters()],

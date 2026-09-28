@@ -145,3 +145,23 @@ WHERE "timestamp" >= sqlc.arg(since)
   AND (sqlc.arg(mailbox)::text = '' OR mailbox = sqlc.arg(mailbox)::text)
 ORDER BY "timestamp" DESC
 LIMIT sqlc.arg(row_limit);
+
+-- name: SetSubscriptionSnooze :exec
+UPDATE subscription_config SET snoozed_until = $1 WHERE name = $2;
+
+-- name: UpdateSubscriptionTimezone :exec
+UPDATE subscription_config SET timezone = $1 WHERE name = $2;
+
+-- name: UpdateSubscriptionWebhook :exec
+UPDATE subscription_config SET webhook_url = $1 WHERE name = $2;
+
+-- name: AddEmailSuppression :exec
+INSERT INTO email_suppressions (mailbox, sender, created_at) VALUES ($1, $2, $3)
+ON CONFLICT (mailbox, sender) DO NOTHING;
+
+-- name: DeleteEmailSuppression :exec
+DELETE FROM email_suppressions WHERE mailbox = $1 AND sender = $2;
+
+-- name: ListEmailSuppressions :many
+SELECT mailbox, sender FROM email_suppressions ORDER BY id;
+

@@ -56,6 +56,9 @@ type Subscription struct {
 	Amount          float64 `json:"amount"`
 	Enabled         bool    `json:"enabled"`
 	LastRenewedDate *string `json:"last_renewed_date"` // YYYY-MM-DD
+	SnoozedUntil    *string `json:"snoozed_until,omitempty"`
+	Timezone        string  `json:"timezone,omitempty"`
+	WebhookURL      string  `json:"-"`
 }
 
 // Implementation note.
@@ -175,24 +178,25 @@ const (
 
 // Implementation note.
 type Runway struct {
-	ProjectID      string       `json:"project_id"`
-	ProjectName    string       `json:"project_name"`
-	Provider       string       `json:"provider"`
-	BalanceType    string       `json:"balance_type"`
-	CurrentBalance *float64     `json:"current_balance"`
-	WindowDays     int          `json:"window_days"`
-	DataPoints     int          `json:"data_points"`
-	SpanHours      float64      `json:"span_hours"`
-	Consumed       float64      `json:"consumed"`
-	ToppedUp       float64      `json:"topped_up"`
-	BurnPerDay     *float64     `json:"burn_per_day"`
-	RunwayDays     *float64     `json:"runway_days"`
-	DepletionDate  *string      `json:"depletion_date"`
-	Confidence     string       `json:"confidence"`
-	Daily          []DailySpend `json:"daily"`
-	TodayConsumed  *float64     `json:"today_consumed"`
-	BaselineSpend  *float64     `json:"baseline_consumed"`
-	SpikeRatio     *float64     `json:"spike_ratio"`
+	ProjectID         string       `json:"project_id"`
+	ProjectName       string       `json:"project_name"`
+	Provider          string       `json:"provider"`
+	BalanceType       string       `json:"balance_type"`
+	CurrentBalance    *float64     `json:"current_balance"`
+	WindowDays        int          `json:"window_days"`
+	DataPoints        int          `json:"data_points"`
+	SpanHours         float64      `json:"span_hours"`
+	Consumed          float64      `json:"consumed"`
+	ToppedUp          float64      `json:"topped_up"`
+	BurnPerDay        *float64     `json:"burn_per_day"`
+	RunwayDays        *float64     `json:"runway_days"`
+	DepletionDate     *string      `json:"depletion_date"`
+	Confidence        string       `json:"confidence"`
+	Daily             []DailySpend `json:"daily"`
+	TodayConsumed     *float64     `json:"today_consumed"`
+	BaselineSpend     *float64     `json:"baseline_consumed"`
+	SpikeRatio        *float64     `json:"spike_ratio"`
+	MonthlyProjection *float64     `json:"monthly_projection,omitempty"`
 }
 
 // Implementation note.
@@ -221,6 +225,7 @@ type SubscriptionResult struct {
 	AlertState       string  `json:"alert_state,omitempty"`
 	NextEligibleAt   *string `json:"next_eligible_at,omitempty"`
 	LastError        string  `json:"last_error,omitempty"`
+	SnoozedUntil     *string `json:"snoozed_until,omitempty"`
 }
 
 // Implementation note.
@@ -305,4 +310,11 @@ func OwnerProjectOf(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// EmailSuppression marks a mailbox+sender pair whose billing emails should not trigger
+// notifications (false positives).
+type EmailSuppression struct {
+	Mailbox string `json:"mailbox"`
+	Sender  string `json:"sender"`
 }

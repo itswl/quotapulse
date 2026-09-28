@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS subscription_config (
     amount DOUBLE,
     enabled BOOLEAN,
     last_renewed_date VARCHAR(20),
+    snoozed_until VARCHAR(20),
+    timezone VARCHAR(50),
+    webhook_url TEXT,
     created_at DATETIME,
     updated_at DATETIME,
     PRIMARY KEY (id),
@@ -103,3 +106,13 @@ CREATE TABLE IF NOT EXISTS email_alert_history (
     KEY ix_email_alert_history_timestamp (`timestamp`),
     KEY idx_email_mailbox_time (mailbox, `timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS email_suppressions (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    mailbox VARCHAR(200) NOT NULL,
+    sender VARCHAR(200) NOT NULL,
+    created_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_email_suppressions_mailbox_sender (mailbox, sender)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

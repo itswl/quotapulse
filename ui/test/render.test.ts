@@ -646,6 +646,9 @@ describe('订阅卡上的通知状态徽标', () => {
 
     const sent = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'sent' }));
     assert.match(sent, />Notified</);
+
+    const snoozed = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'snoozed', snoozed_until: '2026-10-06' }));
+    assert.match(snoozed, /Snoozed until 2026-10-06/);
   });
 
   it('need_alert 为假时不显示通知徽标', () => {

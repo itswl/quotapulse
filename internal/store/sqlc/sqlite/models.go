@@ -58,6 +58,13 @@ type EmailConfig struct {
 	UpdatedAt sql.NullTime
 }
 
+type EmailSuppression struct {
+	ID        int64
+	Mailbox   string
+	Sender    string
+	CreatedAt sql.NullTime
+}
+
 type ProjectConfig struct {
 	ID           int64
 	Name         string
@@ -81,6 +88,9 @@ type SubscriptionConfig struct {
 	Amount          sql.NullFloat64
 	Enabled         sql.NullBool
 	LastRenewedDate sql.NullString
+	SnoozedUntil    sql.NullString
+	Timezone        sql.NullString
+	WebhookUrl      sql.NullString
 	CreatedAt       sql.NullTime
 	UpdatedAt       sql.NullTime
 }

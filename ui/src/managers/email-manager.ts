@@ -326,6 +326,7 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
                 </div>
                 <div class="email-alert-side">
                     ${badge}
+                    <button class="btn-link js-email-suppress" data-mailbox="${escapeAttr(alert.mailbox || '')}" data-sender="${escapeAttr(alert.sender || '')}" title="Mute this sender for this mailbox (false positive)">False positive</button>
                     ${options.history && alert.timestamp ? `<span>Recorded ${escapeHTML(formatDate(alert.timestamp))}</span>` : ''}
                 </div>
             </div>
@@ -420,6 +421,16 @@ export async function deleteEmail(name: string): Promise<void> {
   });
   if (!confirmed) return;
   if (await mutate(ENDPOINTS.deleteEmail, { name }, { success: 'Mailbox deleted', fail: 'Delete failed' })) {
+    await EmailManager.load(true);
+  }
+}
+
+/** Mute a mailbox+sender pair so future billing emails from it stay silent. */
+export async function suppressEmail(mailbox: string, sender: string): Promise<void> {
+  if (!mailbox || !sender) {
+    return;
+  }
+  if (await mutate(ENDPOINTS.emailSuppressionAdd, { mailbox, sender }, { success: 'Sender muted for this mailbox', fail: 'Suppress failed' })) {
     await EmailManager.load(true);
   }
 }

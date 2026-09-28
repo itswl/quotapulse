@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS subscription_config (
     amount FLOAT,
     enabled BOOLEAN,
     last_renewed_date VARCHAR(20),
+    snoozed_until VARCHAR(20),
+    timezone VARCHAR(50),
+    webhook_url TEXT,
     created_at DATETIME,
     updated_at DATETIME,
     PRIMARY KEY (id),
@@ -107,3 +110,13 @@ CREATE TABLE IF NOT EXISTS email_alert_history (
 CREATE INDEX IF NOT EXISTS ix_email_alert_history_mailbox ON email_alert_history (mailbox);
 CREATE INDEX IF NOT EXISTS ix_email_alert_history_timestamp ON email_alert_history (timestamp);
 CREATE INDEX IF NOT EXISTS idx_email_mailbox_time ON email_alert_history (mailbox, timestamp);
+
+CREATE TABLE IF NOT EXISTS email_suppressions (
+    id INTEGER NOT NULL,
+    mailbox VARCHAR(200) NOT NULL,
+    sender VARCHAR(200) NOT NULL,
+    created_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE (mailbox, sender)
+);
+

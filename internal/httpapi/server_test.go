@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -426,5 +427,80 @@ func TestNotifyTestEndpoint(t *testing.T) {
 	rec = post(build(nil))
 	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "not configured") {
 		t.Fatalf("未配置 webhook 应报 400 并说明: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSubscriptionSettingEndpoints(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1", EnableDynamicConfig: true, EnableSubscriptions: true}
+	st := store.Null()
+	s := &Server{
+		Settings: settings, Resolver: config.NewResolver(settings, st, log), Store: st,
+		State: state.New(), Log: log,
+		Subs: &subscription.Checker{Store: st, Log: log},
+	}
+	handler := s.Handler()
+	post := func(path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req.Header.Set("X-API-Key", testAPIKey)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := post("/api/subscription/snooze", `{"name":"Netflix","days":14}`); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "snoozed until") {
+		t.Fatalf("snooze 应成功: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := post("/api/subscription/snooze", `{"name":"Netflix","days":0}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("days=0 应拒绝: %d", rec.Code)
+	}
+	if rec := post("/api/subscription/timezone", `{"name":"Netflix","timezone":"Mars/Olympus"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("未知时区应拒绝: %d", rec.Code)
+	}
+	if rec := post("/api/subscription/timezone", `{"name":"Netflix","timezone":"Asia/Shanghai"}`); rec.Code != http.StatusOK {
+		t.Fatalf("合法时区应接受: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := post("/api/subscription/webhook", `{"name":"Netflix","url":"notaurl"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("非法 URL 应拒绝: %d", rec.Code)
+	}
+	if rec := post("/api/subscription/webhook", `{"name":"Netflix","url":"https://hooks.example.com/x"}`); rec.Code != http.StatusOK {
+		t.Fatalf("合法 webhook 应接受: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestEmailSuppressionEndpoints(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1"}
+	st, storeErr := store.Open(context.Background(), store.Options{DatabaseURL: "sqlite://" + filepath.Join(t.TempDir(), "test.db")})
+	if storeErr != nil {
+		t.Fatalf("open test store: %v", storeErr)
+	}
+	defer st.Close()
+	s := &Server{Settings: settings, Resolver: config.NewResolver(settings, st, log), Store: st, State: state.New(), Log: log}
+	handler := s.Handler()
+	call := func(method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("X-API-Key", testAPIKey)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := call(http.MethodPost, "/api/email/suppression", `{"mailbox":"ops@x.com"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("缺 sender 应拒绝: %d", rec.Code)
+	}
+	if rec := call(http.MethodPost, "/api/email/suppression", `{"mailbox":"ops@x.com","sender":"billing@loud.com"}`); rec.Code != http.StatusOK {
+		t.Fatalf("添加抑制应成功: %d %s", rec.Code, rec.Body.String())
+	}
+	rec := call(http.MethodGet, "/api/email/suppressions", "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "billing@loud.com") {
+		t.Fatalf("抑制列表应包含刚加的记录: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := call(http.MethodPost, "/api/email/suppression/delete", `{"mailbox":"ops@x.com","sender":"billing@loud.com"}`); rec.Code != http.StatusOK {
+		t.Fatalf("删除抑制应成功: %d", rec.Code)
+	}
+	rec = call(http.MethodGet, "/api/email/suppressions", "")
+	if !strings.Contains(rec.Body.String(), `"count":0`) {
+		t.Fatalf("删除后列表应为空: %s", rec.Body.String())
 	}
 }

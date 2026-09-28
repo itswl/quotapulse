@@ -10,6 +10,22 @@ import (
 	"database/sql"
 )
 
+const addEmailSuppression = `-- name: AddEmailSuppression :exec
+INSERT IGNORE INTO email_suppressions (mailbox, sender, created_at) VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE id = id
+`
+
+type AddEmailSuppressionParams struct {
+	Mailbox   string
+	Sender    string
+	CreatedAt sql.NullTime
+}
+
+func (q *Queries) AddEmailSuppression(ctx context.Context, arg AddEmailSuppressionParams) error {
+	_, err := q.db.ExecContext(ctx, addEmailSuppression, arg.Mailbox, arg.Sender, arg.CreatedAt)
+	return err
+}
+
 const countAlerts = `-- name: CountAlerts :one
 SELECT COUNT(*) FROM alert_history WHERE ` + "`" + `timestamp` + "`" + ` >= ?
 `
@@ -155,6 +171,20 @@ DELETE FROM email_config WHERE name = ?
 
 func (q *Queries) DeleteEmailConfig(ctx context.Context, name string) error {
 	_, err := q.db.ExecContext(ctx, deleteEmailConfig, name)
+	return err
+}
+
+const deleteEmailSuppression = `-- name: DeleteEmailSuppression :exec
+DELETE FROM email_suppressions WHERE mailbox = ? AND sender = ?
+`
+
+type DeleteEmailSuppressionParams struct {
+	Mailbox string
+	Sender  string
+}
+
+func (q *Queries) DeleteEmailSuppression(ctx context.Context, arg DeleteEmailSuppressionParams) error {
+	_, err := q.db.ExecContext(ctx, deleteEmailSuppression, arg.Mailbox, arg.Sender)
 	return err
 }
 
@@ -557,6 +587,38 @@ func (q *Queries) ListEmailConfigs(ctx context.Context) ([]EmailConfig, error) {
 	return items, nil
 }
 
+const listEmailSuppressions = `-- name: ListEmailSuppressions :many
+SELECT mailbox, sender FROM email_suppressions ORDER BY id
+`
+
+type ListEmailSuppressionsRow struct {
+	Mailbox string
+	Sender  string
+}
+
+func (q *Queries) ListEmailSuppressions(ctx context.Context) ([]ListEmailSuppressionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listEmailSuppressions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEmailSuppressionsRow{}
+	for rows.Next() {
+		var i ListEmailSuppressionsRow
+		if err := rows.Scan(&i.Mailbox, &i.Sender); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProjectConfigs = `-- name: ListProjectConfigs :many
 
 SELECT id, name, owner_project, provider, api_key, threshold, type, enabled, created_at, updated_at FROM project_config ORDER BY id
@@ -600,7 +662,7 @@ func (q *Queries) ListProjectConfigs(ctx context.Context) ([]ProjectConfig, erro
 }
 
 const listSubscriptionConfigs = `-- name: ListSubscriptionConfigs :many
-SELECT id, name, owner_project, cycle_type, renewal_day, alert_days_before, amount, enabled, last_renewed_date, created_at, updated_at FROM subscription_config ORDER BY id
+SELECT id, name, owner_project, cycle_type, renewal_day, alert_days_before, amount, enabled, last_renewed_date, snoozed_until, timezone, webhook_url, created_at, updated_at FROM subscription_config ORDER BY id
 `
 
 func (q *Queries) ListSubscriptionConfigs(ctx context.Context) ([]SubscriptionConfig, error) {
@@ -622,6 +684,9 @@ func (q *Queries) ListSubscriptionConfigs(ctx context.Context) ([]SubscriptionCo
 			&i.Amount,
 			&i.Enabled,
 			&i.LastRenewedDate,
+			&i.SnoozedUntil,
+			&i.Timezone,
+			&i.WebhookUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -636,6 +701,20 @@ func (q *Queries) ListSubscriptionConfigs(ctx context.Context) ([]SubscriptionCo
 		return nil, err
 	}
 	return items, nil
+}
+
+const setSubscriptionSnooze = `-- name: SetSubscriptionSnooze :exec
+UPDATE subscription_config SET snoozed_until = ? WHERE name = ?
+`
+
+type SetSubscriptionSnoozeParams struct {
+	SnoozedUntil sql.NullString
+	Name         string
+}
+
+func (q *Queries) SetSubscriptionSnooze(ctx context.Context, arg SetSubscriptionSnoozeParams) error {
+	_, err := q.db.ExecContext(ctx, setSubscriptionSnooze, arg.SnoozedUntil, arg.Name)
+	return err
 }
 
 const updateEmailPassword = `-- name: UpdateEmailPassword :exec
@@ -663,6 +742,34 @@ type UpdateProjectAPIKeyParams struct {
 
 func (q *Queries) UpdateProjectAPIKey(ctx context.Context, arg UpdateProjectAPIKeyParams) error {
 	_, err := q.db.ExecContext(ctx, updateProjectAPIKey, arg.ApiKey, arg.Name)
+	return err
+}
+
+const updateSubscriptionTimezone = `-- name: UpdateSubscriptionTimezone :exec
+UPDATE subscription_config SET timezone = ? WHERE name = ?
+`
+
+type UpdateSubscriptionTimezoneParams struct {
+	Timezone sql.NullString
+	Name     string
+}
+
+func (q *Queries) UpdateSubscriptionTimezone(ctx context.Context, arg UpdateSubscriptionTimezoneParams) error {
+	_, err := q.db.ExecContext(ctx, updateSubscriptionTimezone, arg.Timezone, arg.Name)
+	return err
+}
+
+const updateSubscriptionWebhook = `-- name: UpdateSubscriptionWebhook :exec
+UPDATE subscription_config SET webhook_url = ? WHERE name = ?
+`
+
+type UpdateSubscriptionWebhookParams struct {
+	WebhookUrl sql.NullString
+	Name       string
+}
+
+func (q *Queries) UpdateSubscriptionWebhook(ctx context.Context, arg UpdateSubscriptionWebhookParams) error {
+	_, err := q.db.ExecContext(ctx, updateSubscriptionWebhook, arg.WebhookUrl, arg.Name)
 	return err
 }
 

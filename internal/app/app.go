@@ -97,6 +97,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	}
 	app.Subs = &subscription.Checker{
 		Store: st, Notifier: notifier, Log: log,
+		WebhookType: settings.WebhookType, Source: settings.WebhookSource,
 		Cooldown: time.Duration(settings.CooldownSeconds("subscription")) * time.Second,
 		OnNotify: app.Metrics.RecordNotification,
 	}

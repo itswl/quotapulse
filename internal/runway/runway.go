@@ -84,6 +84,10 @@ func Compute(records []model.BalancePoint, windowDays int, now time.Time) model.
 
 	result.Daily = fillDaily(perDay, points[0].at, points[len(points)-1].at)
 	result.TodayConsumed, result.BaselineSpend, result.SpikeRatio = spike(result.Daily, now.Format("2006-01-02"))
+	if result.BurnPerDay != nil {
+		projection := *result.BurnPerDay * 30
+		result.MonthlyProjection = &projection
+	}
 	return result
 }
 

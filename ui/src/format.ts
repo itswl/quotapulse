@@ -73,7 +73,7 @@ export function formatRunway(runway: Runway | null | undefined): RunwayDisplay {
     return { text: '—', level: 'unknown', hint: '' };
   }
   const hint = runway.depletion_date
-    ? `At an average daily spend of ${formatCurrency(runway.burn_per_day)}, estimated to deplete around ${runway.depletion_date}`
+    ? `At an average daily spend of ${formatCurrency(runway.burn_per_day)}${runway.monthly_projection != null ? ` (≈${formatNumber(Math.round(runway.monthly_projection))}/mo)` : ''}, estimated to deplete around ${runway.depletion_date}`
     : '';
   if (days > 365) {
     return { text: 'More than 1 year', level: 'normal', hint };

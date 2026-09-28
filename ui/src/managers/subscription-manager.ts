@@ -1,6 +1,6 @@
 /* Implementation note. */
 
-import { mutate } from '../api/client.js';
+import { mutate, request } from '../api/client.js';
 import { ENDPOINTS, getSubscriptionsConfig } from '../api/endpoints.js';
 import type { CycleType, SubscriptionConfig, SubscriptionPayload, SubscriptionResult } from '../api/types.js';
 import { byId, inputById, inputValue, isChecked, onClick, selectById, setChecked, setInputValue } from '../dom.js';
@@ -83,6 +83,8 @@ export function openSubscriptionModal(subscription: EditableSubscription | null 
     selectById('sub-cycle').value = subscription.cycle_type || 'monthly';
     setInputValue('sub-renewal-day', subscription.renewal_day || 1);
     setInputValue('sub-alert-days', 'alert_days_before' in subscription ? subscription.alert_days_before || 7 : 7);
+    setInputValue('sub-timezone', 'timezone' in subscription ? subscription.timezone : '');
+    setInputValue('sub-webhook-url', ''); // write-only: left empty keeps any override
     if (subscription.last_renewed_date) {
       setInputValue('sub-last-renewed', subscription.last_renewed_date);
     }
@@ -142,6 +144,8 @@ async function saveSubscription(event: Event): Promise<void> {
 
   const result = await mutate(endpoint, data, { success: isEdit ? 'Subscription updated' : 'Subscription added', fail: 'Save failed' });
   if (result) {
+    const name = data.new_name ?? data.name;
+    await syncSubscriptionSettings(name);
     closeSubscriptionModal();
     await reloadSubscriptions();
   }
@@ -161,6 +165,27 @@ export async function editSubscription(name: string): Promise<void> {
   } catch (error) {
     console.error('Failed to load subscription:', error);
     showToast('Load failed', 'error');
+  }
+}
+
+/** Snooze reminders for one subscription by N days (default 7). */
+export async function snoozeSubscription(name: string, days = 7): Promise<void> {
+  if (await mutate(ENDPOINTS.snoozeSubscription, { name, days }, { success: `Reminders snoozed until further notice`, fail: 'Snooze failed' })) {
+    await reloadSubscriptions();
+  }
+}
+
+/** Push the modal's timezone and webhook override to the dedicated endpoints. */
+async function syncSubscriptionSettings(name: string): Promise<void> {
+  const timezone = inputValue('sub-timezone').trim();
+  const webhookURL = inputValue('sub-webhook-url').trim();
+  try {
+    await request(ENDPOINTS.subscriptionTimezone, { method: 'POST', body: JSON.stringify({ name, timezone }) });
+    if (webhookURL) {
+      await request(ENDPOINTS.subscriptionWebhook, { method: 'POST', body: JSON.stringify({ name, url: webhookURL }) });
+    }
+  } catch (error) {
+    showToast(error instanceof Error && error.message ? error.message : 'Subscription settings sync failed', 'error');
   }
 }
 

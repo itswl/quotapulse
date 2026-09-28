@@ -85,6 +85,10 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := ensureColumns(ctx, db); err != nil {
+		db.Close()
+		return nil, err
+	}
 
 	var q querier
 	switch target.Engine {
@@ -179,6 +183,9 @@ func (s *sqlStore) ListSubscriptions(ctx context.Context) ([]model.Subscription,
 			Amount:          row.Amount.Float64,
 			Enabled:         row.Enabled.Bool,
 			LastRenewedDate: stringPtrOf(row.LastRenewedDate),
+			SnoozedUntil:    stringPtrOf(row.SnoozedUntil),
+			Timezone:        row.Timezone.String,
+			WebhookURL:      row.WebhookUrl.String,
 		})
 	}
 	return out, nil
@@ -497,6 +504,38 @@ func pruneBackups(dir string, keep int) {
 	for i := 0; i < len(backups)-keep; i++ {
 		_ = os.Remove(filepath.Join(dir, backups[i]))
 	}
+}
+
+func (s *sqlStore) SetSubscriptionSnooze(ctx context.Context, name, snoozedUntil string) error {
+	return s.q.setSubscriptionSnooze(ctx, setSubscriptionSnoozeParams{SnoozedUntil: snoozedUntil, Name: name})
+}
+
+func (s *sqlStore) UpdateSubscriptionTimezone(ctx context.Context, name, timezone string) error {
+	return s.q.updateSubscriptionTimezone(ctx, updateSubscriptionTimezoneParams{Timezone: timezone, Name: name})
+}
+
+func (s *sqlStore) UpdateSubscriptionWebhook(ctx context.Context, name, webhookURL string) error {
+	return s.q.updateSubscriptionWebhook(ctx, updateSubscriptionWebhookParams{WebhookUrl: webhookURL, Name: name})
+}
+
+func (s *sqlStore) ListEmailSuppressions(ctx context.Context) ([]model.EmailSuppression, error) {
+	rows, err := s.q.listEmailSuppressions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.EmailSuppression, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, model.EmailSuppression{Mailbox: row.Mailbox, Sender: row.Sender})
+	}
+	return out, nil
+}
+
+func (s *sqlStore) AddEmailSuppression(ctx context.Context, mailbox, sender string) error {
+	return s.q.addEmailSuppression(ctx, addEmailSuppressionParams{Mailbox: mailbox, Sender: sender, CreatedAt: time.Now().UTC()})
+}
+
+func (s *sqlStore) DeleteEmailSuppression(ctx context.Context, mailbox, sender string) error {
+	return s.q.deleteEmailSuppression(ctx, deleteEmailSuppressionParams{Mailbox: mailbox, Sender: sender})
 }
 
 func (s *sqlStore) RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error) {

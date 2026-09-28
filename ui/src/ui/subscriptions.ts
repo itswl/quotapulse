@@ -4,7 +4,7 @@ import { requireById } from '../dom.js';
 import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, renewalUrgency } from '../format.js';
 import type { SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
 import { emptyState } from './empty.js';
-import { ICON_CHECK, ICON_DELETE, ICON_EDIT, ICON_UNDO } from './icons.js';
+import { ICON_CALENDAR, ICON_CHECK, ICON_DELETE, ICON_EDIT, ICON_UNDO } from './icons.js';
 
 export /**
  * Notification outcome for subscriptions inside their reminder window. One boolean
@@ -25,6 +25,8 @@ function renderAlertBadge(sub: SubscriptionResult): string {
     }
     case 'dry_run':
       return '<span class="status-badge info">Dry run · nothing sent</span>';
+    case 'snoozed':
+      return `<span class="status-badge muted" title="Reminders snoozed">Snoozed${sub.snoozed_until ? ` until ${escapeHTML(sub.snoozed_until)}` : ''}</span>`;
     default:
       return '';
   }
@@ -65,6 +67,9 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
                 <div class="subscription-status">
                     <div class="subscription-actions">
                         ${renewalAction}
+                        <button class="action-icon-btn js-snooze-subscription" data-name="${subNameAttr}" title="Snooze reminders for 7 days">
+                            ${ICON_CALENDAR}
+                        </button>
                         <button class="action-icon-btn js-edit-subscription" data-name="${subNameAttr}" title="Edit">
                             ${ICON_EDIT}
                         </button>

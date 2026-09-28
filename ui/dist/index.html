@@ -27,7 +27,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=56194568d3f3">
+    <link rel="stylesheet" href="/static/app.css?v=6fbcbe0a95cc">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
@@ -601,6 +601,17 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sub-timezone">Timezone (optional)</label>
+                        <input type="text" id="sub-timezone" placeholder="e.g. Asia/Shanghai">
+                    </div>
+                    <div class="form-group">
+                        <label for="sub-webhook-url">Webhook override (optional)</label>
+                        <input type="text" id="sub-webhook-url" placeholder="Leave empty to use the global webhook">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="sub-last-renewed">Last renewal date (optional)</label>
                     <input type="date" id="sub-last-renewed">
@@ -680,6 +691,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=56194568d3f3"></script>
+    <script defer src="/static/app.js?v=6fbcbe0a95cc"></script>
 </body>
 </html>

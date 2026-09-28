@@ -18,6 +18,9 @@ type Checker struct {
 	Notifier notify.Notifier
 	Log      *slog.Logger
 	Cooldown time.Duration
+	// WebhookType and Source feed per-subscription webhook overrides.
+	WebhookType string
+	Source      string
 
 	// Implementation note.
 	OnNotify func(kind string, ok bool)
@@ -30,6 +33,7 @@ const (
 	AlertStateCooldownSkipped = "cooldown_skipped"
 	AlertStateFailed          = "failed"
 	AlertStateDryRun          = "dry_run"
+	AlertStateSnoozed         = "snoozed"
 )
 
 // Implementation note.
@@ -40,16 +44,24 @@ func (c *Checker) Check(ctx context.Context, subs []model.Subscription, dryRun b
 	}
 	c.log().Info("operation", "count", len(subs), "dry_run", dryRun)
 
-	today := time.Now()
 	results := make([]model.SubscriptionResult, 0, len(subs))
 	for _, sub := range subs {
-		results = append(results, c.checkOne(ctx, sub, today, dryRun))
+		results = append(results, c.checkOne(ctx, sub, dryRun))
 	}
 	c.logSummary(results)
 	return results
 }
 
-func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, today time.Time, dryRun bool) model.SubscriptionResult {
+func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, dryRun bool) model.SubscriptionResult {
+	loc := time.Local
+	if sub.Timezone != "" {
+		if loaded, loadErr := time.LoadLocation(sub.Timezone); loadErr == nil {
+			loc = loaded
+		} else {
+			c.log().Warn("Invalid timezone; using server local time", "name", sub.Name, "timezone", sub.Timezone)
+		}
+	}
+	today := time.Now().In(loc)
 	lastRenewed := parseRenewedDate(sub.LastRenewedDate, today.Location(), c.log())
 	days, next := NextRenewal(sub.CycleType, sub.RenewalDay, today, lastRenewed)
 
@@ -78,11 +90,16 @@ func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, today ti
 		"cycle", notify.FormatSubscriptionCycle(sub.CycleType, sub.RenewalDay),
 		"amount", sub.Amount, "days_until_renewal", days, "next", result.NextRenewalDate)
 
+	snoozed := sub.SnoozedUntil != nil && *sub.SnoozedUntil >= today.Format("2006-01-02")
 	switch {
 	case alreadyRenewed:
 		c.log().Info("operation,operation", "name", sub.Name)
 	case !needAlert:
 		c.log().Info("operation", "name", sub.Name)
+	case snoozed:
+		c.log().Info("Subscription reminder snoozed", "name", sub.Name, "until", *sub.SnoozedUntil)
+		result.AlertState = AlertStateSnoozed
+		result.SnoozedUntil = sub.SnoozedUntil
 	case dryRun:
 		c.log().Warn("operation,operation", "name", sub.Name, "before_days", sub.AlertDaysBefore)
 		result.AlertState = AlertStateDryRun
@@ -112,13 +129,24 @@ func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int
 			return AlertStateCooldownSkipped, &nextStr, ""
 		}
 	}
-	if c.Notifier == nil {
+	notifier := c.Notifier
+	if sub.WebhookURL != "" {
+		// Per-subscription channel override: same payload style, different destination.
+		override, overrideErr := notify.New(sub.WebhookURL, c.WebhookType, c.Source, nil)
+		if overrideErr != nil {
+			c.log().Error("Invalid subscription webhook URL", "name", sub.Name, "error", overrideErr)
+			c.record(ctx, alertID, sub, days, "failed", overrideErr.Error())
+			return AlertStateFailed, nil, overrideErr.Error()
+		}
+		notifier = override
+	}
+	if notifier == nil {
 		c.log().Error("Webhook URL is not configured")
 		return AlertStateFailed, nil, "Webhook URL is not configured"
 	}
 
 	msg := notify.SubscriptionAlert(sub.Name, sub.OwnerProject, sub.CycleType, sub.RenewalDay, days, sub.Amount)
-	sendErr := c.Notifier.Send(ctx, msg)
+	sendErr := notifier.Send(ctx, msg)
 	if c.OnNotify != nil {
 		c.OnNotify(msg.Kind, sendErr == nil)
 	}

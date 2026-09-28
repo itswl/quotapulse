@@ -38,8 +38,42 @@ type subscriptionConfigRow struct {
 	Amount          sql.NullFloat64
 	Enabled         sql.NullBool
 	LastRenewedDate sql.NullString
+	SnoozedUntil    sql.NullString
+	Timezone        sql.NullString
+	WebhookUrl      sql.NullString
 	CreatedAt       sql.NullTime
 	UpdatedAt       sql.NullTime
+}
+
+type emailSuppressionRow struct {
+	Mailbox string
+	Sender  string
+}
+
+type setSubscriptionSnoozeParams struct {
+	SnoozedUntil string
+	Name         string
+}
+
+type updateSubscriptionTimezoneParams struct {
+	Timezone string
+	Name     string
+}
+
+type updateSubscriptionWebhookParams struct {
+	WebhookUrl string
+	Name       string
+}
+
+type addEmailSuppressionParams struct {
+	Mailbox   string
+	Sender    string
+	CreatedAt time.Time
+}
+
+type deleteEmailSuppressionParams struct {
+	Mailbox string
+	Sender  string
 }
 
 type emailConfigRow struct {
@@ -208,6 +242,12 @@ type querier interface {
 
 	insertEmailAlert(ctx context.Context, arg insertEmailAlertParams) error
 	countRecentEmailAlerts(ctx context.Context, mailbox, sender, subject, date string, since time.Time) (int64, error)
+	setSubscriptionSnooze(ctx context.Context, arg setSubscriptionSnoozeParams) error
+	updateSubscriptionTimezone(ctx context.Context, arg updateSubscriptionTimezoneParams) error
+	updateSubscriptionWebhook(ctx context.Context, arg updateSubscriptionWebhookParams) error
+	addEmailSuppression(ctx context.Context, arg addEmailSuppressionParams) error
+	deleteEmailSuppression(ctx context.Context, arg deleteEmailSuppressionParams) error
+	listEmailSuppressions(ctx context.Context) ([]emailSuppressionRow, error)
 	listEmailAlertHistory(ctx context.Context, since time.Time, mailbox string, limit int64) ([]emailAlertHistoryRow, error)
 }
 

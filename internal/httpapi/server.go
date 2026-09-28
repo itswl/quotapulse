@@ -66,6 +66,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
+	mux.HandleFunc("POST /api/subscription/snooze", s.handleSubscriptionSnooze)
+	mux.HandleFunc("POST /api/subscription/timezone", s.handleSubscriptionTimezone)
+	mux.HandleFunc("POST /api/subscription/webhook", s.handleSubscriptionWebhook)
+	mux.HandleFunc("GET /api/email/suppressions", s.handleListEmailSuppressions)
+	mux.HandleFunc("POST /api/email/suppression", s.handleAddEmailSuppression)
+	mux.HandleFunc("POST /api/email/suppression/delete", s.handleDeleteEmailSuppression)
 
 	// Implementation note.
 	mux.HandleFunc("GET /api/providers", s.handleProviders)

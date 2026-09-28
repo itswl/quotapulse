@@ -20,6 +20,12 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /api/credits` | Current balance state for all projects | — |
 | `GET/POST /api/refresh` | Run an immediate balance check; POST accepts `project_name`; one run at a time, with a 30-second cooldown | — |
 | `POST /api/notify/test` | Sends a canary message through the configured webhook and returns the delivery error verbatim, so the channel can be verified without waiting for a real alert | `WEB_API_KEY` |
+| `POST /api/subscription/snooze` | Postpones one subscription's reminders by `days` (1-365) without marking it renewed | `ENABLE_DYNAMIC_CONFIG` |
+| `POST /api/subscription/timezone` | Evaluates one subscription in `timezone` (IANA name); empty resets to server time | `ENABLE_DYNAMIC_CONFIG` |
+| `POST /api/subscription/webhook` | Points one subscription at its own webhook URL; empty resets to the global webhook | `ENABLE_DYNAMIC_CONFIG` |
+| `GET /api/email/suppressions` | Lists the mailbox+sender pairs muted as false positives | History API |
+| `POST /api/email/suppression` | Mutes a mailbox+sender pair; matched emails stay in history but stop notifying | History API |
+| `POST /api/email/suppression/delete` | Removes a suppression so the sender notifies again | History API |
 | `GET /api/events` | Unified event timeline merging alert history and email alerts, newest first; accepts `days`, `limit`, `type` | History API |
 | `GET /api/jobs` | Scheduled job status and run details | — |
 | `GET /api/subscriptions` | Current subscription status | Subscriptions |

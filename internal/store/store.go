@@ -46,6 +46,12 @@ type Store interface {
 	HasRecentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (bool, error)
 	LastSentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (*time.Time, error)
 	Backup(ctx context.Context, dir string, keep int) (string, error)
+	SetSubscriptionSnooze(ctx context.Context, name string, snoozedUntil string) error
+	UpdateSubscriptionTimezone(ctx context.Context, name string, timezone string) error
+	UpdateSubscriptionWebhook(ctx context.Context, name string, webhookURL string) error
+	ListEmailSuppressions(ctx context.Context) ([]model.EmailSuppression, error)
+	AddEmailSuppression(ctx context.Context, mailbox, sender string) error
+	DeleteEmailSuppression(ctx context.Context, mailbox, sender string) error
 	RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error)
 	AlertStats(ctx context.Context, days int) (*Stats, error)
 
