@@ -271,6 +271,14 @@
     opacity: 0.5;
 }
 
+.settings-note {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+
 .settings-section {
     margin-bottom: 22px;
 }

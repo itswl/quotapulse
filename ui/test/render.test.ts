@@ -19,6 +19,7 @@ import {
   updateSubscriptionStats,
 } from '../src/ui/stats.js';
 import { AppState, parseRefreshMinutes } from '../src/state.js';
+import { formatServerCadence } from '../src/format.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
 const ALL_OFF: Features = { subscriptions: false, dynamic_config: false, history: false, email_scan: false };
@@ -617,5 +618,18 @@ describe('parseRefreshMinutes', () => {
     assert.equal(parseRefreshMinutes('7.6'), 8);
     assert.equal(parseRefreshMinutes(''), 1);
     assert.equal(parseRefreshMinutes('abc'), 5);
+  });
+});
+
+describe('formatServerCadence', () => {
+  it('把秒数人话化，并带上下次运行倒计时', () => {
+    const next = new Date(Date.now() + 12 * 60_000).toISOString();
+    assert.equal(formatServerCadence({ schedule: 'Every 3600 seconds', next_run: next }), 'Server checks every 1 hr · next in 12 min');
+    assert.equal(formatServerCadence({ schedule: 'Every 1800 seconds', next_run: next }), 'Server checks every 30 min · next in 12 min');
+    assert.equal(formatServerCadence({ schedule: 'Every 45 seconds', next_run: next }), 'Server checks every 45 s · next in 12 min');
+    assert.equal(formatServerCadence({ schedule: 'At 09:00,15:00', next_run: next }), 'Server checks at 09:00,15:00 · next in 12 min');
+    assert.equal(formatServerCadence({ schedule: 'Every 3600 seconds', next_run: null }), 'Server checks every 1 hr');
+    assert.equal(formatServerCadence(null), null);
+    assert.equal(formatServerCadence({ schedule: '', next_run: null }), null);
   });
 });

@@ -158,3 +158,33 @@ export function renewalUrgency(daysUntilRenewal: number): '' | 'warning' | 'dang
   if (daysUntilRenewal <= 14) return 'warning';
   return '';
 }
+
+/* ==================== Server cadence ====================
+   The dashboard polls cached data on its own cadence; the server's own check schedule
+   is a different knob (BALANCE_REFRESH_INTERVAL_SECONDS). Showing both side by side in
+   Settings keeps that distinction visible. Returns null when there is nothing to show. */
+
+export function formatServerCadence(
+  job: { schedule: string; next_run?: string | null } | null | undefined,
+): string | null {
+  if (!job || !job.schedule) return null;
+  const every = /^Every (\d+) seconds$/i.exec(job.schedule.trim());
+  const cadence = every
+    ? (() => {
+        const seconds = Number(every[1]);
+        if (seconds % 3600 === 0) return `every ${seconds / 3600} hr`;
+        if (seconds % 60 === 0) return `every ${seconds / 60} min`;
+        return `every ${seconds} s`;
+      })()
+    : job.schedule.toLowerCase();
+  const next = job.next_run ? ` · next in ${formatUntil(job.next_run)}` : '';
+  return `Server checks ${cadence}${next}`;
+}
+
+function formatUntil(isoDate: string): string {
+  const ms = new Date(isoDate).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 30_000) return 'less than a minute';
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+}

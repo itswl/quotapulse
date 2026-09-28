@@ -6,10 +6,12 @@
  */
 
 import { getApiKey, setApiKey } from '../api/client.js';
+import { getJobs } from '../api/endpoints.js';
 import { byId, inputById, onClick } from '../dom.js';
 import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.js';
 import { AppState, parseRefreshMinutes, writeStorage } from '../state.js';
 import { bindModalClose, openModal } from '../ui/modal.js';
+import { formatServerCadence } from '../format.js';
 import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'settings-modal';
@@ -32,6 +34,27 @@ function syncSettingsForm(): void {
 export function openSettingsModal(): void {
   syncSettingsForm();
   openModal(MODAL_ID);
+  void loadServerCadence();
+}
+
+/**
+ * Show the server's own check cadence next to the display-polling setting, so the two
+ * numbers can be compared. The jobs endpoint is read-only; on failure the line stays
+ * hidden instead of showing something stale.
+ */
+async function loadServerCadence(): Promise<void> {
+  const line = byId('setting-server-cadence');
+  if (!line) return;
+  try {
+    const jobs = await getJobs();
+    const job = (jobs.jobs || []).find((j) => j.name === 'dashboard_refresh');
+    const text = formatServerCadence(job);
+    line.textContent = text ?? '';
+    line.hidden = !text;
+  } catch (error) {
+    console.warn('Job schedule unavailable:', error);
+    line.hidden = true;
+  }
 }
 
 export function bindSettingsManager(): void {
