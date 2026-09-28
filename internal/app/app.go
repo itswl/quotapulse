@@ -23,6 +23,7 @@ import (
 	"github.com/itswl/quotapulse/internal/monitor"
 	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/push"
 	"github.com/itswl/quotapulse/internal/report"
 	"github.com/itswl/quotapulse/internal/runway"
 	"github.com/itswl/quotapulse/internal/scheduler"
@@ -44,6 +45,7 @@ type App struct {
 	Monitor  *monitor.Monitor
 	Subs     *subscription.Checker
 	Scanner  *mailscan.Scanner
+	Push     *push.Manager
 	Server   *httpapi.Server
 
 	scheduler *scheduler.Scheduler
@@ -65,6 +67,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	if err != nil {
 		return nil, fmt.Errorf("Invalid Webhook configuration: %w", err)
 	}
+	pushManager := push.New(st)
 	if notifier == nil {
 		log.Warn("WEBHOOK_URL is not set,Low balanceoperation")
 	}
@@ -80,6 +83,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	}
 
 	app.Monitor = &monitor.Monitor{
+		Push:     pushManager,
 		Settings: settings,
 		Resolver: app.Resolver,
 		Store:    st,
@@ -96,6 +100,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		},
 	}
 	app.Subs = &subscription.Checker{
+		Push:  pushManager,
 		Store: st, Notifier: notifier, Log: log,
 		WebhookType: settings.WebhookType, Source: settings.WebhookSource,
 		Cooldown: time.Duration(settings.CooldownSeconds("subscription")) * time.Second,
@@ -110,7 +115,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	}
 	app.Server = &httpapi.Server{
 		Settings: settings, Resolver: app.Resolver, Store: st, State: app.State,
-		Monitor: app.Monitor, Subs: app.Subs, Scanner: app.Scanner,
+		Monitor: app.Monitor, Subs: app.Subs, Scanner: app.Scanner, Push: app.Push,
 		Log: log, Assets: assets,
 		OnBalanceUpdated:      app.Metrics.UpdateBalance,
 		OnSubscriptionUpdated: app.Metrics.UpdateSubscriptions,
@@ -382,6 +387,9 @@ func (a *App) maybeEscalateJobFailure(result scheduler.Result) {
 	if err := a.Notifier.Send(ctx, msg); err != nil {
 		a.Log.Error("Failed to send job failure escalation", "task", result.Name, "error", err)
 		return
+	}
+	if a.Push != nil {
+		a.Push.Notify(ctx, "QuotaPulse job keeps failing", result.Name+": "+fmt.Sprint(count)+" consecutive failures")
 	}
 	a.jobFailMu.Lock()
 	a.jobEscalated[result.Name] = true

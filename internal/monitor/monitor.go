@@ -17,6 +17,7 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/push"
 	"github.com/itswl/quotapulse/internal/runway"
 	"github.com/itswl/quotapulse/internal/store"
 )
@@ -27,6 +28,7 @@ type Monitor struct {
 	Resolver *config.Resolver
 	Store    store.Store
 	Notifier notify.Notifier
+	Push     *push.Manager
 	Client   *provider.Client
 	Alerter  *runway.Alerter
 	Log      *slog.Logger
@@ -178,6 +180,9 @@ func (m *Monitor) sendBalanceAlert(ctx context.Context, p model.Project, project
 	if last != nil && !time.Now().Before(last.Add(cooldown)) == false {
 		m.log().Info("Alert is cooling down; skipping duplicate notification", "project", p.Name, "cooldown", cooldown)
 		return false
+	}
+	if m.Push != nil {
+		m.Push.Notify(ctx, "Low balance: "+p.Name, fmt.Sprintf("Balance %v dropped below threshold %v", credits, p.Threshold))
 	}
 	if m.Notifier == nil {
 		m.log().Error("Webhook URL is not configured")

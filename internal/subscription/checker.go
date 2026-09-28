@@ -9,6 +9,7 @@ import (
 	"github.com/6tail/lunar-go/calendar"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/push"
 	"github.com/itswl/quotapulse/internal/store"
 )
 
@@ -18,6 +19,7 @@ type Checker struct {
 	Notifier notify.Notifier
 	Log      *slog.Logger
 	Cooldown time.Duration
+	Push     *push.Manager
 	// WebhookType and Source feed per-subscription webhook overrides.
 	WebhookType string
 	Source      string
@@ -129,6 +131,10 @@ func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int
 			return AlertStateCooldownSkipped, &nextStr, ""
 		}
 	}
+	if c.Push != nil {
+		c.Push.Notify(ctx, "Subscription reminder: "+sub.Name, fmt.Sprintf("Renews in %d days (%s)", days, sub.CycleType))
+	}
+
 	notifier := c.Notifier
 	if sub.WebhookURL != "" {
 		// Per-subscription channel override: same payload style, different destination.
