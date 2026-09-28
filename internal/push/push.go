@@ -52,48 +52,46 @@ func (m *Manager) log() *slog.Logger {
 func (m *Manager) PublicKey(ctx context.Context) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.publicKey != "" {
-		return m.publicKey, nil
-	}
+	_, publicKey, err := m.keysLocked(ctx)
+	return publicKey, err
+}
 
+func (m *Manager) keys(ctx context.Context) (string, string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.keysLocked(ctx)
+}
+
+// keysLocked resolves the VAPID pair; the caller must hold m.mu. Nested locking here
+// would deadlock, which is exactly what the first version did.
+func (m *Manager) keysLocked(ctx context.Context) (string, string, error) {
+	if m.privateKey != "" && m.publicKey != "" {
+		return m.privateKey, m.publicKey, nil
+	}
 	storedPublic, err := m.Store.GetAppSetting(ctx, settingVapidPublic)
 	if err == nil && storedPublic != "" {
 		storedPrivate, privErr := m.Store.GetAppSetting(ctx, settingVapidPrivate)
 		if privErr == nil && storedPrivate != "" {
 			m.privateKey, m.publicKey = storedPrivate, storedPublic
-			return m.publicKey, nil
+			return m.privateKey, m.publicKey, nil
 		}
 	}
-
 	privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
 	if err != nil {
-		return "", fmt.Errorf("generate VAPID keys: %w", err)
+		return "", "", fmt.Errorf("generate VAPID keys: %w", err)
 	}
 	if err := m.Store.SetAppSetting(ctx, settingVapidPublic, publicKey); err != nil {
-		return "", fmt.Errorf("persist VAPID public key: %w", err)
+		return "", "", fmt.Errorf("persist VAPID public key: %w", err)
 	}
 	if err := m.Store.SetAppSetting(ctx, settingVapidPrivate, privateKey); err != nil {
-		return "", fmt.Errorf("persist VAPID private key: %w", err)
+		return "", "", fmt.Errorf("persist VAPID private key: %w", err)
 	}
 	m.privateKey, m.publicKey = privateKey, publicKey
-	return publicKey, nil
+	return privateKey, publicKey, nil
 }
 
-func (m *Manager) keys(ctx context.Context) (private, public string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.privateKey != "" && m.publicKey != "" {
-		return m.privateKey, m.publicKey, nil
-	}
-	public, pubErr := m.PublicKey(ctx)
-	if pubErr != nil {
-		return "", "", pubErr
-	}
-	return m.privateKey, m.publicKey, nil
-}
-
-// Notify fans one alert out to every registered browser. Expired endpoints are pruned
-// and delivery failures are logged without blocking the alert pipeline.
+// Notify fans one alert out to every registered browser. Delivery failures are logged
+// without blocking the alert pipeline.
 func (m *Manager) Notify(ctx context.Context, title, body string) {
 	if m == nil || m.Store == nil {
 		return
@@ -103,42 +101,51 @@ func (m *Manager) Notify(ctx context.Context, title, body string) {
 		m.log().Warn("Failed to list push subscriptions", "error", err)
 		return
 	}
-	if len(subs) == 0 {
-		return
+	for _, sub := range subs {
+		m.SendTo(ctx, sub, title, body)
+	}
+}
+
+// SendTo delivers one notification to one browser and reports the delivery error, so
+// the enable flow can confirm the channel end to end.
+func (m *Manager) SendTo(ctx context.Context, sub model.PushSubscription, title, body string) error {
+	if m == nil || m.Store == nil {
+		return fmt.Errorf("push is not available")
 	}
 	privateKey, publicKey, err := m.keys(ctx)
 	if err != nil {
-		m.log().Warn("Push notification skipped; VAPID keys unavailable", "error", err)
-		return
+		return err
 	}
 	payload, err := json.Marshal(map[string]string{"title": title, "body": body, "url": "/"})
 	if err != nil {
-		return
+		return err
 	}
-
-	for _, sub := range subs {
-		options := &webpush.Options{
-			Subscriber:      vapidSubscriber,
-			VAPIDPublicKey:  publicKey,
-			VAPIDPrivateKey: privateKey,
-			TTL:             3600,
-			Urgency:         webpush.UrgencyHigh,
-		}
-		resp, err := webpush.SendNotificationWithContext(ctx, payload, &webpush.Subscription{
-			Endpoint: sub.Endpoint,
-			Keys:     webpush.Keys{Auth: sub.Auth, P256dh: sub.P256dh},
-		}, options)
-		if err != nil {
-			m.log().Warn("Push notification failed", "endpoint", shortEndpoint(sub.Endpoint), "error", err)
-			continue
-		}
-		resp.Body.Close()
-		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
-			if delErr := m.Store.DeletePushSubscription(ctx, sub.Endpoint); delErr != nil {
-				m.log().Warn("Failed to prune expired push subscription", "error", delErr)
-			}
-		}
+	options := &webpush.Options{
+		Subscriber:      vapidSubscriber,
+		VAPIDPublicKey:  publicKey,
+		VAPIDPrivateKey: privateKey,
+		TTL:             3600,
+		Urgency:         webpush.UrgencyHigh,
 	}
+	resp, err := webpush.SendNotificationWithContext(ctx, payload, &webpush.Subscription{
+		Endpoint: sub.Endpoint,
+		Keys:     webpush.Keys{Auth: sub.Auth, P256dh: sub.P256dh},
+	}, options)
+	if err != nil {
+		m.log().Warn("Push notification failed", "endpoint", shortEndpoint(sub.Endpoint), "error", err)
+		return fmt.Errorf("push service rejected the notification: %w", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+		if delErr := m.Store.DeletePushSubscription(ctx, sub.Endpoint); delErr != nil {
+			m.log().Warn("Failed to prune expired push subscription", "error", delErr)
+		}
+		return fmt.Errorf("push endpoint is gone (HTTP %d); the browser registration was pruned", resp.StatusCode)
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("push service returned HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // Subscribe registers or refreshes one browser.

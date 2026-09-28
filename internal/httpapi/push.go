@@ -40,10 +40,17 @@ func (s *Server) handlePushSubscribe(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "endpoint and keys are required")
 		return
 	}
-	if err := s.Push.Subscribe(r.Context(), model.PushSubscription{
+	sub := model.PushSubscription{
 		Endpoint: body.Endpoint, P256dh: body.Keys.P256dh, Auth: body.Keys.Auth,
-	}); err != nil {
+	}
+	if err := s.Push.Subscribe(r.Context(), sub); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// Send a confirmation push immediately so the operator learns the channel works —
+	// or gets the real delivery error — instead of waiting for a genuine alert.
+	if err := s.Push.SendTo(r.Context(), sub, "QuotaPulse push enabled", "Browser push is live. You will receive alerts here."); err != nil {
+		fail(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	ok(w, map[string]any{"status": "success"})

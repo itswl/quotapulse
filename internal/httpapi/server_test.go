@@ -2,6 +2,9 @@ package httpapi
 
 import (
 	"context"
+	"crypto/ecdh"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,6 +13,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/itswl/quotapulse/internal/config"
@@ -481,9 +485,29 @@ func TestPushEndpoints(t *testing.T) {
 		t.Fatalf("push config 应带 publicKey 字段: %s", rec.Body.String())
 	}
 
-	subscribe := `{"endpoint":"https://push.example.com/sub/1","keys":{"p256dh":"k1","auth":"a1"}}`
-	if rec := call(http.MethodPost, "/api/push/subscribe", subscribe); rec.Code != http.StatusOK {
+	// 本地假推送服务：订阅确认会真的投递一条 Web Push 到这里
+	var pushServiceHits int32
+	pushService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&pushServiceHits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer pushService.Close()
+	// webpush 加密会校验 p256dh 是合法的 P256 曲线点，测试用真实生成的客户端密钥
+	clientKey, keyErr := ecdh.P256().GenerateKey(rand.Reader)
+	if keyErr != nil {
+		t.Fatalf("generate client key: %v", keyErr)
+	}
+	p256dh := base64.RawURLEncoding.EncodeToString(clientKey.PublicKey().Bytes())
+	auth := base64.RawURLEncoding.EncodeToString(make([]byte, 16))
+	subscribe, _ := json.Marshal(map[string]any{
+		"endpoint": pushService.URL + "/push/1",
+		"keys":     map[string]string{"p256dh": p256dh, "auth": auth},
+	})
+	if rec := call(http.MethodPost, "/api/push/subscribe", string(subscribe)); rec.Code != http.StatusOK {
 		t.Fatalf("订阅应成功: %d %s", rec.Code, rec.Body.String())
+	}
+	if atomic.LoadInt32(&pushServiceHits) != 1 {
+		t.Fatalf("订阅成功后应立即发一条确认推送, got %d", pushServiceHits)
 	}
 	if rec := call(http.MethodPost, "/api/push/subscribe", `{"endpoint":""}`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("缺 endpoint 应拒绝: %d", rec.Code)
@@ -495,12 +519,16 @@ func TestPushEndpoints(t *testing.T) {
 		t.Fatalf("open store: %v", storeErr)
 	}
 	defer realStore.Close()
+	subscribe2, _ := json.Marshal(map[string]any{
+		"endpoint": pushService.URL + "/push/2",
+		"keys":     map[string]string{"p256dh": p256dh, "auth": auth},
+	})
 	s2 := &Server{
 		Settings: settings, Resolver: config.NewResolver(settings, realStore, log), Store: realStore,
 		State: state.New(), Log: log, Push: push.New(realStore),
 	}
 	handler2 := s2.Handler()
-	req := httptest.NewRequest(http.MethodPost, "/api/push/subscribe", strings.NewReader(subscribe))
+	req := httptest.NewRequest(http.MethodPost, "/api/push/subscribe", strings.NewReader(string(subscribe2)))
 	req.Header.Set("X-API-Key", testAPIKey)
 	rec2 := httptest.NewRecorder()
 	handler2.ServeHTTP(rec2, req)
@@ -508,7 +536,7 @@ func TestPushEndpoints(t *testing.T) {
 		t.Fatalf("持久化订阅应成功: %d", rec2.Code)
 	}
 	subs, listErr := realStore.ListPushSubscriptions(context.Background())
-	if listErr != nil || len(subs) != 1 || subs[0].Endpoint != "https://push.example.com/sub/1" {
+	if listErr != nil || len(subs) != 1 || subs[0].Endpoint != pushService.URL+"/push/2" {
 		t.Fatalf("订阅应落库: %v %v", subs, listErr)
 	}
 }
