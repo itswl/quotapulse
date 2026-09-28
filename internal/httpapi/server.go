@@ -3,9 +3,11 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,6 +45,34 @@ type Server struct {
 	refreshGuard cooldown
 	scanGuard    cooldown
 	Push         *push.Manager
+}
+
+// ValidateWiring asserts that every dependency the handlers rely on was wired by the
+// app constructor. A missing field is a programming error (the field exists on the
+// struct but the constructor forgot to set it), so startup fails loudly listing every
+// gap instead of serving requests that answer "X is not available".
+func (s *Server) ValidateWiring() error {
+	// 逐字段显式判空：指针的 typed nil 装进 any 后不等于 nil，map 遍历会漏报。
+	var missing []string
+	add := func(name string, wired bool) {
+		if !wired {
+			missing = append(missing, name)
+		}
+	}
+	add("Log", s.Log != nil)
+	add("Settings", s.Settings != nil)
+	add("Resolver", s.Resolver != nil)
+	add("Store", s.Store != nil)
+	add("State", s.State != nil)
+	add("Monitor", s.Monitor != nil)
+	add("Subs", s.Subs != nil)
+	add("Scanner", s.Scanner != nil)
+	add("Push", s.Push != nil)
+	if len(missing) == 0 {
+		return nil
+	}
+	sort.Strings(missing)
+	return fmt.Errorf("httpapi server is missing wired dependencies: %s", strings.Join(missing, ", "))
 }
 
 // Implementation note.

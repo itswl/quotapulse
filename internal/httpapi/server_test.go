@@ -431,6 +431,31 @@ func TestNotifyTestEndpoint(t *testing.T) {
 	}
 }
 
+func TestValidateWiringReportsMissingDependencies(t *testing.T) {
+	s := &Server{}
+	err := s.ValidateWiring()
+	if err == nil {
+		t.Fatal("零值 Server 必须报缺失依赖")
+	}
+	for _, name := range []string{"Settings", "Store", "Monitor", "Subs", "Scanner", "Push"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("错误应列出 %s: %v", name, err)
+		}
+	}
+
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	wired := &Server{
+		Settings: &config.Settings{WebAPIKey: testAPIKey},
+		Resolver: config.NewResolver(&config.Settings{WebAPIKey: testAPIKey}, store.Null(), log),
+		Store:    store.Null(), State: state.New(), Log: log,
+		Monitor: &monitor.Monitor{}, Subs: &subscription.Checker{}, Scanner: &mailscan.Scanner{},
+		Push: push.New(store.Null()),
+	}
+	if err := wired.ValidateWiring(); err != nil {
+		t.Fatalf("全接线不应报错: %v", err)
+	}
+}
+
 func TestPushEndpoints(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1"}

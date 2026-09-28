@@ -121,6 +121,9 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		OnSubscriptionUpdated: app.Metrics.UpdateSubscriptions,
 		OnEmailScanned:        app.Metrics.UpdateEmailScan,
 	}
+	if err := app.Server.ValidateWiring(); err != nil {
+		return nil, err
+	}
 	if settings.EnableMCP {
 		app.Server.MCP = mcpserver.NewHandler(settings, app.State, st, app.Resolver, log)
 	}
