@@ -27,7 +27,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=c66a233c5761">
+    <link rel="stylesheet" href="/static/app.css?v=56194568d3f3">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
 </head>
 <body>
@@ -413,6 +413,14 @@
                 </div>
 
                 <div class="settings-section">
+                    <h3>Notifications</h3>
+                    <div class="form-group">
+                        <p class="settings-note">Sends a canary message through the configured webhook (WEBHOOK_URL) so you can verify the channel.</p>
+                        <button type="button" class="btn-secondary" id="test-notify-btn">Send test notification</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
                     <h3>Authentication</h3>
                     <div class="form-group">
                         <label for="setting-api-key">API key</label>
@@ -672,6 +680,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=c66a233c5761"></script>
+    <script defer src="/static/app.js?v=56194568d3f3"></script>
 </body>
 </html>

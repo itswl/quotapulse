@@ -218,6 +218,9 @@ type SubscriptionResult struct {
 	Amount           float64 `json:"amount"`
 	AlreadyRenewed   bool    `json:"already_renewed"`
 	LastRenewedDate  *string `json:"last_renewed_date"`
+	AlertState       string  `json:"alert_state,omitempty"`
+	NextEligibleAt   *string `json:"next_eligible_at,omitempty"`
+	LastError        string  `json:"last_error,omitempty"`
 }
 
 // Implementation note.

@@ -1,10 +1,34 @@
 /* Implementation note. */
 
 import { requireById } from '../dom.js';
-import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, renewalUrgency } from '../format.js';
+import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, renewalUrgency } from '../format.js';
 import type { SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
 import { emptyState } from './empty.js';
 import { ICON_CHECK, ICON_DELETE, ICON_EDIT, ICON_UNDO } from './icons.js';
+
+export /**
+ * Notification outcome for subscriptions inside their reminder window. One boolean
+ * (alert_sent) could not tell "sent" from "suppressed by cooldown" from "failed".
+ */
+function renderAlertBadge(sub: SubscriptionResult): string {
+  if (!sub.need_alert) return '';
+  switch (sub.alert_state) {
+    case 'sent':
+      return '<span class="status-badge success" title="Reminder sent for this cycle">Notified</span>';
+    case 'cooldown_skipped': {
+      const eta = sub.next_eligible_at ? formatUntil(sub.next_eligible_at) : 'soon';
+      return `<span class="status-badge muted" title="Suppressed by the notification cooldown">Cooldown · next in ${escapeHTML(eta)}</span>`;
+    }
+    case 'failed': {
+      const reason = sub.last_error ? ` title="${escapeAttr(sub.last_error)}"` : '';
+      return `<span class="status-badge danger"${reason}>Send failed</span>`;
+    }
+    case 'dry_run':
+      return '<span class="status-badge info">Dry run · nothing sent</span>';
+    default:
+      return '';
+  }
+}
 
 export function renderSubscriptionCard(sub: SubscriptionResult): string {
   const daysClass = renewalUrgency(sub.days_until_renewal);
@@ -48,6 +72,7 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
                             ${ICON_DELETE}
                         </button>
                     </div>
+                    ${renderAlertBadge(sub)}
                     <div class="days-remaining ${daysClass}">${sub.days_until_renewal}<span class="unit"> days</span></div>
                 </div>
             </div>

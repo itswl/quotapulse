@@ -401,6 +401,33 @@ func (s *sqlStore) HasRecentAlert(ctx context.Context, alertID, alertType string
 	return n > 0, nil
 }
 
+// LastSentAlert returns when the newest successful alert of this ID/type was recorded,
+// or nil. Unlike a trailing-window count, callers derive next_eligible_at from the
+// absolute timestamp so a daily schedule can never drift past the cooldown by a second.
+func (s *sqlStore) LastSentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (*time.Time, error) {
+	if within <= 0 {
+		return nil, nil
+	}
+	rows, err := s.RecentAlerts(ctx, AlertQuery{ProjectID: alertID, AlertType: alertType, Days: int(within.Hours()/24) + 1, Limit: 50})
+	if err != nil {
+		return nil, err
+	}
+	var newest *time.Time
+	for _, row := range rows {
+		if row.Status != "sent" {
+			continue
+		}
+		ts, parseErr := time.Parse(time.RFC3339, row.Timestamp)
+		if parseErr != nil {
+			continue
+		}
+		if newest == nil || ts.After(*newest) {
+			newest = &ts
+		}
+	}
+	return newest, nil
+}
+
 func (s *sqlStore) RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error) {
 	rows, err := s.q.listAlertHistory(ctx,
 		since(q.Days, defaultAlertDays), q.ProjectID, q.AlertType, limitOf(q.Limit, defaultAlertLimit))

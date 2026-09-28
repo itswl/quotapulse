@@ -23,6 +23,15 @@ type Checker struct {
 	OnNotify func(kind string, ok bool)
 }
 
+// Notification states surfaced on the subscription page. not_due is intentionally
+// omitted from results: with need_alert false there is nothing to report.
+const (
+	AlertStateSent            = "sent"
+	AlertStateCooldownSkipped = "cooldown_skipped"
+	AlertStateFailed          = "failed"
+	AlertStateDryRun          = "dry_run"
+)
+
 // Implementation note.
 func (c *Checker) Check(ctx context.Context, subs []model.Subscription, dryRun bool) []model.SubscriptionResult {
 	if len(subs) == 0 {
@@ -76,27 +85,36 @@ func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, today ti
 		c.log().Info("operation", "name", sub.Name)
 	case dryRun:
 		c.log().Warn("operation,operation", "name", sub.Name, "before_days", sub.AlertDaysBefore)
+		result.AlertState = AlertStateDryRun
 	default:
 		c.log().Warn("operation", "name", sub.Name, "before_days", sub.AlertDaysBefore)
-		result.AlertSent = c.send(ctx, sub, days)
+		result.AlertState, result.NextEligibleAt, result.LastError = c.dispatch(ctx, sub, days)
+		result.AlertSent = result.AlertState == AlertStateSent
 	}
 	return result
 }
 
-// Implementation note.
-func (c *Checker) send(ctx context.Context, sub model.Subscription, days int) bool {
+// dispatch decides, sends, and records one renewal reminder. The cooldown is derived
+// from the absolute timestamp of the newest sent alert, so a daily schedule can never
+// slip past the window by a second the way a trailing count could.
+func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int) (string, *string, string) {
 	alertID := model.SubscriptionID(sub.Name)
-	cooling, err := c.Store.HasRecentAlert(ctx, alertID, "subscription_renewal", c.Cooldown)
+	now := time.Now()
+	last, err := c.Store.LastSentAlert(ctx, alertID, "subscription_renewal", c.Cooldown)
 	if err != nil {
-		c.log().Warn("operation,operation", "name", sub.Name, "error", err)
+		c.log().Warn("Failed to query alert cooldown; treating it as not cooling down", "name", sub.Name, "error", err)
 	}
-	if cooling {
-		c.log().Info("operation,operation", "name", sub.Name, "cooldown", c.Cooldown)
-		return false
+	if last != nil {
+		next := last.Add(c.Cooldown)
+		if now.Before(next) {
+			nextStr := next.UTC().Format(time.RFC3339)
+			c.log().Info("Subscription alert is cooling down", "name", sub.Name, "next_eligible_at", nextStr)
+			return AlertStateCooldownSkipped, &nextStr, ""
+		}
 	}
 	if c.Notifier == nil {
 		c.log().Error("Webhook URL is not configured")
-		return false
+		return AlertStateFailed, nil, "Webhook URL is not configured"
 	}
 
 	msg := notify.SubscriptionAlert(sub.Name, sub.OwnerProject, sub.CycleType, sub.RenewalDay, days, sub.Amount)
@@ -106,18 +124,30 @@ func (c *Checker) send(ctx context.Context, sub model.Subscription, days int) bo
 	}
 	if sendErr != nil {
 		c.log().Error("Failed to send subscription reminder", "name", sub.Name, "error", sendErr)
-		return false
+		c.record(ctx, alertID, sub, days, "failed", sendErr.Error())
+		return AlertStateFailed, nil, sendErr.Error()
 	}
 
+	next := now.Add(c.Cooldown).UTC().Format(time.RFC3339)
+	c.record(ctx, alertID, sub, days, "sent", "")
+	return AlertStateSent, &next, ""
+}
+
+// record persists the outcome; failures land in the same history as successes so a
+// silent channel is visible instead of only living in the logs.
+func (c *Checker) record(ctx context.Context, alertID string, sub model.Subscription, days int, status, errText string) {
+	message := fmt.Sprintf("Subscription renewal reminder: %s renews in %d days", sub.Name, days)
+	if status == "failed" && errText != "" {
+		message = fmt.Sprintf("%s — send failed: %s", message, errText)
+	}
 	if err := c.Store.SaveAlert(ctx, store.AlertRecord{
-		AlertID: alertID, Name: sub.Name, AlertType: "subscription_renewal",
-		Message:   fmt.Sprintf("Subscription renewal reminder: %s operation %d operation", sub.Name, days),
+		AlertID: alertID, Name: sub.Name, AlertType: "subscription_renewal", Status: status,
+		Message:   message,
 		Value:     &sub.Amount,
 		Threshold: model.Ptr(float64(sub.AlertDaysBefore)),
 	}); err != nil {
 		c.log().Warn("Failed to record subscription alert", "name", sub.Name, "error", err)
 	}
-	return true
 }
 
 // Implementation note.

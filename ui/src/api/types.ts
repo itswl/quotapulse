@@ -139,6 +139,10 @@ export interface SubscriptionResult {
   amount: number;
   already_renewed: boolean;
   last_renewed_date: string | null;
+  /** Notification outcome from the last check; absent on older responses. */
+  alert_state?: 'sent' | 'cooldown_skipped' | 'failed' | 'dry_run' | string;
+  next_eligible_at?: string | null;
+  last_error?: string | null;
 }
 
 export interface SubscriptionsResponse {

@@ -621,6 +621,39 @@ describe('parseRefreshMinutes', () => {
   });
 });
 
+describe('订阅卡上的通知状态徽标', () => {
+  function sub(overrides: Partial<SubscriptionResult> = {}): SubscriptionResult {
+    return {
+      name: 'Copilot', owner_project: null, renewal_day: 26, cycle_type: 'monthly',
+      days_until_renewal: 5, next_renewal_date: '2026-10-01', need_alert: true,
+      alert_sent: true, alert_state: 'sent', amount: 10, already_renewed: false,
+      last_renewed_date: null, ...overrides,
+    };
+  }
+
+  it('失败带原因悬浮提示，冷却带下一次时间，已发送有确认', () => {
+    const failed = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'failed', last_error: 'Webhook returned HTTP 500: boom' }));
+    assert.match(failed, /status-badge danger[^>]*>Send failed</);
+    assert.match(failed, /title="Webhook returned HTTP 500: boom"/);
+
+    const cooldown = renderSubscriptionCard(sub({
+      need_alert: true, alert_state: 'cooldown_skipped',
+      next_eligible_at: new Date(Date.now() + 17 * 60_000).toISOString(),
+    }));
+    assert.match(cooldown, /Cooldown · next in 17 min/);
+    const whole = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'cooldown_skipped', next_eligible_at: new Date(Date.now() + 9 * 3600_000).toISOString() }));
+    assert.match(whole, /next in 9 hr ·|next in 9 hr /);
+
+    const sent = renderSubscriptionCard(sub({ need_alert: true, alert_state: 'sent' }));
+    assert.match(sent, />Notified</);
+  });
+
+  it('need_alert 为假时不显示通知徽标', () => {
+    const card = renderSubscriptionCard(sub({ need_alert: false, alert_state: 'cooldown_skipped' }));
+    assert.ok(!card.includes('Cooldown'));
+  });
+});
+
 describe('formatServerCadence', () => {
   it('把秒数人话化，并带上下次运行倒计时', () => {
     const next = new Date(Date.now() + 12 * 60_000).toISOString();

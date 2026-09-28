@@ -64,6 +64,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/jobs", s.handleJobs)
 	mux.HandleFunc("GET /api/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
+	mux.HandleFunc("POST /api/notify/test", s.handleNotifyTest)
 
 	// Implementation note.
 	mux.HandleFunc("GET /api/providers", s.handleProviders)

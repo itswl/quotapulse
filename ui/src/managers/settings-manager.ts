@@ -5,8 +5,8 @@
  * Implementation note.
  */
 
-import { fetchJson, getApiKey, setApiKey } from '../api/client.js';
-import { getJobs } from '../api/endpoints.js';
+import { fetchJson, getApiKey, mutate, setApiKey } from '../api/client.js';
+import { ENDPOINTS, getJobs } from '../api/endpoints.js';
 import type { HealthResponse } from '../api/types.js';
 import { byId, inputById, onClick } from '../dom.js';
 import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.js';
@@ -58,6 +58,18 @@ async function loadAboutVersion(): Promise<void> {
   }
 }
 
+/** Send a canary webhook through the backend so the operator can verify the channel. */
+async function sendTestNotification(): Promise<void> {
+  const button = byId<HTMLButtonElement>('test-notify-btn');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await mutate(ENDPOINTS.testNotify, {}, { success: 'Test notification sent', fail: 'Test notification failed' });
+  } finally {
+    button.disabled = false;
+  }
+}
+
 /**
  * Show the server's own check cadence next to the display-polling setting, so the two
  * numbers can be compared. The jobs endpoint is read-only; on failure the line stays
@@ -80,6 +92,7 @@ async function loadServerCadence(): Promise<void> {
 
 export function bindSettingsManager(): void {
   onClick('settings-btn', openSettingsModal);
+  onClick('test-notify-btn', () => void sendTestNotification());
   bindModalClose(MODAL_ID, '.js-close-settings-modal');
 
   byId('setting-auto-refresh')?.addEventListener('change', (event) => {

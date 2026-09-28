@@ -82,7 +82,8 @@ export const ENDPOINTS = {
   deleteSubscription: '/api/subscription/delete',
   markRenewed: '/api/subscription/mark_renewed',
   clearRenewed: '/api/subscription/clear_renewed',
-  saveEmail: '/api/config/email',
+  testNotify: '/api/notify/test',
+    saveEmail: '/api/config/email',
   deleteEmail: '/api/config/email/delete',
 } as const;
 

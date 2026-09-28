@@ -19,6 +19,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /api/features` | Enabled optional capabilities | — |
 | `GET /api/credits` | Current balance state for all projects | — |
 | `GET/POST /api/refresh` | Run an immediate balance check; POST accepts `project_name`; one run at a time, with a 30-second cooldown | — |
+| `POST /api/notify/test` | Sends a canary message through the configured webhook and returns the delivery error verbatim, so the channel can be verified without waiting for a real alert | `WEB_API_KEY` |
 | `GET /api/jobs` | Scheduled job status and run details | — |
 | `GET /api/subscriptions` | Current subscription status | Subscriptions |
 | `GET /api/config/subscriptions` | Subscription configuration | Subscriptions |

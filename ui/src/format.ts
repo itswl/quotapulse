@@ -181,10 +181,11 @@ export function formatServerCadence(
   return `Server checks ${cadence}${next}`;
 }
 
-function formatUntil(isoDate: string): string {
+export function formatUntil(isoDate: string): string {
   const ms = new Date(isoDate).getTime() - Date.now();
   if (!Number.isFinite(ms) || ms <= 30_000) return 'less than a minute';
   const minutes = Math.round(ms / 60_000);
   if (minutes < 60) return `${minutes} min`;
-  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+  const hours = Math.floor(minutes / 60);
+  return minutes % 60 === 0 ? `${hours} hr` : `${hours} hr ${minutes % 60} min`;
 }

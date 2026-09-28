@@ -23,7 +23,7 @@ type fakeStore struct {
 	mu       sync.Mutex
 	balances []store.BalanceRecord
 	alerts   []store.AlertRecord
-	cooling  bool
+	lastSent *time.Time
 }
 
 func newFakeStore() *fakeStore { return &fakeStore{Store: store.Null()} }
@@ -42,8 +42,8 @@ func (f *fakeStore) SaveAlert(_ context.Context, rec store.AlertRecord) error {
 	return nil
 }
 
-func (f *fakeStore) HasRecentAlert(context.Context, string, string, time.Duration) (bool, error) {
-	return f.cooling, nil
+func (f *fakeStore) LastSentAlert(context.Context, string, string, time.Duration) (*time.Time, error) {
+	return f.lastSent, nil
 }
 
 // Implementation note.
@@ -176,7 +176,8 @@ func TestDryRunSendsNothing(t *testing.T) {
 // Implementation note.
 func TestCooldownSkipsDuplicate(t *testing.T) {
 	m, st, notifier := newTestMonitor(t, nil, "8.5")
-	st.cooling = true
+	now := time.Now()
+	st.lastSent = &now
 
 	result := m.CheckProject(context.Background(), testProject(50), false)
 	if !result.NeedAlarm {
@@ -188,7 +189,7 @@ func TestCooldownSkipsDuplicate(t *testing.T) {
 }
 
 // Implementation note.
-func TestFailedSendIsNotRecorded(t *testing.T) {
+func TestFailedSendIsRecordedButDoesNotBlockRetries(t *testing.T) {
 	m, st, notifier := newTestMonitor(t, nil, "8.5")
 	notifier.err = errors.New("webhook 超时")
 
@@ -196,8 +197,11 @@ func TestFailedSendIsNotRecorded(t *testing.T) {
 	if result.AlarmSent {
 		t.Error("发送失败不该标记为已告警")
 	}
-	if len(st.alerts) != 0 {
-		t.Error("发送失败不该留痕，否则冷却期内再也发不出去")
+	if len(st.alerts) != 1 || st.alerts[0].Status != "failed" {
+		t.Fatalf("失败必须留痕（status=failed），否则渠道静默失联没人看得见，实际 %+v", st.alerts)
+	}
+	if !strings.Contains(st.alerts[0].Message, "webhook 超时") {
+		t.Errorf("失败记录应带上原因，实际 %q", st.alerts[0].Message)
 	}
 }
 

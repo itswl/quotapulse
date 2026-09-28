@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"github.com/itswl/quotapulse/internal/mailscan"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/monitor"
+	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/state"
 	"github.com/itswl/quotapulse/internal/store"
 	"github.com/itswl/quotapulse/internal/subscription"
@@ -384,5 +387,44 @@ func TestTrendPathIsDecoded(t *testing.T) {
 		if got.Code != http.StatusNotFound {
 			t.Errorf("%s 期望 404（路由命中但无数据），实际 %d：%s", path, got.Code, got.Body.String())
 		}
+	}
+}
+
+type stubNotifier struct{ err error }
+
+func (f *stubNotifier) Send(context.Context, notify.Message) error { return f.err }
+
+func TestNotifyTestEndpoint(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	build := func(n notify.Notifier) http.Handler {
+		settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1.0.0"}
+		s := &Server{
+			Settings: settings, Resolver: config.NewResolver(settings, store.Null(), log),
+			Store: store.Null(), State: state.New(), Log: log,
+			Subs: &subscription.Checker{Notifier: n, Log: log},
+		}
+		return s.Handler()
+	}
+	post := func(h http.Handler) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/notify/test", nil)
+		req.Header.Set("X-API-Key", testAPIKey)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := post(build(&stubNotifier{}))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Test notification sent") {
+		t.Fatalf("测试通知应成功: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = post(build(&stubNotifier{err: errors.New("Webhook returned HTTP 500: boom")}))
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "HTTP 500") {
+		t.Fatalf("webhook 失败应透传 502 与原因: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = post(build(nil))
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "not configured") {
+		t.Fatalf("未配置 webhook 应报 400 并说明: %d %s", rec.Code, rec.Body.String())
 	}
 }

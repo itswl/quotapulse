@@ -171,11 +171,11 @@ func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool
 // Implementation note.
 func (m *Monitor) sendBalanceAlert(ctx context.Context, p model.Project, projectID string, credits float64) bool {
 	cooldown := time.Duration(m.Settings.CooldownSeconds("balance")) * time.Second
-	cooling, err := m.Store.HasRecentAlert(ctx, projectID, "low_balance", cooldown)
+	last, err := m.Store.LastSentAlert(ctx, projectID, "low_balance", cooldown)
 	if err != nil {
 		m.log().Warn("Failed to query alert cooldown; treating it as not cooling down", "project", p.Name, "error", err)
 	}
-	if cooling {
+	if last != nil && !time.Now().Before(last.Add(cooldown)) == false {
 		m.log().Info("Alert is cooling down; skipping duplicate notification", "project", p.Name, "cooldown", cooldown)
 		return false
 	}
@@ -191,18 +191,29 @@ func (m *Monitor) sendBalanceAlert(ctx context.Context, p model.Project, project
 	}
 	if sendErr != nil {
 		m.log().Error("Failed to send balance alert", "project", p.Name, "error", sendErr)
+		m.recordAlert(ctx, projectID, p, credits, "failed", sendErr.Error())
 		return false
 	}
 
+	m.recordAlert(ctx, projectID, p, credits, "sent", "")
+	return true
+}
+
+// recordAlert persists both sides of the story: successful notifications feed the
+// cooldown window, failures feed the history so a silent channel is visible.
+func (m *Monitor) recordAlert(ctx context.Context, projectID string, p model.Project, credits float64, status, errText string) {
+	message := fmt.Sprintf("Low balance: %v < %v", credits, p.Threshold)
+	if status == "failed" && errText != "" {
+		message = fmt.Sprintf("%s — send failed: %s", message, errText)
+	}
 	if err := m.Store.SaveAlert(ctx, store.AlertRecord{
-		AlertID: projectID, Name: p.Name, AlertType: "low_balance",
-		Message:   fmt.Sprintf("Low balance: %v < %v", credits, p.Threshold),
+		AlertID: projectID, Name: p.Name, AlertType: "low_balance", Status: status,
+		Message:   message,
 		Value:     &credits,
 		Threshold: model.Ptr(p.Threshold),
 	}); err != nil {
 		m.log().Warn("Failed to record alert", "project", p.Name, "error", err)
 	}
-	return true
 }
 
 // Implementation note.

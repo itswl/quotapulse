@@ -41,6 +41,10 @@ func (nullStore) HasRecentAlert(context.Context, string, string, time.Duration) 
 	return false, nil
 }
 
+func (nullStore) LastSentAlert(context.Context, string, string, time.Duration) (*time.Time, error) {
+	return nil, nil
+}
+
 func (nullStore) RecentAlerts(context.Context, AlertQuery) ([]AlertRow, error) { return nil, nil }
 
 func (nullStore) AlertStats(context.Context, int) (*Stats, error) { return nil, nil }

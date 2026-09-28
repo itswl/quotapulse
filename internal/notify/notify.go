@@ -37,6 +37,7 @@ const (
 	KindRunway       = "runway"
 	KindSpendSpike   = "spend_spike"
 	KindWeeklyReport = "weekly_report"
+	KindTest         = "test"
 )
 
 // Implementation note.
@@ -143,10 +144,10 @@ func (n *notifier) Send(ctx context.Context, msg Message) error {
 
 		var retry retryError
 		if !errors.As(err, &retry) || attempt >= len(n.backoff) {
-			return last
+			return attemptedError(attempt+1, last)
 		}
 		if waitErr := wait(ctx, n.backoff[attempt]); waitErr != nil {
-			return fmt.Errorf("%w(operation: %v)", last, waitErr)
+			return fmt.Errorf("after %d attempt(s): %w (wait cancelled: %v)", attempt+1, last, waitErr)
 		}
 	}
 }
@@ -185,6 +186,12 @@ func (n *notifier) post(ctx context.Context, body []byte) error {
 }
 
 // Implementation note.
+// attemptedError records how many HTTP attempts were made before giving up; the
+// webhook HTTP status itself is already part of the underlying message.
+func attemptedError(attempts int, err error) error {
+	return fmt.Errorf("after %d attempt(s): %w", attempts, err)
+}
+
 type retryError struct{ err error }
 
 func (e retryError) Error() string { return e.err.Error() }
