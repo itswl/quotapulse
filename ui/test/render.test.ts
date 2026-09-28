@@ -18,7 +18,7 @@ import {
   updateStats,
   updateSubscriptionStats,
 } from '../src/ui/stats.js';
-import { AppState } from '../src/state.js';
+import { AppState, parseRefreshMinutes } from '../src/state.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
 const ALL_OFF: Features = { subscriptions: false, dynamic_config: false, history: false, email_scan: false };
@@ -605,5 +605,17 @@ describe('导航状态时间戳与状态点', () => {
     updateNavFreshness(null, true);
     assert.equal(stamp.textContent, '—');
     assert.equal(dot.className, 'live-dot down');
+  });
+});
+
+describe('parseRefreshMinutes', () => {
+  it('四舍五入并夹在 1–1440，垃圾输入回退 5', () => {
+    assert.equal(parseRefreshMinutes('5'), 5);
+    assert.equal(parseRefreshMinutes('0'), 1);
+    assert.equal(parseRefreshMinutes('-3'), 1);
+    assert.equal(parseRefreshMinutes('9999'), 1440);
+    assert.equal(parseRefreshMinutes('7.6'), 8);
+    assert.equal(parseRefreshMinutes(''), 1);
+    assert.equal(parseRefreshMinutes('abc'), 5);
   });
 });

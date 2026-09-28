@@ -15,8 +15,6 @@ import { renderSubscriptions } from './ui/subscriptions.js';
 import { refreshOverview, updateNavFreshness } from './ui/stats.js';
 import { showToast } from './ui/toast.js';
 
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
-
 /* Implementation note. */
 export async function loadFeatures(): Promise<void> {
   try {
@@ -134,7 +132,13 @@ export function startAutoRefresh(): void {
   if (AppState.autoRefreshTimer) return;
   AppState.autoRefreshTimer = setInterval(() => {
     fetchAndRender().catch((error: unknown) => console.error('Auto-refresh failed:', error));
-  }, AUTO_REFRESH_MS);
+  }, AppState.autoRefreshMinutes * 60_000);
+}
+
+/* Apply a new interval to a running timer. */
+export function restartAutoRefresh(): void {
+  stopAutoRefresh();
+  startAutoRefresh();
 }
 
 export function stopAutoRefresh(): void {

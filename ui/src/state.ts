@@ -14,6 +14,22 @@ export const VIEW_NAMES: readonly ViewName[] = ['all', 'subscriptions', 'email']
 export type Theme = 'light' | 'dark';
 export type ProjectViewStyle = 'grid' | 'list';
 
+export const DEFAULT_REFRESH_MINUTES = 5;
+export const MIN_REFRESH_MINUTES = 1;
+export const MAX_REFRESH_MINUTES = 1440;
+
+/* Parse a user-supplied interval in minutes, rounded and clamped to sane bounds. */
+export function parseRefreshMinutes(value: unknown): number {
+  const parsed = Math.round(Number(value));
+  if (!Number.isFinite(parsed)) return DEFAULT_REFRESH_MINUTES;
+  return Math.min(MAX_REFRESH_MINUTES, Math.max(MIN_REFRESH_MINUTES, parsed));
+}
+
+function readRefreshMinutes(): number {
+  const stored = readStorage('autoRefreshMinutes');
+  return stored === null ? DEFAULT_REFRESH_MINUTES : parseRefreshMinutes(stored);
+}
+
 export interface AppStateShape {
   currentTheme: Theme;
   currentView: ViewName;
@@ -28,6 +44,8 @@ export interface AppStateShape {
   features: Features;
   lastUpdate: Date | null;
   autoRefreshTimer: ReturnType<typeof setInterval> | null;
+  /* Client polling interval in minutes; the server job cadence is separate. */
+  autoRefreshMinutes: number;
 }
 
 /* localStorage can throw (private mode, disabled storage); treat it as best effort. */
@@ -79,6 +97,7 @@ export const AppState: AppStateShape = {
   features: { subscriptions: false, dynamic_config: false, history: false, email_scan: false },
   lastUpdate: null,
   autoRefreshTimer: null,
+  autoRefreshMinutes: readRefreshMinutes(),
 };
 
 export function isViewName(value: string): value is ViewName {

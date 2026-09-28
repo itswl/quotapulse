@@ -253,6 +253,24 @@
     cursor: pointer;
 }
 
+.interval-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--text-3);
+    font-size: 12.5px;
+}
+
+.interval-row input {
+    width: 96px;
+    flex-shrink: 0;
+}
+
+.interval-row input:disabled {
+    opacity: 0.5;
+}
+
 .settings-section {
     margin-bottom: 22px;
 }
