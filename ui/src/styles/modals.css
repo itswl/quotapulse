@@ -253,6 +253,21 @@
     cursor: pointer;
 }
 
+/* Native number steppers fight the hand-drawn controls; arrow keys still step. */
+.form-group input[type="number"],
+.interval-row input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button,
+.interval-row input[type="number"]::-webkit-outer-spin-button,
+.interval-row input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .interval-row {
     display: flex;
     align-items: center;
@@ -263,12 +278,15 @@
 }
 
 .interval-row input {
-    width: 96px;
+    width: 72px;
+    height: 30px;
+    padding: 0 8px;
+    font-size: 13px;
     flex-shrink: 0;
 }
 
-.interval-row input:disabled {
-    opacity: 0.5;
+.interval-row:has(input:disabled) {
+    opacity: 0.55;
 }
 
 .settings-note {
