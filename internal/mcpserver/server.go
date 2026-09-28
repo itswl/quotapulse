@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
+	"github.com/itswl/quotapulse/internal/model"
+	"github.com/itswl/quotapulse/internal/provider"
 	"github.com/itswl/quotapulse/internal/state"
 	"github.com/itswl/quotapulse/internal/store"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -24,6 +26,11 @@ import (
 const stateResourceTemplate = "quotapulse://state/{kind}"
 
 type emptyInput struct{}
+
+type balanceStatusInput struct {
+	Project  string `json:"project,omitempty" jsonschema:"optional project name filter, case-insensitive substring"`
+	Provider string `json:"provider,omitempty" jsonschema:"optional provider filter, case-insensitive substring"`
+}
 
 type balanceHistoryInput struct {
 	Days      int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
@@ -78,7 +85,12 @@ func NewHandler(settings *config.Settings, runtime *state.Manager, history store
 }
 
 func addStateTools(server *sdkmcp.Server, settings *config.Settings, runtime *state.Manager, history store.Store, resolver *config.Resolver) {
-	addJSONTool(server, "balance_status", "Current balance and runway results for all monitored projects.", runtime.Balance)
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name:        "balance_status",
+		Description: "Current balance and runway results for monitored projects, optionally filtered by project name or provider.",
+	}, func(_ context.Context, _ *sdkmcp.CallToolRequest, in balanceStatusInput) (*sdkmcp.CallToolResult, any, error) {
+		return jsonResult(filterBalance(runtime.Balance(), in.Project, in.Provider))
+	})
 	addJSONTool(server, "subscription_status", "Current subscription renewal status.", runtime.Subscriptions)
 	addJSONTool(server, "email_scan_status", "Latest mailbox scan results and detected alert emails.", runtime.EmailScan)
 	addJSONTool(server, "job_status", "Scheduler status, last runs, failures, and next runs.", runtime.Jobs)
@@ -92,6 +104,13 @@ func addStateTools(server *sdkmcp.Server, settings *config.Settings, runtime *st
 		Name: "capabilities", Description: "Current feature flags and non-sensitive configuration counts.",
 	}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ emptyInput) (*sdkmcp.CallToolResult, any, error) {
 		return jsonResult(capabilitySnapshot(ctx, settings, resolver))
+	})
+
+	sdkmcp.AddTool(server, &sdkmcp.Tool{
+		Name: "providers", Description: "Catalog of supported balance providers with their identifiers and default balance types.",
+	}, func(context.Context, *sdkmcp.CallToolRequest, emptyInput) (*sdkmcp.CallToolResult, any, error) {
+		list := provider.All()
+		return jsonResult(map[string]any{"count": len(list), "data": list})
 	})
 
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
@@ -219,6 +238,28 @@ type mailboxConfigView struct {
 	UseSSL             bool   `json:"use_ssl"`
 	Enabled            bool   `json:"enabled"`
 	PasswordConfigured bool   `json:"password_configured"`
+}
+
+// filterBalance narrows a balance snapshot by case-insensitive substring matches on the
+// project name and provider. Empty filters pass the snapshot through untouched.
+func filterBalance(balance state.BalanceState, project, provider string) state.BalanceState {
+	project = strings.ToLower(strings.TrimSpace(project))
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if project == "" && provider == "" {
+		return balance
+	}
+	kept := make([]model.CheckResult, 0, len(balance.Projects))
+	for _, item := range balance.Projects {
+		if project != "" && !strings.Contains(strings.ToLower(item.Project), project) {
+			continue
+		}
+		if provider != "" && !strings.Contains(strings.ToLower(item.Provider), provider) {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	balance.Projects = kept
+	return balance
 }
 
 func healthSnapshot(settings *config.Settings, runtime *state.Manager, balance state.BalanceState, jobs state.JobState) map[string]any {
