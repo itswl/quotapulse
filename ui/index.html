@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>QuotaPulse</title>
     <meta name="description" content="API balance monitoring, runway estimates, subscription reminders, and billing email scanning in one dashboard.">
     <meta name="color-scheme" content="light dark">
@@ -19,6 +19,12 @@
             } catch (error) { /* storage unavailable: fall back to the stylesheet default */ }
         })();
     </script>
+        <link rel="manifest" href="/static/manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/static/app.css?v=__BUILD_ID__">

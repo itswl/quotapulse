@@ -139,8 +139,8 @@
 /* ==================== Toasts ==================== */
 .toast-container {
     position: fixed;
-    top: 68px;
-    right: 24px;
+    top: calc(68px + env(safe-area-inset-top));
+    right: calc(24px + env(safe-area-inset-right));
     z-index: var(--z-toast);
     display: flex;
     flex-direction: column;

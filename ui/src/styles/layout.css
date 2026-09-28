@@ -2,6 +2,8 @@
 .navbar {
     position: sticky;
     top: 0;
+    /* In standalone mode the status bar overlays the page (black-translucent). */
+    padding-top: env(safe-area-inset-top);
     z-index: var(--z-nav);
     background: var(--surface);
     background: color-mix(in srgb, var(--surface) 78%, transparent);
@@ -149,7 +151,7 @@
 .main-container {
     max-width: var(--container);
     margin: 0 auto;
-    padding: 32px 24px 56px;
+    padding: 32px 24px calc(56px + env(safe-area-inset-bottom));
 }
 
 /* ==================== Overview band ====================
@@ -495,7 +497,7 @@
 .site-footer {
     max-width: var(--container);
     margin: 0 auto;
-    padding: 0 24px 40px;
+    padding: 0 24px calc(40px + env(safe-area-inset-bottom));
     display: flex;
     justify-content: space-between;
     align-items: center;

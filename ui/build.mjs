@@ -5,7 +5,7 @@
 // Implementation note.
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, context } from 'esbuild';
@@ -38,11 +38,17 @@ const fontAssets = {
   publicPath: '/static',
 };
 
+/** Hand-maintained web app assets: the installable-app manifest and home-screen icons. */
+async function copyWebAssets() {
+  await cp(resolve(root, 'www'), staticDir, { recursive: true });
+}
+
 /* The Geist fonts are OFL-1.1 licensed; redistribution must ship the license text alongside them. */
 async function copyFontLicense() {
   const fontsDir = join(staticDir, 'fonts');
   await mkdir(fontsDir, { recursive: true });
   await copyFile(resolve(root, 'node_modules/geist/LICENSE.txt'), join(fontsDir, 'OFL.txt'));
+  await copyWebAssets();
 }
 
 /* Implementation note. */
@@ -58,7 +64,7 @@ async function emitHtml() {
 }
 
 async function reportSizes(buildId) {
-  const files = ['index.html', 'static/app.js', 'static/app.css', 'static/fonts/Geist-Variable.woff2', 'static/fonts/GeistMono-Variable.woff2'];
+  const files = ['index.html', 'static/app.js', 'static/app.css', 'static/fonts/Geist-Variable.woff2', 'static/fonts/GeistMono-Variable.woff2', 'static/manifest.webmanifest', 'static/icons/icon-512.png'];
   const { gzipSync, brotliCompressSync } = await import('node:zlib');
   console.log(`\nBuild ID ${buildId}`);
   for (const file of files) {
@@ -95,6 +101,7 @@ async function buildApp() {
 async function watchApp() {
   await mkdir(staticDir, { recursive: true });
   await copyFontLicense();
+  await copyWebAssets();
   const ctx = await context({
     ...shared,
     ...fontAssets,
