@@ -18,6 +18,12 @@ accounts — here `volc-1` has 1.2 days left — followed by the total, healthy,
 alerting project counters. The time of the last successful check sits in the top
 navigation, next to the theme toggle, refresh, and settings.
 
+The view switcher carries live counts: a red badge on Alerts only and an amber one on
+Subscriptions appear only when something needs attention, so a quiet system stays quiet.
+Each view also reshapes the overview band to answer its own question — projects show
+runway and counters, subscriptions show renewal stats, and on the email view the band
+steps aside for the scan summary chips.
+
 ![Dashboard, light theme, grid view](images/dashboard-light.png)
 
 Each project card shows the current balance in a large monospace figure, the alert
@@ -49,6 +55,10 @@ Subscriptions are sorted by next renewal date, with the days-remaining figure es
 from amber (14 days) to red (7). Renewed something early? Mark it and QuotaPulse pushes
 the next reminder out; the mark is visible until you clear it. Weekly, monthly,
 Gregorian-yearly, and lunar-yearly cycles are all supported.
+ Switching to this view reshapes the
+overview band: the hero figure becomes the number of renewals due within 7 days — with
+the next one named — flanked by due-in-30-days, renewed-this-cycle, and an estimated
+monthly cost that normalizes the different billing cycles.
 
 ![Subscription reminders](images/subscriptions.png)
 

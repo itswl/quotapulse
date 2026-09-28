@@ -1,8 +1,10 @@
 /* Implementation note. */
 
 import { byId, setText } from '../dom.js';
-import { formatRunway, getRelativeTime } from '../format.js';
-import type { CheckResult, CreditsResponse } from '../api/types.js';
+import { formatCurrency, formatRunway, getRelativeTime } from '../format.js';
+import { AppState } from '../state.js';
+import type { CheckResult, CreditsResponse, SubscriptionsResponse, SubscriptionResult } from '../api/types.js';
+import { sortSubscriptionsByNextDate } from './subscriptions.js';
 
 /* Implementation note. */
 export function shortestRunway(projects: CheckResult[]): CheckResult | null {
@@ -68,4 +70,104 @@ export function updateRunwayStat(projects: CheckResult[]): void {
     hint.textContent =
       runway.hint || `Estimated from the last ${first.runway?.window_days ?? 7} days of balance history`;
   }
+}
+
+/* ==================== Subscription overview ====================
+   The band's second set of blocks. A subscription counts as "due" while it is not
+   already marked renewed and its next renewal falls inside the window. */
+
+/* Average a subscription into a monthly figure. Weekly multiplies out to 52/12;
+   lunar-yearly cycles are approximated as one twelfth of the yearly amount. */
+export function monthlyCost(subscription: SubscriptionResult): number {
+  const amount = Number(subscription.amount) || 0;
+  if (subscription.cycle_type === 'weekly') return (amount * 52) / 12;
+  if (subscription.cycle_type === 'yearly' || subscription.cycle_type === 'lunar_yearly') return amount / 12;
+  return amount;
+}
+
+export function updateSubscriptionStats(data: SubscriptionsResponse | null): void {
+  const value = byId('sub-due-soon');
+  const hint = byId('sub-due-hint');
+  if (!value || !hint) return;
+
+  if (!data) {
+    value.textContent = '—';
+    value.className = 'stat-value';
+    hint.textContent = 'Subscription reminders are disabled (ENABLE_SUBSCRIPTIONS=false)';
+    setText('sub-due-30', '—');
+    setText('sub-renewed', '—');
+    setText('sub-cost', '—');
+    return;
+  }
+
+  const subs = data.subscriptions || [];
+  const active = subs.filter((s) => !s.already_renewed);
+  const due7 = active.filter((s) => s.days_until_renewal <= 7);
+  const due30 = active.filter((s) => s.days_until_renewal <= 30);
+  const renewed = subs.filter((s) => s.already_renewed).length;
+  const cost = subs.reduce((sum, s) => sum + monthlyCost(s), 0);
+
+  value.textContent = String(due7.length);
+  value.className = `stat-value${due7.length > 0 ? ' runway-danger' : ''}`;
+  const next = sortSubscriptionsByNextDate(active)[0];
+  if (next) {
+    hint.textContent =
+      due7.length > 0
+        ? `Next: ${next.name} on ${next.next_renewal_date}`
+        : `Nothing due this week; next is ${next.name} on ${next.next_renewal_date}`;
+  } else {
+    hint.textContent = 'No active subscriptions';
+  }
+
+  const due30Value = byId('sub-due-30');
+  if (due30Value) {
+    due30Value.textContent = String(due30.length);
+    due30Value.className = `stat-value${due30.length > 0 ? ' runway-warning' : ''}`;
+  }
+  setText('sub-renewed', String(renewed));
+  setText('sub-cost', formatCurrency(cost));
+}
+
+/* ==================== Switcher badges ==================== */
+
+function setBadge(id: string, count: number, tone: 'danger' | 'warning'): void {
+  const badge = byId(id);
+  if (!badge) return;
+  badge.textContent = String(count);
+  badge.hidden = count === 0;
+  badge.classList.toggle('danger', tone === 'danger');
+  badge.classList.toggle('warning', tone === 'warning');
+}
+
+/* Live counts on the view switcher: alerting projects and renewals inside their
+   reminder window. A badge hides itself at zero so a healthy system stays quiet. */
+export function updateBadges(): void {
+  setBadge(
+    'alerts-badge',
+    (AppState.balanceData?.projects || []).filter((p) => p.need_alarm).length,
+    'danger',
+  );
+  const subs = AppState.features.subscriptions ? AppState.subscriptionData?.subscriptions || [] : [];
+  setBadge('subs-badge', subs.filter((s) => s.need_alert).length, 'warning');
+}
+
+/* ==================== Overview orchestration ==================== */
+
+/**
+ * Fill the overview band and the switcher badges from AppState, then point the band at
+ * the active view. Both sets of blocks are always refreshed (hidden ones included), so
+ * switching views never shows stale figures; the CSS decides visibility.
+ */
+export function refreshOverview(): void {
+  const grid = byId('stats-grid');
+  if (!grid) return;
+  if (AppState.balanceData) updateStats(AppState.balanceData);
+  updateSubscriptionStats(AppState.features.subscriptions ? AppState.subscriptionData : null);
+  updateBadges();
+  grid.dataset['view'] =
+    AppState.currentView === 'email'
+      ? 'email'
+      : AppState.currentView === 'subscriptions' && AppState.features.subscriptions
+        ? 'subscriptions'
+        : 'projects';
 }

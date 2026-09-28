@@ -8,7 +8,15 @@ import { describe, it } from 'node:test';
 import type { CheckResult, CreditsResponse, Features, Runway, SubscriptionResult } from '../src/api/types.js';
 import { filterProjects, renderProjectCard, renderProjects } from '../src/ui/projects.js';
 import { renderSubscriptionCard, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
-import { shortestRunway, updateFailedHint, updateStats } from '../src/ui/stats.js';
+import {
+  monthlyCost,
+  refreshOverview,
+  shortestRunway,
+  updateBadges,
+  updateFailedHint,
+  updateStats,
+  updateSubscriptionStats,
+} from '../src/ui/stats.js';
 import { AppState } from '../src/state.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
@@ -384,5 +392,181 @@ describe('桩 DOM 上的Project列表', () => {
     });
 
     assert.equal(container.innerHTML.match(/class="project-card"/g)?.length, 2);
+  });
+});
+
+describe('概览带上的订阅统计', () => {
+  function sub(overrides: Partial<SubscriptionResult> = {}): SubscriptionResult {
+    return {
+      name: 'Copilot',
+      owner_project: null,
+      renewal_day: 26,
+      cycle_type: 'monthly',
+      days_until_renewal: 5,
+      next_renewal_date: '2026-10-01',
+      need_alert: true,
+      alert_sent: false,
+      amount: 10,
+      already_renewed: false,
+      last_renewed_date: null,
+      ...overrides,
+    };
+  }
+
+  function stubBand(): void {
+    for (const id of ['sub-due-soon', 'sub-due-hint', 'sub-due-30', 'sub-renewed', 'sub-cost']) {
+      stubElement(id);
+    }
+  }
+
+  it('7 天内到期的计数标红，并预告最近的一条', () => {
+    resetStubDom();
+    stubBand();
+    updateSubscriptionStats({
+      last_update: null,
+      subscriptions: [
+        sub({ name: 'Copilot', days_until_renewal: 5 }),
+        sub({ name: 'Server', days_until_renewal: 2, next_renewal_date: '2026-09-30', amount: 7 }),
+        sub({ name: 'iCloud', days_until_renewal: 20, need_alert: false, amount: 21 }),
+      ],
+      summary: {},
+    });
+
+    const value = stubElement('sub-due-soon');
+    assert.equal(value.textContent, '2');
+    assert.equal(value.className, 'stat-value runway-danger');
+    assert.match(stubElement('sub-due-hint').textContent, /Next: Server on 2026-09-30/);
+    assert.equal(stubElement('sub-due-30').textContent, '3');
+    assert.equal(stubElement('sub-due-30').className, 'stat-value runway-warning');
+  });
+
+  it('已续费的不再算到期，但照常计入月成本', () => {
+    resetStubDom();
+    stubBand();
+    updateSubscriptionStats({
+      last_update: null,
+      subscriptions: [
+        sub({ amount: 10 }),
+        sub({ name: 'CVM', days_until_renewal: 3, amount: 1420, already_renewed: true, need_alert: false }),
+        sub({ name: 'Domain', days_until_renewal: 95, cycle_type: 'yearly', need_alert: false, amount: 120 }),
+        sub({ name: 'VPS', days_until_renewal: 40, cycle_type: 'weekly', need_alert: false, amount: 52 }),
+      ],
+      summary: {},
+    });
+
+    assert.equal(stubElement('sub-due-soon').textContent, '1');
+    assert.equal(stubElement('sub-renewed').textContent, '1');
+    assert.equal(stubElement('sub-cost').textContent, '1665.33');
+  });
+
+  it('全都不急时主指标平静为 0，并预告下一次续费', () => {
+    resetStubDom();
+    stubBand();
+    updateSubscriptionStats({
+      last_update: null,
+      subscriptions: [sub({ days_until_renewal: 20, need_alert: false, next_renewal_date: '2026-10-18' })],
+      summary: {},
+    });
+
+    const value = stubElement('sub-due-soon');
+    assert.equal(value.textContent, '0');
+    assert.equal(value.className, 'stat-value');
+    assert.match(stubElement('sub-due-hint').textContent, /Nothing due this week; next is Copilot on 2026-10-18/);
+  });
+
+  it('订阅功能关闭时给说明而不是 0', () => {
+    resetStubDom();
+    stubBand();
+    updateSubscriptionStats(null);
+    assert.equal(stubElement('sub-due-soon').textContent, '—');
+    assert.match(stubElement('sub-due-hint').textContent, /ENABLE_SUBSCRIPTIONS/);
+    assert.equal(stubElement('sub-cost').textContent, '—');
+  });
+
+  it('monthlyCost 把周期折算成月费', () => {
+    assert.equal(monthlyCost(sub({ amount: 21 })), 21);
+    assert.equal(monthlyCost(sub({ amount: 52, cycle_type: 'weekly' })), (52 * 52) / 12);
+    assert.equal(monthlyCost(sub({ amount: 120, cycle_type: 'yearly' })), 10);
+    assert.equal(monthlyCost(sub({ amount: 120, cycle_type: 'lunar_yearly' })), 10);
+  });
+});
+
+describe('切换器徽标', () => {
+  function sub2(overrides: Partial<SubscriptionResult>): SubscriptionResult {
+    return {
+      name: 'Copilot',
+      owner_project: null,
+      renewal_day: 26,
+      cycle_type: 'monthly',
+      days_until_renewal: 5,
+      next_renewal_date: '2026-10-01',
+      need_alert: false,
+      alert_sent: false,
+      amount: 10,
+      already_renewed: false,
+      last_renewed_date: null,
+      ...overrides,
+    };
+  }
+
+  it('按 need_alarm 和 need_alert 计数，为 0 时隐藏', () => {
+    resetStubDom();
+    const alertBadge = stubElement('alerts-badge');
+    const subBadge = stubElement('subs-badge');
+    AppState.balanceData = {
+      last_update: null,
+      projects: [project({ need_alarm: true }), project({ project: 'b' })],
+      summary: {},
+    };
+    AppState.subscriptionData = {
+      last_update: null,
+      subscriptions: [
+        sub2({ need_alert: true }),
+        sub2({ name: 'b', need_alert: false }),
+        sub2({ name: 'c', need_alert: true }),
+      ],
+      summary: {},
+    };
+    AppState.features = { ...AppState.features, subscriptions: true };
+
+    updateBadges();
+    assert.equal(alertBadge.textContent, '1');
+    assert.equal(alertBadge.hidden, false);
+    assert.ok(alertBadge.classList.contains('danger'));
+    assert.equal(subBadge.textContent, '2');
+    assert.ok(subBadge.classList.contains('warning'));
+
+    AppState.balanceData!.projects = [project()];
+    AppState.features = { ...AppState.features, subscriptions: false };
+    updateBadges();
+    assert.equal(alertBadge.hidden, true);
+    assert.equal(subBadge.hidden, true);
+  });
+});
+
+describe('refreshOverview 跟随视图', () => {
+  it('data-view 指向当前视图，订阅开关未开时退回 projects', () => {
+    resetStubDom();
+    const grid = stubElement('stats-grid');
+    AppState.features = { subscriptions: true, dynamic_config: false, history: false, email_scan: true };
+    AppState.subscriptionData = { last_update: null, subscriptions: [], summary: {} };
+
+    AppState.currentView = 'subscriptions';
+    refreshOverview();
+    assert.equal(grid.dataset['view'], 'subscriptions');
+
+    AppState.currentView = 'email';
+    refreshOverview();
+    assert.equal(grid.dataset['view'], 'email');
+
+    AppState.currentView = 'alerts';
+    AppState.balanceData = { last_update: null, projects: [], summary: {} };
+    refreshOverview();
+    assert.equal(grid.dataset['view'], 'projects');
+
+    AppState.currentView = 'subscriptions';
+    AppState.features = { ...AppState.features, subscriptions: false };
+    refreshOverview();
+    assert.equal(grid.dataset['view'], 'projects');
   });
 });

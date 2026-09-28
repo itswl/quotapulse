@@ -13,6 +13,7 @@ export interface StubElement {
   textContent: string;
   innerHTML: string;
   title: string;
+  hidden: boolean;
   value: string;
   checked: boolean;
   disabled: boolean;
@@ -44,6 +45,7 @@ export function createStubElement(tagName = 'div'): StubElement {
     textContent: '',
     innerHTML: '',
     title: '',
+    hidden: false,
     value: '',
     checked: false,
     disabled: false,

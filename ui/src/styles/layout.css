@@ -206,6 +206,7 @@
 
 .stat-dot.success { background: var(--success); }
 .stat-dot.danger { background: var(--danger); }
+.stat-dot.warning { background: var(--warning); }
 
 .stat-value {
     font-family: var(--mono);
@@ -221,6 +222,32 @@
     font-size: clamp(26px, 2.4vw + 8px, 40px);
     letter-spacing: -0.03em;
     overflow-wrap: anywhere;
+}
+
+/* The band follows the active view: every card holds a projects block and a
+   subscriptions block, and `data-view` on the grid decides which set shows. */
+.stat-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.stats-grid .stat-sub {
+    display: none;
+}
+
+.stats-grid[data-view="subscriptions"] .stat-project {
+    display: none;
+}
+
+.stats-grid[data-view="subscriptions"] .stat-sub {
+    display: flex;
+}
+
+/* The email view has its own summary chips; the band would only duplicate them. */
+.stats-grid[data-view="email"] {
+    display: none;
 }
 
 .stat-hint {
@@ -282,6 +309,39 @@
     color: var(--text);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
+}
+
+/* Live counters on the switcher: alerting projects and renewals inside their
+   reminder window. Hidden at zero so a healthy system stays quiet. */
+.btn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    background: var(--surface-sunken);
+    color: var(--text-3);
+}
+
+.btn-badge.danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.btn-badge.warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.btn-badge[hidden] {
+    display: none;
 }
 
 /* ==================== Content sections ====================

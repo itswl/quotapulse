@@ -5,6 +5,7 @@ import { AppState, writeStorage, type Theme, type ViewName } from './state.js';
 import { EmailManager } from './managers/email-manager.js';
 import { renderProjects } from './ui/projects.js';
 import { renderSubscriptions } from './ui/subscriptions.js';
+import { refreshOverview } from './ui/stats.js';
 
 const VIEW_BUTTONS: Record<ViewName, string> = {
   all: 'view-all-btn',
@@ -74,4 +75,7 @@ export function switchView(view: ViewName): void {
   } else {
     void EmailManager.load();
   }
+
+  // Band content and switcher badges follow the active view.
+  refreshOverview();
 }

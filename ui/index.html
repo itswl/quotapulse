@@ -155,27 +155,54 @@
     </nav>
 
     <main class="main-container" id="main-content">
-        <!-- Overview band: hero runway figure plus three counters -->
-        <section class="stats-grid" aria-label="Overview">
+        <!-- Overview band: hero figure plus three counters. The band follows the active view:
+             the projects blocks show runway and counters, the subscription blocks show renewal
+             stats, and on the email view the band yields to the scan summary chips. -->
+        <section class="stats-grid" id="stats-grid" data-view="projects" aria-label="Overview">
             <div class="stat-card hero">
-                <div class="stat-label" id="shortest-runway-label">Shortest runway</div>
-                <div class="stat-value" id="shortest-runway"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
-                <p class="stat-hint" id="shortest-runway-hint"></p>
+                <div class="stat-block stat-project">
+                    <div class="stat-label" id="shortest-runway-label">Shortest runway</div>
+                    <div class="stat-value" id="shortest-runway"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                    <p class="stat-hint" id="shortest-runway-hint"></p>
+                </div>
+                <div class="stat-block stat-sub">
+                    <div class="stat-label" id="sub-due-soon-label">Due in 7 days</div>
+                    <div class="stat-value" id="sub-due-soon">&mdash;</div>
+                    <p class="stat-hint" id="sub-due-hint"></p>
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Total projects</span></div>
-                <div class="stat-value" id="total-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                <div class="stat-block stat-project">
+                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Total projects</span></div>
+                    <div class="stat-value" id="total-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                </div>
+                <div class="stat-block stat-sub">
+                    <div class="stat-label"><span class="stat-dot warning" aria-hidden="true"></span><span>Due in 30 days</span></div>
+                    <div class="stat-value" id="sub-due-30">&mdash;</div>
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Healthy projects</span></div>
-                <div class="stat-value" id="normal-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                <div class="stat-block stat-project">
+                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Healthy projects</span></div>
+                    <div class="stat-value" id="normal-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                </div>
+                <div class="stat-block stat-sub">
+                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Renewed this cycle</span></div>
+                    <div class="stat-value" id="sub-renewed">&mdash;</div>
+                </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-label"><span class="stat-dot danger" aria-hidden="true"></span><span id="alert-projects-label">Alerting projects</span></div>
-                <div class="stat-value" id="alert-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                <div class="stat-block stat-project">
+                    <div class="stat-label"><span class="stat-dot danger" aria-hidden="true"></span><span id="alert-projects-label">Alerting projects</span></div>
+                    <div class="stat-value" id="alert-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
+                </div>
+                <div class="stat-block stat-sub">
+                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Monthly cost (est.)</span></div>
+                    <div class="stat-value" id="sub-cost">&mdash;</div>
+                </div>
             </div>
         </section>
 
@@ -187,11 +214,11 @@
             </button>
             <button class="action-btn" id="view-alerts-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
-                <span>Alerts only</span>
+                <span>Alerts only</span><span class="btn-badge" id="alerts-badge" hidden></span>
             </button>
             <button class="action-btn" id="view-subscriptions-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cycle"></use></svg>
-                <span>Subscriptions</span>
+                <span>Subscriptions</span><span class="btn-badge" id="subs-badge" hidden></span>
             </button>
             <button class="action-btn" id="view-email-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-at"></use></svg>

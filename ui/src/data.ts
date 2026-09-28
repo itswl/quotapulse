@@ -12,7 +12,7 @@ import { emptyState } from './ui/empty.js';
 import { setLoading } from './ui/loading.js';
 import { renderProjects, updateProviderFilter } from './ui/projects.js';
 import { renderSubscriptions } from './ui/subscriptions.js';
-import { updateStats } from './ui/stats.js';
+import { refreshOverview } from './ui/stats.js';
 import { showToast } from './ui/toast.js';
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
@@ -48,7 +48,6 @@ export async function fetchAndRender(rebuildFilter = false): Promise<void> {
   AppState.subscriptionData = subscriptionData;
   AppState.lastUpdate = new Date();
 
-  updateStats(balanceData);
   if (rebuildFilter) {
     updateProviderFilter(balanceData);
   }
@@ -57,14 +56,15 @@ export async function fetchAndRender(rebuildFilter = false): Promise<void> {
   } else {
     renderProjects(balanceData);
   }
+  refreshOverview();
 }
 
 /* Implementation note. */
 export async function reloadProjects(): Promise<void> {
   const balanceData = await getCredits();
   AppState.balanceData = balanceData;
-  updateStats(balanceData);
   renderProjects(balanceData);
+  refreshOverview();
 }
 
 /* Implementation note. */
@@ -72,6 +72,7 @@ export async function reloadSubscriptions(): Promise<void> {
   const subscriptionData = await getSubscriptions(true);
   AppState.subscriptionData = subscriptionData;
   renderSubscriptions(subscriptionData);
+  refreshOverview();
 }
 
 export async function loadData(): Promise<void> {
