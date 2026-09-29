@@ -19,6 +19,7 @@ import {
   updateSubscriptionStats,
 } from '../src/ui/stats.js';
 import { AppState, parseRefreshMinutes } from '../src/state.js';
+import { fetchAndRender } from '../src/data.js';
 import { formatServerCadence } from '../src/format.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
 
@@ -62,6 +63,23 @@ function runway(overrides: Partial<Runway> = {}): Runway {
     today_consumed: null,
     baseline_consumed: null,
     spike_ratio: null,
+    ...overrides,
+  };
+}
+
+function subscription(overrides: Partial<SubscriptionResult> = {}): SubscriptionResult {
+  return {
+    name: 'Netflix',
+    owner_project: null,
+    renewal_day: 15,
+    cycle_type: 'monthly',
+    days_until_renewal: 20,
+    next_renewal_date: '2026-10-15',
+    need_alert: false,
+    alert_sent: false,
+    amount: 99,
+    already_renewed: false,
+    last_renewed_date: null,
     ...overrides,
   };
 }
@@ -230,23 +248,6 @@ describe('shortestRunway', () => {
 });
 
 describe('renderSubscriptionCard', () => {
-  function subscription(overrides: Partial<SubscriptionResult> = {}): SubscriptionResult {
-    return {
-      name: 'Netflix',
-      owner_project: null,
-      renewal_day: 15,
-      cycle_type: 'monthly',
-      days_until_renewal: 20,
-      next_renewal_date: '2026-10-15',
-      need_alert: false,
-      alert_sent: false,
-      amount: 99,
-      already_renewed: false,
-      last_renewed_date: null,
-      ...overrides,
-    };
-  }
-
   it('显示金额、周期、下次续费日和剩余天数', () => {
     const html = renderSubscriptionCard(subscription());
     assert.match(html, /<h3>Netflix<\/h3>/);
@@ -615,6 +616,65 @@ describe('导航状态时间戳与状态点', () => {
     updateNavFreshness(null, true);
     assert.equal(stamp.textContent, '—');
     assert.equal(dot.className, 'live-dot down');
+  });
+
+  it('加载失败后状态点保持红色，直到下一次成功（定时刷新相对时间不能把它变回绿色）', () => {
+    resetStubDom();
+    const dot = stubElement('nav-live-dot');
+    stubElement('last-update');
+    const fresh = { last_update: new Date().toISOString(), projects: [], summary: {} };
+
+    AppState.balanceLoadFailed = true;
+    updateNavFreshness(fresh);
+    assert.equal(dot.className, 'live-dot down');
+
+    AppState.balanceLoadFailed = false;
+    updateNavFreshness(fresh);
+    assert.equal(dot.className, 'live-dot');
+  });
+
+  it('所有账户都查询失败时即使服务器有响应也显示红点', () => {
+    resetStubDom();
+    const dot = stubElement('nav-live-dot');
+    updateNavFreshness({
+      last_update: new Date().toISOString(),
+      projects: [project({ success: false, credits: null }), project({ project: 'b', success: false, credits: null })],
+      summary: {},
+    });
+    assert.equal(dot.className, 'live-dot down');
+  });
+});
+
+describe('fetchAndRender', () => {
+  it('余额接口失败时订阅照常加载和渲染，角标与概览不受影响', async () => {
+    resetStubDom();
+    const subsContainer = stubElement('subscriptions-container');
+    stubElement('projects-container');
+    localStorage.setItem('apiKey', 'test-key');
+    const originalFetch = globalThis.fetch;
+    const subscriptions = { last_update: null, subscriptions: [subscription({ need_alert: true })], summary: {} };
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      if (String(input).endsWith('/api/credits')) {
+        return new Response(JSON.stringify({ status: 'error', message: 'Balance data is not initialized' }), { status: 503 });
+      }
+      return new Response(JSON.stringify(subscriptions), { status: 200 });
+    }) as typeof fetch;
+    const features = AppState.features;
+    AppState.features = { ...ALL_ON };
+    AppState.currentView = 'subscriptions';
+    try {
+      await assert.rejects(fetchAndRender(), /not initialized/);
+      assert.equal(AppState.balanceLoadFailed, true);
+      assert.equal(AppState.subscriptionLoadError, null);
+      assert.equal(AppState.subscriptionData?.subscriptions.length, 1);
+      assert.match(subsContainer.innerHTML, /Netflix/);
+    } finally {
+      globalThis.fetch = originalFetch;
+      AppState.features = features;
+      AppState.currentView = 'all';
+      AppState.balanceLoadFailed = false;
+      AppState.subscriptionData = null;
+    }
   });
 });
 

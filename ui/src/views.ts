@@ -4,7 +4,7 @@ import { byId } from './dom.js';
 import { AppState, writeStorage, type Theme, type ViewName } from './state.js';
 import { EmailManager } from './managers/email-manager.js';
 import { renderProjects } from './ui/projects.js';
-import { renderSubscriptions } from './ui/subscriptions.js';
+import { renderSubscriptions, renderSubscriptionsError } from './ui/subscriptions.js';
 import { refreshOverview } from './ui/stats.js';
 
 const VIEW_BUTTONS: Record<ViewName, string> = {
@@ -79,7 +79,7 @@ export function switchView(view: ViewName): void {
   active?.classList.add('active');
   active?.setAttribute('aria-pressed', 'true');
 
-  // "all" and "alerts" share the projects section; the other two have their own.
+  // Subscriptions and email have their own sections; everything else is the projects section.
   const visible = view === 'subscriptions' || view === 'email' ? view : 'projects';
   for (const [name, id] of [
     ['projects', 'projects-section'],
@@ -93,7 +93,8 @@ export function switchView(view: ViewName): void {
   if (view === 'all') {
     if (AppState.balanceData) renderProjects(AppState.balanceData);
   } else if (view === 'subscriptions') {
-    if (AppState.subscriptionData) renderSubscriptions(AppState.subscriptionData);
+    if (AppState.subscriptionLoadError !== null) renderSubscriptionsError(AppState.subscriptionLoadError);
+    else if (AppState.subscriptionData) renderSubscriptions(AppState.subscriptionData);
   } else {
     void EmailManager.load();
   }

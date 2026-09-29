@@ -3,7 +3,7 @@
 import { requireById } from '../dom.js';
 import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, renewalUrgency } from '../format.js';
 import type { SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
-import { emptyState } from './empty.js';
+import { emptyState, loadErrorDetail } from './empty.js';
 import { ICON_CALENDAR, ICON_CHECK, ICON_DELETE, ICON_EDIT, ICON_UNDO } from './icons.js';
 
 export /**
@@ -93,6 +93,17 @@ export function sortSubscriptionsByNextDate(subscriptions: SubscriptionResult[])
     }
     return a.name.localeCompare(b.name, 'zh-CN');
   });
+}
+
+/* A failed load says so, with a retry, instead of looking like an empty list. */
+export function renderSubscriptionsError(error: unknown): void {
+  requireById('subscriptions-container').innerHTML = emptyState(
+    'Subscriptions could not be loaded',
+    loadErrorDetail(error),
+    'error',
+    false,
+    '<button type="button" class="btn-primary js-retry-load">Try again</button>',
+  );
 }
 
 export function renderSubscriptions(data: SubscriptionsResponse): void {

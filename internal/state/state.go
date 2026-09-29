@@ -81,10 +81,12 @@ type Manager struct {
 	mu        sync.RWMutex
 	startTime time.Time
 	balance   BalanceState
-	subs      SubscriptionState
-	email     EmailState
-	jobs      map[string]*Job
-	jobOrder  []string // operation,/api/jobs operation
+	// balanceChecked is set once any balance check has completed.
+	balanceChecked bool
+	subs           SubscriptionState
+	email          EmailState
+	jobs           map[string]*Job
+	jobOrder       []string // operation,/api/jobs operation
 }
 
 // Implementation note.
@@ -104,7 +106,8 @@ func (m *Manager) UptimeSeconds() float64 { return time.Since(m.startTime).Secon
 func (m *Manager) SetBalance(results []model.CheckResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.setBalanceLocked(results)
+	m.balanceChecked = true
+	m.setBalanceLocked(results, len(results) == 0 || anySucceeded(results))
 }
 
 // Implementation note.
@@ -126,7 +129,8 @@ func (m *Manager) MergeBalance(results []model.CheckResult) {
 			merged = append(merged, r)
 		}
 	}
-	m.setBalanceLocked(merged)
+	m.balanceChecked = true
+	m.setBalanceLocked(merged, anySucceeded(results))
 }
 
 // Implementation note.
@@ -141,17 +145,41 @@ func (m *Manager) RemoveBalanceProject(name string) {
 		}
 	}
 	if len(kept) != len(m.balance.Projects) {
-		m.setBalanceLocked(kept)
+		m.setBalanceLocked(kept, false)
 	}
 }
 
-func (m *Manager) setBalanceLocked(results []model.CheckResult) {
-	now := timeutil.NowISO()
+// setBalanceLocked stores results. last_update is the time balances were last actually
+// read, so it only advances when fresh reads succeeded: a total provider outage must
+// age the dashboard instead of stamping "updated just now" on a page of errors.
+func (m *Manager) setBalanceLocked(results []model.CheckResult, fresh bool) {
+	lastUpdate := m.balance.LastUpdate
+	if fresh {
+		now := timeutil.NowISO()
+		lastUpdate = &now
+	}
 	m.balance = BalanceState{
-		LastUpdate: &now,
+		LastUpdate: lastUpdate,
 		Projects:   results,
 		Summary:    model.SummarizeBalance(results),
 	}
+}
+
+// BalanceChecked reports whether any balance check has completed since startup. Before
+// that there is nothing to show; after it an empty project list is a real answer.
+func (m *Manager) BalanceChecked() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.balanceChecked
+}
+
+func anySucceeded(results []model.CheckResult) bool {
+	for _, r := range results {
+		if r.Success {
+			return true
+		}
+	}
+	return false
 }
 
 // Implementation note.
@@ -159,7 +187,8 @@ func (m *Manager) Balance() BalanceState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := m.balance
-	out.Projects = append([]model.CheckResult(nil), m.balance.Projects...)
+	// Never nil: an empty list must encode as [] for API clients, not null.
+	out.Projects = append([]model.CheckResult{}, m.balance.Projects...)
 	return out
 }
 

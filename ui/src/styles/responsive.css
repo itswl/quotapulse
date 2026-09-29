@@ -34,8 +34,20 @@
         padding-right: 14px;
     }
 
+    /* Phones keep the freshness signal, the dot and the time, and drop only the label. */
     .nav-status {
+        gap: 6px;
+        min-width: 0;
+        padding-left: 12px;
+    }
+
+    .nav-status-label {
         display: none;
+    }
+
+    .nav-status strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .stat-card {

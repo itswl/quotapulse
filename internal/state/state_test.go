@@ -176,3 +176,46 @@ func TestEmailSummary(t *testing.T) {
 		t.Errorf("邮箱汇总: 期望 %+v，实际 %+v", want, got)
 	}
 }
+
+// last_update is when balances were last read: an outage where every check fails must
+// not stamp "updated just now", and removing a card is not a check.
+func TestLastUpdateOnlyAdvancesOnSuccessfulReads(t *testing.T) {
+	m := New()
+	if m.BalanceChecked() {
+		t.Fatal("启动后还没检查过")
+	}
+
+	m.SetBalance([]model.CheckResult{result("a", false, false), result("b", false, false)})
+	if !m.BalanceChecked() {
+		t.Error("检查完成后应标记为已检查，即使全部失败")
+	}
+	if m.Balance().LastUpdate != nil {
+		t.Error("全部失败时不应产生 last_update")
+	}
+
+	m.SetBalance([]model.CheckResult{result("a", true, false), result("b", false, false)})
+	first := m.Balance().LastUpdate
+	if first == nil {
+		t.Fatal("有成功的读取就应更新 last_update")
+	}
+
+	time.Sleep(2 * time.Millisecond)
+	m.SetBalance([]model.CheckResult{result("a", false, false), result("b", false, false)})
+	if got := m.Balance().LastUpdate; got == nil || *got != *first {
+		t.Errorf("全部失败时应保留上次成功的时间 %v，实际 %v", *first, got)
+	}
+	if m.Balance().Summary.Failed != 2 {
+		t.Error("失败结果本身仍要存下来，页面要显示错误")
+	}
+
+	m.MergeBalance([]model.CheckResult{result("b", false, false)})
+	if got := m.Balance().LastUpdate; *got != *first {
+		t.Error("单个项目刷新失败不应更新 last_update")
+	}
+
+	empty := New()
+	empty.SetBalance(nil)
+	if !empty.BalanceChecked() || empty.Balance().LastUpdate == nil {
+		t.Error("没有项目时的检查也是一次成功的检查")
+	}
+}

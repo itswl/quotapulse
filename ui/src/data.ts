@@ -7,11 +7,12 @@
 
 import { byId, toggleDisplay } from './dom.js';
 import { getCredits, getFeatures, getSubscriptions, refresh as refreshApi } from './api/endpoints.js';
+import type { SubscriptionsResponse } from './api/types.js';
 import { AppState } from './state.js';
-import { emptyState } from './ui/empty.js';
+import { emptyState, loadErrorDetail } from './ui/empty.js';
 import { setLoading } from './ui/loading.js';
 import { renderProjects, updateProviderFilter } from './ui/projects.js';
-import { renderSubscriptions } from './ui/subscriptions.js';
+import { renderSubscriptions, renderSubscriptionsError } from './ui/subscriptions.js';
 import { refreshOverview, updateNavFreshness } from './ui/stats.js';
 import { showToast } from './ui/toast.js';
 
@@ -35,40 +36,57 @@ export async function loadFeatures(): Promise<void> {
   toggleDisplay('add-project-btn', AppState.features.dynamic_config);
 }
 
-/* Implementation note. */
+const NO_SUBSCRIPTIONS: SubscriptionsResponse = { last_update: null, subscriptions: [], summary: {} };
+
+/**
+ * Load balances and subscriptions and render the active view. The two load independently:
+ * a failing /api/credits must not leave the subscription view, its badge and its counters
+ * empty, or the other way round. Each view renders from whatever arrived, and the first
+ * failure is rethrown for the caller to report.
+ */
 export async function fetchAndRender(rebuildFilter = false): Promise<void> {
-  const balanceData = await getCredits();
-  const subscriptionData = AppState.features.subscriptions
-    ? await getSubscriptions()
-    : { last_update: null, subscriptions: [], summary: {} };
+  const [balance, subscriptions] = await Promise.allSettled([
+    getCredits(),
+    AppState.features.subscriptions ? getSubscriptions() : Promise.resolve(NO_SUBSCRIPTIONS),
+  ]);
 
-  AppState.balanceData = balanceData;
-  AppState.subscriptionData = subscriptionData;
-  AppState.lastUpdate = new Date();
-
-  if (rebuildFilter) {
-    updateProviderFilter(balanceData);
+  AppState.balanceLoadFailed = balance.status === 'rejected';
+  AppState.subscriptionLoadError = subscriptions.status === 'rejected' ? (subscriptions.reason ?? 'error') : null;
+  if (balance.status === 'fulfilled') {
+    AppState.balanceData = balance.value;
+    AppState.lastUpdate = new Date();
+    if (rebuildFilter) updateProviderFilter(balance.value);
   }
+  if (subscriptions.status === 'fulfilled') {
+    AppState.subscriptionData = subscriptions.value;
+  }
+
   if (AppState.currentView === 'subscriptions') {
-    renderSubscriptions(subscriptionData);
-  } else {
-    renderProjects(balanceData);
+    if (subscriptions.status === 'fulfilled') renderSubscriptions(subscriptions.value);
+    else renderSubscriptionsError(subscriptions.reason);
+  } else if (balance.status === 'fulfilled') {
+    renderProjects(balance.value);
   }
   refreshOverview();
+
+  if (balance.status === 'rejected') throw balance.reason;
+  if (subscriptions.status === 'rejected') throw subscriptions.reason;
 }
 
-/* Implementation note. */
+/* Re-fetch balances after a project change. */
 export async function reloadProjects(): Promise<void> {
   const balanceData = await getCredits();
   AppState.balanceData = balanceData;
+  AppState.balanceLoadFailed = false;
   renderProjects(balanceData);
   refreshOverview();
 }
 
-/* Implementation note. */
+/* Re-fetch subscriptions after a subscription change, bypassing the ETag cache. */
 export async function reloadSubscriptions(): Promise<void> {
   const subscriptionData = await getSubscriptions(true);
   AppState.subscriptionData = subscriptionData;
+  AppState.subscriptionLoadError = null;
   renderSubscriptions(subscriptionData);
   refreshOverview();
 }
@@ -89,15 +107,11 @@ export async function loadData(): Promise<void> {
 /* First-load failure: swap the skeletons for an explanation with a retry, and settle the counters. */
 function renderLoadError(error: unknown): void {
   const container = byId('projects-container');
-  if (container && !container.innerHTML.includes('project-card')) {
-    const networkError = error instanceof TypeError || !(error instanceof Error) || !error.message;
-    const detail = networkError
-      ? 'The server did not respond. Check that QuotaPulse is running and that your API key is valid.'
-      : error.message;
+  if (AppState.balanceLoadFailed && container && !container.innerHTML.includes('project-card')) {
     container.removeAttribute?.('aria-busy');
     container.innerHTML = emptyState(
       'Balances could not be loaded',
-      detail,
+      loadErrorDetail(error),
       'error',
       false,
       '<button type="button" class="btn-primary js-retry-load">Try again</button>',
@@ -107,7 +121,7 @@ function renderLoadError(error: unknown): void {
     const node = byId(id);
     if (node && node.innerHTML.includes('skeleton')) node.textContent = '—';
   }
-  updateNavFreshness(AppState.balanceData, true);
+  updateNavFreshness(AppState.balanceData);
 }
 
 /* Implementation note. */
@@ -131,7 +145,14 @@ export async function refreshNow(): Promise<void> {
 export function startAutoRefresh(): void {
   if (AppState.autoRefreshTimer) return;
   AppState.autoRefreshTimer = setInterval(() => {
-    fetchAndRender().catch((error: unknown) => console.error('Auto-refresh failed:', error));
+    const wasFailing = AppState.balanceLoadFailed;
+    fetchAndRender().catch((error: unknown) => {
+      console.error('Auto-refresh failed:', error);
+      // The nav dot turns red on its own; say it in words once per failure streak.
+      if (AppState.balanceLoadFailed && !wasFailing) {
+        showToast('Background refresh failed; the balances shown may be out of date', 'error');
+      }
+    });
   }, AppState.autoRefreshMinutes * 60_000);
 }
 

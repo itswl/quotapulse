@@ -33,7 +33,7 @@ function readRefreshMinutes(): number {
 export interface AppStateShape {
   currentTheme: Theme;
   currentView: ViewName;
-  /* Projects toolbar filter: show only accounts below their alert threshold. */
+  /* Projects toolbar filter: show only accounts below their alert threshold or failing their check. */
   alertsOnly: boolean;
   projectViewStyle: ProjectViewStyle;
   /* Provider filter value; 'all' disables the filter. */
@@ -41,6 +41,10 @@ export interface AppStateShape {
   searchQuery: string;
   balanceData: CreditsResponse | null;
   subscriptionData: SubscriptionsResponse | null;
+  /* The latest balance load failed; the nav dot stays red until one succeeds. */
+  balanceLoadFailed: boolean;
+  /* Why the latest subscription load failed, or null. Tells "could not load" apart from "disabled". */
+  subscriptionLoadError: unknown;
   features: Features;
   lastUpdate: Date | null;
   autoRefreshTimer: ReturnType<typeof setInterval> | null;
@@ -93,6 +97,8 @@ export const AppState: AppStateShape = {
   searchQuery: '',
   balanceData: null,
   subscriptionData: null,
+  balanceLoadFailed: false,
+  subscriptionLoadError: null,
   // Conservative defaults until /api/features answers: optional views stay hidden.
   features: { subscriptions: false, dynamic_config: false, history: false, email_scan: false },
   lastUpdate: null,

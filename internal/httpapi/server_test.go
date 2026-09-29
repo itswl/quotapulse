@@ -188,6 +188,22 @@ func TestFeaturesReflectsToggles(t *testing.T) {
 }
 
 // Implementation note.
+// A fresh install, or deleting the last project, leaves an empty list after a check.
+// That is a real answer, not "not initialized", or the getting-started panel and a
+// deleted card's removal would never show.
+func TestCreditsWithNoProjectsAfterACheck(t *testing.T) {
+	s, handler := newServer(t, nil)
+	s.State.SetBalance(nil)
+
+	got := request(t, handler, "GET", "/api/credits", "", true)
+	if got.Code != http.StatusOK {
+		t.Fatalf("检查过但没有项目时期望 200，实际 %d", got.Code)
+	}
+	if projects, ok := decode(t, got)["projects"].([]any); !ok || len(projects) != 0 {
+		t.Errorf("projects 应是空数组，实际 %v", decode(t, got)["projects"])
+	}
+}
+
 func TestCreditsBeforeFirstCheck(t *testing.T) {
 	s, handler := newServer(t, nil)
 

@@ -29,3 +29,11 @@ export function emptyState(title: string, text: string, icon: EmptyIcon = 'info'
             </div>
         `;
 }
+
+/* What to say about a failed load: the server's own message, or a hint when nothing answered. */
+export function loadErrorDetail(error: unknown): string {
+  const networkError = error instanceof TypeError || !(error instanceof Error) || !error.message;
+  return networkError
+    ? 'The server did not respond. Check that QuotaPulse is running and that your API key is valid.'
+    : error.message;
+}

@@ -85,7 +85,8 @@ export function monthlyCost(subscription: SubscriptionResult): number {
   return amount;
 }
 
-export function updateSubscriptionStats(data: SubscriptionsResponse | null): void {
+/* data is null when subscriptions are disabled or failed to load; the hint says which. */
+export function updateSubscriptionStats(data: SubscriptionsResponse | null, unavailable = false): void {
   const value = byId('sub-due-soon');
   const hint = byId('sub-due-hint');
   if (!value || !hint) return;
@@ -93,7 +94,9 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null): voi
   if (!data) {
     value.textContent = '—';
     value.className = 'stat-value';
-    hint.textContent = 'Subscription reminders are disabled (ENABLE_SUBSCRIPTIONS=false)';
+    hint.textContent = unavailable
+      ? 'Subscriptions could not be loaded; retrying on the next refresh'
+      : 'Subscription reminders are disabled (ENABLE_SUBSCRIPTIONS=false)';
     setText('sub-due-30', '—');
     setText('sub-renewed', '—');
     setText('sub-cost', '—');
@@ -159,7 +162,12 @@ export function refreshOverview(): void {
   const grid = byId('stats-grid');
   if (!grid) return;
   if (AppState.balanceData) updateStats(AppState.balanceData);
-  updateSubscriptionStats(AppState.features.subscriptions ? AppState.subscriptionData : null);
+  if (AppState.features.subscriptions) {
+    // A failed reload keeps showing the last good figures; only a first failure has none.
+    updateSubscriptionStats(AppState.subscriptionData, AppState.subscriptionLoadError !== null);
+  } else {
+    updateSubscriptionStats(null);
+  }
   updateBadges();
   grid.dataset['view'] =
     AppState.currentView === 'email'
@@ -177,7 +185,7 @@ export function refreshOverview(): void {
 const FRESH_MS = 90 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
-export function updateNavFreshness(data: CreditsResponse | null, failed = false): void {
+export function updateNavFreshness(data: CreditsResponse | null, failed = AppState.balanceLoadFailed): void {
   const stamp = byId('last-update');
   const dot = byId('nav-live-dot');
   if (!stamp && !dot) return;
@@ -185,7 +193,10 @@ export function updateNavFreshness(data: CreditsResponse | null, failed = false)
   const last = data?.last_update ?? null;
   const text = last ? getRelativeTime(last) : failed ? '—' : 'Unknown';
   const age = last ? Date.now() - new Date(last).getTime() : Number.POSITIVE_INFINITY;
-  const state = failed || !last || age > STALE_MS ? ' down' : age > FRESH_MS ? ' stale' : '';
+  // Every account failing its check is an outage even when the server itself answers.
+  const projects = data?.projects ?? [];
+  const outage = projects.length > 0 && projects.every((p) => !p.success);
+  const state = failed || outage || !last || age > STALE_MS ? ' down' : age > FRESH_MS ? ' stale' : '';
 
   if (stamp) stamp.textContent = text;
   if (dot) dot.className = `live-dot${state}`;

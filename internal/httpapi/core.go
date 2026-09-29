@@ -101,12 +101,13 @@ func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCredits(w http.ResponseWriter, r *http.Request) {
-	balance := s.State.Balance()
-	if len(balance.Projects) == 0 {
+	// Only "no check has finished yet" is unavailable. An empty list after a check is a
+	// fresh install or a deleted last project, and the dashboard has a panel for that.
+	if !s.State.BalanceChecked() {
 		fail(w, http.StatusServiceUnavailable, "Balance data is not initialized; please try again")
 		return
 	}
-	etagJSON(w, r, balance)
+	etagJSON(w, r, s.State.Balance())
 }
 
 func (s *Server) handleSubscriptions(w http.ResponseWriter, r *http.Request) {

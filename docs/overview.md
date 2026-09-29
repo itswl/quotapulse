@@ -16,8 +16,9 @@ The landing view answers the only question that matters at a glance: how long un
 something runs out. The overview band leads with the shortest runway across all
 accounts — here `volc-1` has 1.2 days left — followed by the total, healthy, and
 alerting project counters. The time of the last successful check sits in the top
-navigation, next to the theme toggle, refresh, and settings — and the dot beside the
-time dulls to amber or red when the data ages out or the API stops answering.
+navigation beside the brand, on phones too, and the dot next to it turns amber or red
+when the data ages out, a refresh fails, or every account fails its check. It stays red
+until a load succeeds.
 
 A live amber badge appears on Subscriptions in the view switcher when renewals enter
 their reminder window, and it disappears at zero, so a quiet system stays quiet. In the
