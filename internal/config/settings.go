@@ -185,10 +185,10 @@ func Load() (*Settings, error) {
 		return nil, err
 	}
 	if s.EmailScanDays < 1 || s.EmailScanDays > 30 {
-		return nil, fmt.Errorf("EMAIL_SCAN_DAYS operation 1-30 operation,operation %d", s.EmailScanDays)
+		return nil, fmt.Errorf("EMAIL_SCAN_DAYS must be between 1 and 30; got %d", s.EmailScanDays)
 	}
 	if s.BurnRateWindowDays < 1 || s.BurnRateWindowDays > 90 {
-		return nil, fmt.Errorf("BURN_RATE_WINDOW_DAYS operation 1-90 operation,operation %d", s.BurnRateWindowDays)
+		return nil, fmt.Errorf("BURN_RATE_WINDOW_DAYS must be between 1 and 90; got %d", s.BurnRateWindowDays)
 	}
 	return s, nil
 }
@@ -301,7 +301,7 @@ func (e *envReader) err() error {
 	if len(e.problems) == 0 {
 		return nil
 	}
-	return fmt.Errorf("environment variableoperation:\n  %s", strings.Join(e.problems, "\n  "))
+	return fmt.Errorf("Invalid environment variables:\n  %s", strings.Join(e.problems, "\n  "))
 }
 
 // Implementation note.
@@ -338,7 +338,7 @@ func (e *envReader) boolean(key string, fallback bool) bool {
 	if falsy[lowered] {
 		return false
 	}
-	e.problems = append(e.problems, fmt.Sprintf("%s=%q operation,operation true / false", key, value))
+	e.problems = append(e.problems, fmt.Sprintf("%s=%q is not a boolean; use true or false", key, value))
 	return fallback
 }
 
@@ -349,7 +349,7 @@ func (e *envReader) integer(key string, fallback int) int {
 	}
 	n, err := strconv.Atoi(value)
 	if err != nil {
-		e.problems = append(e.problems, fmt.Sprintf("%s=%q operation", key, value))
+		e.problems = append(e.problems, fmt.Sprintf("%s=%q is not an integer", key, value))
 		return fallback
 	}
 	return n
@@ -362,7 +362,7 @@ func (e *envReader) optionalInt(key string) *int {
 	}
 	n, err := strconv.Atoi(value)
 	if err != nil {
-		e.problems = append(e.problems, fmt.Sprintf("%s=%q operation", key, value))
+		e.problems = append(e.problems, fmt.Sprintf("%s=%q is not an integer", key, value))
 		return nil
 	}
 	return &n
@@ -375,7 +375,7 @@ func (e *envReader) number(key string, fallback float64) float64 {
 	}
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		e.problems = append(e.problems, fmt.Sprintf("%s=%q operation", key, value))
+		e.problems = append(e.problems, fmt.Sprintf("%s=%q is not a number", key, value))
 		return fallback
 	}
 	return f

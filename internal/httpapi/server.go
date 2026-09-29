@@ -164,7 +164,7 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 		}
 		keys := s.Settings.APIKeys()
 		if len(keys) == 0 {
-			fail(w, http.StatusServiceUnavailable, "API Key operation,operation WEB_API_KEY")
+			fail(w, http.StatusServiceUnavailable, "API key is not configured; set WEB_API_KEY")
 			return
 		}
 		token := extractAPIKey(r)
@@ -176,7 +176,7 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 			}
 		}
 		if token == "" || !matched {
-			fail(w, http.StatusUnauthorized, "API Key operation")
+			fail(w, http.StatusUnauthorized, "API key is invalid or missing")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -222,8 +222,8 @@ func (s *Server) withRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				s.log().Error("operation panic", "path", r.URL.Path, "panic", recovered)
-				fail(w, http.StatusInternalServerError, "operation")
+				s.log().Error("Request handler panicked", "path", r.URL.Path, "panic", recovered)
+				fail(w, http.StatusInternalServerError, "Internal server error")
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -234,7 +234,7 @@ func (s *Server) withRecovery(next http.Handler) http.Handler {
 func (s *Server) assetHandler() http.Handler {
 	if s.Assets == nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "operation,operation npm --prefix ui run build operation", http.StatusNotFound)
+			http.Error(w, "The frontend is not embedded; run npm --prefix ui run build before building the binary", http.StatusNotFound)
 		})
 	}
 	files := http.FileServer(http.FS(s.Assets))
@@ -270,16 +270,16 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 		// Implementation note.
 		// Implementation note.
 		if delay := s.Settings.ShutdownDelaySeconds; delay > 0 {
-			s.log().Info("operation,operation", "delay_seconds", delay)
+			s.log().Info("Stop signal received; still serving for a moment before shutting down", "delay_seconds", delay)
 			time.Sleep(time.Duration(delay) * time.Second)
 		}
-		s.log().Info("operation Web operation")
+		s.log().Info("Shutting down the web server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	s.log().Info("Web operation", "addr", addr)
+	s.log().Info("Web server started", "addr", addr)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}

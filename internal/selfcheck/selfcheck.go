@@ -34,15 +34,15 @@ func Run(ctx context.Context, instance *app.App, out io.Writer) int {
 	var lines []string
 	problems := 0
 
-	lines = append(lines, "Configuration self-check", "  operation: "+databaseLabel(settings))
-	lines = append(lines, "  operation: "+sources(cfg, settings))
-	lines = append(lines, "  operation: "+features(settings))
-	lines = append(lines, "  operation: "+schedules(settings))
+	lines = append(lines, "Configuration self-check", "  Database: "+databaseLabel(settings))
+	lines = append(lines, "  Config sources: "+sources(cfg, settings))
+	lines = append(lines, "  Optional features: "+features(settings))
+	lines = append(lines, "  Scheduled jobs: "+schedules(settings))
 	if !settings.EnableDatabase {
-		lines = append(lines, "  "+markWarn+" operation ENABLE_DATABASE=true operation,operationDisabled")
+		lines = append(lines, "  "+markWarn+" Spend analysis and runway estimates need ENABLE_DATABASE=true to build up history; it is off")
 	}
 	if settings.EnableSubscriptions && !settings.EnableDynamicConfig {
-		lines = append(lines, "  "+markWarn+" operation,operation,operation ENABLE_DYNAMIC_CONFIG=true")
+		lines = append(lines, "  "+markWarn+" Subscription reminders are on, but subscriptions can only be stored in the database; also set ENABLE_DYNAMIC_CONFIG=true")
 		problems++
 	}
 
@@ -63,9 +63,9 @@ func Run(ctx context.Context, instance *app.App, out io.Writer) int {
 	problems += channelProblems
 
 	if problems > 0 {
-		lines = append(lines, "", fmt.Sprintf("operation %d operation(operation %s / %s operation)", problems, markBad, markWarn))
+		lines = append(lines, "", fmt.Sprintf("Found %d problem(s) (the entries marked %s / %s above)", problems, markBad, markWarn))
 	} else {
-		lines = append(lines, "", "operation")
+		lines = append(lines, "", "The configuration looks fine")
 	}
 
 	fmt.Fprintln(out, strings.Join(lines, "\n"))
@@ -84,14 +84,14 @@ func databaseLabel(settings *config.Settings) string {
 func sources(cfg model.Config, settings *config.Settings) string {
 	label := func(total, fromEnv int) string {
 		if total == 0 {
-			return "(operation)"
+			return "(empty)"
 		}
 		var parts []string
 		if total-fromEnv > 0 {
 			if settings.EnableDynamicConfig {
-				parts = append(parts, "operation")
+				parts = append(parts, "database")
 			} else {
-				parts = append(parts, "operation")
+				parts = append(parts, "unknown source")
 			}
 		}
 		if fromEnv > 0 {
@@ -112,7 +112,7 @@ func sources(cfg model.Config, settings *config.Settings) string {
 			mailboxesFromEnv++
 		}
 	}
-	return fmt.Sprintf("operation=%s  operation=%s  operation=%s",
+	return fmt.Sprintf("projects=%s  subscriptions=%s  mailboxes=%s",
 		label(len(cfg.Projects), projectsFromEnv),
 		label(len(cfg.Subscriptions), 0),
 		label(len(cfg.Mailboxes), mailboxesFromEnv))
@@ -123,12 +123,12 @@ func features(settings *config.Settings) string {
 		name string
 		on   bool
 	}{
-		{"operation", settings.EnableDatabase},
-		{"operation", settings.EnableDynamicConfig},
-		{"operation API", settings.EnableHistoryAPI},
-		{"operation", settings.EnableSubscriptions},
+		{"Database", settings.EnableDatabase},
+		{"Dynamic configuration", settings.EnableDynamicConfig},
+		{"History API", settings.EnableHistoryAPI},
+		{"Subscription reminders", settings.EnableSubscriptions},
 		{"Prometheus", settings.EnablePrometheus},
-		{"Web operation", settings.EnableWebAlarm},
+		{"Web alerts", settings.EnableWebAlarm},
 	}
 	parts := make([]string, 0, len(toggles))
 	for _, t := range toggles {
@@ -142,7 +142,7 @@ func features(settings *config.Settings) string {
 }
 
 func schedules(settings *config.Settings) string {
-	return fmt.Sprintf("operation operation %d operation  operation %s  operation %s(operation %d operation)  operation %s",
+	return fmt.Sprintf("dashboard refresh every %d s  alert check %s  mailbox scan %s (last %d days)  weekly report %s",
 		settings.RefreshInterval(),
 		timeutil.Describe(settings.AlertTimes, nil),
 		timeutil.Describe(settings.EmailScanTimes, nil),
@@ -151,21 +151,21 @@ func schedules(settings *config.Settings) string {
 }
 
 func checkProjects(projects []model.Project) ([]string, int) {
-	lines := []string{"", fmt.Sprintf("operation (%d)", len(projects))}
+	lines := []string{"", fmt.Sprintf("Projects (%d)", len(projects))}
 	if len(projects) == 0 {
-		return append(lines, "  "+markBad+" operation,operation"), 1
+		return append(lines, "  "+markBad+" No projects, so no balance checks will run"), 1
 	}
 
 	problems := 0
 	ordinals := make(map[string]int)
 	for _, p := range projects {
 		if p.Provider == "" {
-			lines = append(lines, "  "+markBad+" "+displayName(p.Name)+": operation provider operation")
+			lines = append(lines, "  "+markBad+" "+displayName(p.Name)+": the provider field is missing")
 			problems++
 			continue
 		}
 		if _, known := provider.Lookup(p.Provider); !known {
-			lines = append(lines, fmt.Sprintf("  %s %s: Unknown provider %q,operation %s",
+			lines = append(lines, fmt.Sprintf("  %s %s: Unknown provider %q; supported: %s",
 				markBad, displayName(p.Name), p.Provider, strings.Join(provider.Keys(), " ")))
 			problems++
 			continue
@@ -176,7 +176,7 @@ func checkProjects(projects []model.Project) ([]string, int) {
 		if source == "" {
 			hint := "?"
 			if len(candidates) > 0 {
-				hint = strings.Join(candidates, " operation ")
+				hint = strings.Join(candidates, " or ")
 			}
 			lines = append(lines, fmt.Sprintf("  %s %s [%s]: Missing API key; set  %s",
 				markBad, displayName(p.Name), p.Provider, hint))
@@ -186,16 +186,16 @@ func checkProjects(projects []model.Project) ([]string, int) {
 
 		origin := ""
 		if p.FromEnv {
-			origin = "(environment variableauto-discovered)"
+			origin = " (auto-discovered from environment variables)"
 		}
-		detail := fmt.Sprintf("%s [%s/%s] operation %g — Key operation %s%s",
+		detail := fmt.Sprintf("%s [%s/%s] threshold %g — key from %s%s",
 			displayName(p.Name), p.Provider, p.Type, p.Threshold, source, origin)
 		if p.Threshold == 0 {
-			hint := "operation"
+			hint := "a threshold on the dashboard"
 			if p.FromEnv {
 				hint = strings.ToUpper(p.Provider) + "_THRESHOLD"
 			}
-			lines = append(lines, fmt.Sprintf("  %s %s(operation 0,operation,operation %s)", markWarn, detail, hint))
+			lines = append(lines, fmt.Sprintf("  %s %s (threshold 0 never alerts; set %s)", markWarn, detail, hint))
 			problems++
 			continue
 		}
@@ -205,30 +205,30 @@ func checkProjects(projects []model.Project) ([]string, int) {
 }
 
 func checkSubscriptions(subs []model.Subscription) ([]string, int) {
-	lines := []string{"", fmt.Sprintf("operation (%d)", len(subs))}
+	lines := []string{"", fmt.Sprintf("Subscriptions (%d)", len(subs))}
 	if len(subs) == 0 {
-		return append(lines, "  — operation"), 0
+		return append(lines, "  — none configured"), 0
 	}
 
 	problems := 0
 	for _, s := range subs {
 		readable := notify.FormatSubscriptionCycle(s.CycleType, s.RenewalDay)
 		if readable == "Unknown cycle" {
-			lines = append(lines, fmt.Sprintf("  %s %s: operation %q operation(weekly/monthly/yearly)",
+			lines = append(lines, fmt.Sprintf("  %s %s: cycle type %q is not supported (weekly/monthly/yearly/lunar_yearly)",
 				markBad, displayName(s.Name), s.CycleType))
 			problems++
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("  %s %s: %s,operation %d operation,Amount %g",
+		lines = append(lines, fmt.Sprintf("  %s %s: %s, reminds %d days ahead, amount %g",
 			markOK, displayName(s.Name), readable, s.AlertDaysBefore, s.Amount))
 	}
 	return lines, problems
 }
 
 func checkMailboxes(mailboxes []model.Mailbox) ([]string, int) {
-	lines := []string{"", fmt.Sprintf("operation (%d)", len(mailboxes))}
+	lines := []string{"", fmt.Sprintf("Mailboxes (%d)", len(mailboxes))}
 	if len(mailboxes) == 0 {
-		return append(lines, "  — operation"), 0
+		return append(lines, "  — none configured"), 0
 	}
 
 	problems := 0
@@ -244,27 +244,27 @@ func checkMailboxes(mailboxes []model.Mailbox) ([]string, int) {
 			missing = append(missing, "password")
 		}
 		if len(missing) > 0 {
-			lines = append(lines, fmt.Sprintf("  %s %s: operation %s",
+			lines = append(lines, fmt.Sprintf("  %s %s: missing %s",
 				markBad, displayName(m.Name), strings.Join(missing, ", ")))
 			problems++
 			continue
 		}
-		transport := "operation"
+		transport := "plaintext"
 		if m.UseSSL {
 			transport = "SSL"
 		}
-		lines = append(lines, fmt.Sprintf("  %s %s: %s:%d %s,operation %s",
+		lines = append(lines, fmt.Sprintf("  %s %s: %s:%d %s, account %s",
 			markOK, displayName(m.Name), m.Host, m.Port, transport, m.Username))
 	}
 	return lines, problems
 }
 
 func checkChannel(settings *config.Settings) ([]string, int) {
-	lines := []string{"", "operation"}
+	lines := []string{"", "Alerts and access"}
 	problems := 0
 
 	if settings.WebhookURL == "" {
-		lines = append(lines, "  "+markBad+" WEBHOOK_URL is not set,Low balanceoperation")
+		lines = append(lines, "  "+markBad+" WEBHOOK_URL is not set, so low balances cannot be alerted")
 		problems++
 	} else {
 		webhookType := settings.WebhookType
@@ -272,7 +272,7 @@ func checkChannel(settings *config.Settings) ([]string, int) {
 			webhookType = "custom"
 		}
 		if _, err := notify.New(settings.WebhookURL, webhookType, settings.WebhookSource, nil); err != nil {
-			lines = append(lines, fmt.Sprintf("  %s Webhook [%s]: %s(operation %s)",
+			lines = append(lines, fmt.Sprintf("  %s Webhook [%s]: %s (options: %s)",
 				markBad, webhookType, err, strings.Join(notify.SupportedTypes(), "/")))
 			problems++
 		} else {
@@ -282,21 +282,21 @@ func checkChannel(settings *config.Settings) ([]string, int) {
 	}
 
 	if settings.WebAPIKey == "" {
-		lines = append(lines, "  "+markBad+" WEB_API_KEY is not set,operation /api/* operation 503")
+		lines = append(lines, "  "+markBad+" WEB_API_KEY is not set, so every /api/* request returns 503")
 		problems++
 	} else {
-		lines = append(lines, fmt.Sprintf("  %s WEB_API_KEY operation(%s)", markOK, mask(settings.WebAPIKey)))
+		lines = append(lines, fmt.Sprintf("  %s WEB_API_KEY is set (%s)", markOK, mask(settings.WebAPIKey)))
 	}
 
 	if settings.EnableDynamicConfig && settings.ConfigEncryptionKey == "" {
-		lines = append(lines, "  "+markWarn+" database dynamic configurationoperation CONFIG_ENCRYPTION_KEY,operation")
+		lines = append(lines, "  "+markWarn+" Database dynamic configuration is on but CONFIG_ENCRYPTION_KEY is not set, so keys are stored in plain text")
 	}
 	return lines, problems
 }
 
 func displayName(name string) string {
 	if name == "" {
-		return "(operation)"
+		return "(unnamed)"
 	}
 	return name
 }

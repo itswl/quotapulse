@@ -1,9 +1,9 @@
-# Implementation note.
+# Release on a tag: run the tests, build the multi-arch image, push it to ghcr.
 #
 #   git tag v1.2.3 && git push origin v1.2.3
 #
-# Implementation note.
-# Implementation note.
+# The image is published under this repository's name on ghcr.io, tagged 1.2.3 / 1.2 / 1 /
+# latest (no leading v). A pre-release with a suffix (v1.2.3-rc1) leaves latest alone.
 name: release
 
 on:
@@ -19,7 +19,8 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  # Implementation note.
+  # The tests gate the release: once an image is pushed anyone may pull and run it, so
+  # nothing unverified goes out.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -30,20 +31,21 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Localized message
+      - name: Check formatting
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
-            echo "Localized messageNo Localized message�Localized message" >&2
+            echo "These files are not gofmt-clean:" >&2
             echo "$unformatted" >&2
             exit 1
           fi
 
       - run: go vet ./...
 
-      # Implementation note.
-      # Implementation note.
-      - name: Localized message
+      # -race matters: the dashboard state is read and written by the scheduler and the
+      # HTTP handlers at the same time. Races only show up now and then locally, so they
+      # are checked on every release.
+      - name: Go tests
         run: go test -race ./...
         env:
           TZ: Asia/Shanghai
@@ -54,19 +56,19 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
-      - name: Localized message
+      - name: UI checks
         run: |
           npm --prefix ui ci
           npm --prefix ui run typecheck
           npm --prefix ui test
 
-      # Implementation note.
-      # Implementation note.
-      - name: Localized message
+      # The committed dist must match the source, or the image embeds a stale page, and
+      # nobody notices until someone opens the dashboard.
+      - name: UI build is reproducible
         run: |
           npm --prefix ui run build
           if ! git diff --quiet -- ui/dist; then
-            echo "ui/dist Localized message�Localized message npm --prefix ui run build Localized message�Localized message" >&2
+            echo "ui/dist does not match the source; run npm --prefix ui run build locally and commit the result:" >&2
             git diff --stat -- ui/dist >&2
             exit 1
           fi
@@ -83,7 +85,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Localized message ghcr
+      - name: Log in to ghcr
         if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
@@ -99,13 +101,14 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-          # Implementation note.
+          # A pre-release (v1.2.3-rc1) must not overwrite latest.
           flavor: |
             latest=auto
 
-      # Implementation note.
-      # Implementation note.
-      - name: Localized message
+      # No QEMU needed: the Go stage cross-compiles with --platform=$BUILDPLATFORM plus
+      # GOOS/GOARCH, and the frontend stage is pinned to the build machine as well, so both
+      # run at native speed.
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -118,17 +121,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Localized message
+      - name: Summary
         if: github.event_name == 'push'
         run: |
           {
-            echo "### Localized messageAlready Localized message"
+            echo "### Image published"
             echo
             echo '```'
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo
-            echo "Localized message�Localized message\`${{ github.ref_name }}\`�Localized message /health Localized message�Localized message"
+            echo "Version: \`${{ github.ref_name }}\` (the binary reports this in /health)"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Publishes the GitHub Release for a tag. There is nothing to build here — the changelog is

@@ -26,30 +26,30 @@ type legacyConfig struct {
 // Implementation note.
 func (a *App) ImportLegacyConfig(ctx context.Context, path string, out io.Writer) (int, error) {
 	if !a.Settings.EnableDatabase || !a.Settings.EnableDynamicConfig {
-		return 0, fmt.Errorf("operation ENABLE_DATABASE=true operation ENABLE_DYNAMIC_CONFIG=true")
+		return 0, fmt.Errorf("Importing needs ENABLE_DATABASE=true and ENABLE_DYNAMIC_CONFIG=true")
 	}
 
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return 0, fmt.Errorf("operation %s operation: %w", path, err)
+		return 0, fmt.Errorf("Failed to read %s: %w", path, err)
 	}
 	var cfg legacyConfig
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return 0, fmt.Errorf("%s operation JSON: %w", path, err)
+		return 0, fmt.Errorf("%s is not valid JSON: %w", path, err)
 	}
 
 	total := 0
 	for _, item := range cfg.Projects {
 		project := legacyProject(item)
 		if project.Provider == "" {
-			fmt.Fprintf(out, "operation provider operation: %v\n", item["name"])
+			fmt.Fprintf(out, "Skipped a project without a provider: %v\n", item["name"])
 			continue
 		}
 		model.NormalizeProject(&project)
 		if err := a.Store.UpsertProject(ctx, project); err != nil {
-			return total, fmt.Errorf("operation %s operation: %w", project.Name, err)
+			return total, fmt.Errorf("Failed to import project %s: %w", project.Name, err)
 		}
-		fmt.Fprintf(out, "operation: %s\n", project.Name)
+		fmt.Fprintf(out, "Imported project: %s\n", project.Name)
 		total++
 	}
 
@@ -59,9 +59,9 @@ func (a *App) ImportLegacyConfig(ctx context.Context, path string, out io.Writer
 			continue
 		}
 		if err := a.Store.UpsertSubscription(ctx, sub); err != nil {
-			return total, fmt.Errorf("operation %s operation: %w", sub.Name, err)
+			return total, fmt.Errorf("Failed to import subscription %s: %w", sub.Name, err)
 		}
-		fmt.Fprintf(out, "operation: %s\n", sub.Name)
+		fmt.Fprintf(out, "Imported subscription: %s\n", sub.Name)
 		total++
 	}
 
@@ -71,13 +71,13 @@ func (a *App) ImportLegacyConfig(ctx context.Context, path string, out io.Writer
 			continue
 		}
 		if err := a.Store.UpsertMailbox(ctx, mailbox); err != nil {
-			return total, fmt.Errorf("operation %s operation: %w", mailbox.Name, err)
+			return total, fmt.Errorf("Failed to import mailbox %s: %w", mailbox.Name, err)
 		}
-		fmt.Fprintf(out, "operation: %s\n", mailbox.Name)
+		fmt.Fprintf(out, "Imported mailbox: %s\n", mailbox.Name)
 		total++
 	}
 
-	fmt.Fprintf(out, "operation,operation %d operation。operation %s\n", total, path)
+	fmt.Fprintf(out, "Migration complete: %d items. Once they show up on the dashboard, %s can be deleted\n", total, path)
 	return total, nil
 }
 

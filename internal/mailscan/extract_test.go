@@ -14,7 +14,7 @@ func TestExtractServiceInfo(t *testing.T) {
 		skipAmount  bool     // 该用例只断言服务名
 	}{
 		{name: "中文方括号", subject: "【阿里云】余额告警", wantService: "阿里云", skipAmount: true},
-		{name: "英文方括号", subject: "[AWS] QuotaPulse", wantService: "AWS", skipAmount: true},
+		{name: "英文方括号", subject: "[AWS] Balance Alert", wantService: "AWS", skipAmount: true},
 		{name: "中文圆括号", subject: "（腾讯云）余额告警", wantService: "腾讯云", skipAmount: true},
 		{name: "英文圆括号", subject: "(Azure) 续费通知", wantService: "Azure", skipAmount: true},
 		{name: "提不出服务名", subject: "余额告警", wantService: unknownService, skipAmount: true},

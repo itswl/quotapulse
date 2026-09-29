@@ -43,10 +43,10 @@ const (
 // Implementation note.
 func (c *Checker) Check(ctx context.Context, subs []model.Subscription, dryRun bool) []model.SubscriptionResult {
 	if len(subs) == 0 {
-		c.log().Info("operation,operation(operationdatabase dynamic configuration)")
+		c.log().Info("No subscriptions; add them on the dashboard (requires database dynamic configuration)")
 		return []model.SubscriptionResult{}
 	}
-	c.log().Info("operation", "count", len(subs), "dry_run", dryRun)
+	c.log().Info("Checking subscriptions", "count", len(subs), "dry_run", dryRun)
 
 	results := make([]model.SubscriptionResult, 0, len(subs))
 	for _, sub := range subs {
@@ -75,7 +75,7 @@ func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, dryRun b
 		LastRenewedDate:  sub.LastRenewedDate,
 	}
 
-	c.log().Info("operation",
+	c.log().Info("Subscription check",
 		"name", sub.Name,
 		"cycle", notify.FormatSubscriptionCycle(sub.CycleType, sub.RenewalDay),
 		"amount", sub.Amount, "days_until_renewal", days, "next", result.NextRenewalDate)
@@ -83,18 +83,18 @@ func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, dryRun b
 	snoozed := sub.SnoozedUntil != nil && *sub.SnoozedUntil >= today.Format("2006-01-02")
 	switch {
 	case alreadyRenewed:
-		c.log().Info("operation,operation", "name", sub.Name)
+		c.log().Info("Upcoming renewal already paid; no reminder needed", "name", sub.Name)
 	case !needAlert:
-		c.log().Info("operation", "name", sub.Name)
+		c.log().Info("No reminder needed", "name", sub.Name)
 	case snoozed:
 		c.log().Info("Subscription reminder snoozed", "name", sub.Name, "until", *sub.SnoozedUntil)
 		result.AlertState = AlertStateSnoozed
 		result.SnoozedUntil = sub.SnoozedUntil
 	case dryRun:
-		c.log().Warn("operation,operation", "name", sub.Name, "before_days", sub.AlertDaysBefore)
+		c.log().Warn("Renewal reminder due; dry run, not sending", "name", sub.Name, "before_days", sub.AlertDaysBefore)
 		result.AlertState = AlertStateDryRun
 	default:
-		c.log().Warn("operation", "name", sub.Name, "before_days", sub.AlertDaysBefore)
+		c.log().Warn("Renewal reminder due", "name", sub.Name, "before_days", sub.AlertDaysBefore)
 		result.AlertState, result.NextEligibleAt, result.LastError = c.dispatch(ctx, sub, days)
 		result.AlertSent = result.AlertState == AlertStateSent
 	}
@@ -195,7 +195,7 @@ func (c *Checker) logSummary(results []model.SubscriptionResult) {
 			sent++
 		}
 	}
-	c.log().Info("operationCheck summary", "total", len(results), "need_alert", needAlert, "sent", sent)
+	c.log().Info("Subscription check summary", "total", len(results), "need_alert", needAlert, "sent", sent)
 }
 
 // Renewal places sub on its renewal calendar for today, in the subscription's timezone.

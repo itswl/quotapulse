@@ -89,7 +89,7 @@ func New(url, webhookType, source string, client *http.Client) (Notifier, error)
 		typ = TypeCustom
 	}
 	if !supported(typ) {
-		return nil, fmt.Errorf("Unsupported Webhook type %q,operation %s",
+		return nil, fmt.Errorf("Unsupported Webhook type %q; options: %s",
 			webhookType, strings.Join(SupportedTypes(), "/"))
 	}
 	if client == nil {
@@ -134,7 +134,7 @@ func (n *notifier) Send(ctx context.Context, msg Message) error {
 
 	log := slog.Default()
 	log.Info("Preparing Webhook", "url", MaskURL(n.url), "type", n.typ, "kind", msg.Kind)
-	log.Debug("operation", "payload", snippet(body, 500))
+	log.Debug("Request body", "payload", snippet(body, 500))
 
 	var last error
 	for attempt := 0; ; attempt++ {

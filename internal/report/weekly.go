@@ -241,7 +241,7 @@ func Render(s Summary) string {
 }
 
 func headline(s Summary) []string {
-	state := ",All healthy"
+	state := ", all healthy"
 	if s.Accounts.Alerting > 0 {
 		state = fmt.Sprintf(", %d balance alerts", s.Accounts.Alerting)
 	}

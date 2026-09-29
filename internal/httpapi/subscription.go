@@ -14,7 +14,7 @@ func (s *Server) requireSubscriptions(w http.ResponseWriter) bool {
 	if s.Settings.EnableSubscriptions {
 		return true
 	}
-	fail(w, http.StatusServiceUnavailable, "operationDisabled,operation ENABLE_SUBSCRIPTIONS=true")
+	fail(w, http.StatusServiceUnavailable, "Subscriptions are disabled; set ENABLE_SUBSCRIPTIONS=true")
 	return false
 }
 
@@ -50,7 +50,7 @@ var validCycles = map[string]bool{
 }
 
 func (s *Server) handleAddSubscription(w http.ResponseWriter, r *http.Request) {
-	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "operation") {
+	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
 	}
 	var body subscriptionRequest
@@ -65,7 +65,7 @@ func (s *Server) handleAddSubscription(w http.ResponseWriter, r *http.Request) {
 
 	cfg := s.Resolver.Load(r.Context())
 	if findSubscription(cfg.Subscriptions, body.Name) != nil {
-		fail(w, http.StatusBadRequest, "operation ["+body.Name+"] operation")
+		fail(w, http.StatusBadRequest, "Subscription ["+body.Name+"] already exists")
 		return
 	}
 
@@ -79,18 +79,18 @@ func (s *Server) handleAddSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Store.UpsertSubscription(r.Context(), sub); err != nil {
-		s.log().Error("operation", "subscription", body.Name, "error", err)
-		fail(w, storeWriteStatus(err), "operation")
+		s.log().Error("Failed to add subscription", "subscription", body.Name, "error", err)
+		fail(w, storeWriteStatus(err), "Save failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "subscription", body.Name, "cycle", sub.CycleType, "amount", sub.Amount)
+	s.log().Info("[AUDIT] Subscription added", "subscription", body.Name, "cycle", sub.CycleType, "amount", sub.Amount)
 	s.refreshSubscriptions(r)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	ok(w, map[string]any{"message": "Subscription [" + body.Name + "] added"})
 }
 
 // Implementation note.
 func (s *Server) handleUpdateSubscription(w http.ResponseWriter, r *http.Request) {
-	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "operation") {
+	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
 	}
 	var body subscriptionRequest
@@ -101,7 +101,7 @@ func (s *Server) handleUpdateSubscription(w http.ResponseWriter, r *http.Request
 	cfg := s.Resolver.Load(r.Context())
 	current := findSubscription(cfg.Subscriptions, body.Name)
 	if current == nil {
-		fail(w, http.StatusNotFound, "operation: "+body.Name)
+		fail(w, http.StatusNotFound, "Subscription not found: "+body.Name)
 		return
 	}
 
@@ -113,18 +113,18 @@ func (s *Server) handleUpdateSubscription(w http.ResponseWriter, r *http.Request
 	if body.NewName != nil && trimSpace(*body.NewName) != "" {
 		updated.Name = trimSpace(*body.NewName)
 		if err := s.Store.DeleteSubscription(r.Context(), body.Name); err != nil {
-			s.log().Warn("operation", "subscription", body.Name, "error", err)
+			s.log().Warn("Failed to delete the old record while renaming", "subscription", body.Name, "error", err)
 		}
 	}
 
 	if err := s.Store.UpsertSubscription(r.Context(), updated); err != nil {
-		s.log().Error("operation", "subscription", body.Name, "error", err)
-		fail(w, storeWriteStatus(err), "operation")
+		s.log().Error("Failed to update subscription", "subscription", body.Name, "error", err)
+		fail(w, storeWriteStatus(err), "Save failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "subscription", body.Name)
+	s.log().Info("[AUDIT] Subscription updated", "subscription", body.Name)
 	s.refreshSubscriptions(r)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	ok(w, map[string]any{"message": "Subscription [" + body.Name + "] updated"})
 }
 
 // Implementation note.
@@ -133,7 +133,7 @@ func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest
 
 	if body.CycleType != nil {
 		if !validCycles[*body.CycleType] {
-			problems = append(problems, "cycle_type: operation weekly / monthly / yearly")
+			problems = append(problems, "cycle_type: must be weekly / monthly / yearly / lunar_yearly")
 		} else {
 			target.CycleType = *body.CycleType
 		}
@@ -166,7 +166,7 @@ func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest
 		if *body.LastRenewedDate == "" {
 			target.LastRenewedDate = nil
 		} else if _, err := time.Parse("2006-01-02", *body.LastRenewedDate); err != nil {
-			problems = append(problems, "last_renewed_date: operation YYYY-MM-DD")
+			problems = append(problems, "last_renewed_date: must be YYYY-MM-DD")
 		} else {
 			target.LastRenewedDate = body.LastRenewedDate
 		}
@@ -188,7 +188,7 @@ func parseRenewalDay(raw json.RawMessage, cycleType string) (int, bool) {
 }
 
 func (s *Server) handleDeleteSubscription(w http.ResponseWriter, r *http.Request) {
-	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "operation") {
+	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
 	}
 	var body nameRequest
@@ -197,16 +197,16 @@ func (s *Server) handleDeleteSubscription(w http.ResponseWriter, r *http.Request
 	}
 	cfg := s.Resolver.Load(r.Context())
 	if findSubscription(cfg.Subscriptions, body.Name) == nil {
-		fail(w, http.StatusNotFound, "operation: "+body.Name)
+		fail(w, http.StatusNotFound, "Subscription not found: "+body.Name)
 		return
 	}
 	if err := s.Store.DeleteSubscription(r.Context(), body.Name); err != nil {
-		fail(w, storeWriteStatus(err), "operation")
+		fail(w, storeWriteStatus(err), "Delete failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "subscription", body.Name)
+	s.log().Info("[AUDIT] Subscription deleted", "subscription", body.Name)
 	s.refreshSubscriptions(r)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	ok(w, map[string]any{"message": "Subscription [" + body.Name + "] deleted"})
 }
 
 type renewedRequest struct {
@@ -216,7 +216,7 @@ type renewedRequest struct {
 
 // Implementation note.
 func (s *Server) handleMarkRenewed(w http.ResponseWriter, r *http.Request) {
-	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "operation") {
+	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
 	}
 	var body renewedRequest
@@ -224,14 +224,14 @@ func (s *Server) handleMarkRenewed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Name == "" {
-		fail(w, http.StatusBadRequest, "operation: name")
+		fail(w, http.StatusBadRequest, "Missing required parameter: name")
 		return
 	}
 
 	renewedDate := time.Now().Format("2006-01-02")
 	if body.RenewedDate != nil && *body.RenewedDate != "" {
 		if _, err := time.Parse("2006-01-02", *body.RenewedDate); err != nil {
-			fail(w, http.StatusBadRequest, "renewed_date operation YYYY-MM-DD")
+			fail(w, http.StatusBadRequest, "renewed_date must be YYYY-MM-DD")
 			return
 		}
 		renewedDate = *body.RenewedDate
@@ -240,27 +240,27 @@ func (s *Server) handleMarkRenewed(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Resolver.Load(r.Context())
 	current := findSubscription(cfg.Subscriptions, body.Name)
 	if current == nil {
-		fail(w, http.StatusNotFound, "operation")
+		fail(w, http.StatusNotFound, "Subscription not found: "+body.Name)
 		return
 	}
 	updated := *current
 	updated.LastRenewedDate = &renewedDate
 	if err := s.Store.UpsertSubscription(r.Context(), updated); err != nil {
-		fail(w, storeWriteStatus(err), "operation")
+		fail(w, storeWriteStatus(err), "Failed to update subscription")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "subscription", body.Name, "date", renewedDate)
+	s.log().Info("[AUDIT] Subscription marked as renewed", "subscription", body.Name, "date", renewedDate)
 	s.refreshSubscriptions(r)
 
 	next := s.Subs.Renewal(updated).Next
 	ok(w, map[string]any{
-		"message":           "operation [" + body.Name + "] operation",
+		"message":           "Subscription [" + body.Name + "] marked as renewed",
 		"next_renewal_date": next.Format("2006-01-02T15:04:05"),
 	})
 }
 
 func (s *Server) handleClearRenewed(w http.ResponseWriter, r *http.Request) {
-	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "operation") {
+	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
 	}
 	var body nameRequest
@@ -270,18 +270,18 @@ func (s *Server) handleClearRenewed(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Resolver.Load(r.Context())
 	current := findSubscription(cfg.Subscriptions, body.Name)
 	if current == nil {
-		fail(w, http.StatusNotFound, "operation")
+		fail(w, http.StatusNotFound, "Subscription not found: "+body.Name)
 		return
 	}
 	updated := *current
 	updated.LastRenewedDate = nil
 	if err := s.Store.UpsertSubscription(r.Context(), updated); err != nil {
-		fail(w, storeWriteStatus(err), "operation")
+		fail(w, storeWriteStatus(err), "Failed to update subscription")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "subscription", body.Name)
+	s.log().Info("[AUDIT] Renewal mark cleared", "subscription", body.Name)
 	s.refreshSubscriptions(r)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	ok(w, map[string]any{"message": "Renewal mark cleared for subscription [" + body.Name + "]"})
 }
 
 // Implementation note.

@@ -55,7 +55,7 @@ func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Out
 	projects := m.selectProjects(cfg, projectName)
 	if len(projects) == 0 {
 		if projectName != "" {
-			return Outcome{}, fmt.Errorf("operation: %s", projectName)
+			return Outcome{}, fmt.Errorf("Project not found: %s", projectName)
 		}
 		m.log().Warn("No projects to monitor; check {PROVIDER}_API_KEY or database dynamic configuration")
 		return Outcome{}, nil

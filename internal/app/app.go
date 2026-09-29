@@ -69,7 +69,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	}
 	pushManager := push.New(st)
 	if notifier == nil {
-		log.Warn("WEBHOOK_URL is not set,Low balanceoperation")
+		log.Warn("WEBHOOK_URL is not set, so low balances cannot be alerted")
 	}
 
 	app := &App{
@@ -158,7 +158,7 @@ func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error)
 		if settings.StrictDatabaseErrors {
 			return nil, fmt.Errorf("Database initialization failed: %w", err)
 		}
-		log.Warn("Database initialization failed,operation", "error", err)
+		log.Warn("Database initialization failed; continuing without history and dynamic configuration", "error", err)
 		return store.Volatile(), nil
 	}
 	log.Info("Database initialized")
@@ -182,7 +182,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 	tasks := []*scheduler.Task{
 		{
 			Name:        "dashboard_refresh",
-			Description: fmt.Sprintf("operation(%s)", webAlarmNote),
+			Description: fmt.Sprintf("Refresh the dashboard's balances and subscriptions (%s)", webAlarmNote),
 			Interval:    time.Duration(settings.RefreshInterval()) * time.Second,
 			RunAtStart:  true,
 			Run: func(ctx context.Context) (any, error) {
@@ -191,7 +191,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		},
 		{
 			Name:        "alert_check",
-			Description: "operation,operation",
+			Description: "Balance and subscription alert check; sends real notifications",
 			DailyTimes:  settings.AlertTimes,
 			Run: func(ctx context.Context) (any, error) {
 				return a.refreshAll(ctx, false)
@@ -199,7 +199,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		},
 		{
 			Name:        "email_scan",
-			Description: fmt.Sprintf("operation %d operation / operation,operation", settings.EmailScanDays),
+			Description: fmt.Sprintf("Scan mailboxes for billing and renewal emails from the last %d days; sends real notifications", settings.EmailScanDays),
 			DailyTimes:  settings.EmailScanTimes,
 			Run: func(ctx context.Context) (any, error) {
 				return a.ScanMailboxes(ctx, settings.EmailScanDays, false)
@@ -207,7 +207,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		},
 		{
 			Name:        "weekly_report",
-			Description: "operation, operation",
+			Description: "Send the weekly summary of spending, runway, and upcoming renewals",
 			DailyTimes:  settings.WeeklyReportTimes,
 			Weekdays:    settings.WeeklyReportWeekdays,
 			Run:         a.SendWeeklyReport,
@@ -285,7 +285,7 @@ func (a *App) ScanMailboxes(ctx context.Context, days int, dryRun bool) (any, er
 	cfg := a.Resolver.Load(ctx)
 	mailboxes := cfg.EnabledMailboxes()
 	if len(mailboxes) == 0 {
-		return map[string]any{"mailboxes": 0, "skipped": "operation"}, nil
+		return map[string]any{"mailboxes": 0, "skipped": "no mailboxes configured"}, nil
 	}
 
 	result := a.Scanner.Scan(ctx, mailboxes, days, dryRun)
@@ -308,7 +308,7 @@ func (a *App) SendWeeklyReport(ctx context.Context) (any, error) {
 
 	series, err := a.Store.BalanceSeries(ctx, report.WindowDays)
 	if err != nil {
-		a.Log.Warn("operation,operation", "error", err)
+		a.Log.Warn("Failed to read balance history; the weekly report covers balances only", "error", err)
 	}
 	runways := runway.ComputeAll(series, report.WindowDays, time.Now())
 
@@ -317,13 +317,13 @@ func (a *App) SendWeeklyReport(ctx context.Context) (any, error) {
 
 	sent := false
 	if a.Notifier == nil {
-		a.Log.Error("Webhook URL is not configured,operation")
+		a.Log.Error("Webhook URL is not configured; the weekly report was not sent")
 	} else {
-		msg := notify.Custom("operation", []string{report.Render(summary)}, "weekly_report")
+		msg := notify.Custom("Weekly balance report", []string{report.Render(summary)}, "weekly_report")
 		sendErr := a.Notifier.Send(ctx, msg)
 		a.Metrics.RecordNotification(msg.Kind, sendErr == nil)
 		if sendErr != nil {
-			a.Log.Error("operation", "error", sendErr)
+			a.Log.Error("Failed to send the weekly report", "error", sendErr)
 		} else {
 			sent = true
 		}
@@ -342,7 +342,7 @@ func (a *App) StartScheduler(ctx context.Context) {
 
 	for _, task := range tasks {
 		a.State.RegisterJob(task.Name, task.Description, task.ScheduleText(), task.Enabled(), task.NextRun())
-		a.Log.Info("operation", "name", task.Name, "schedule", task.ScheduleText(), "description", task.Description)
+		a.Log.Info("Scheduled job", "name", task.Name, "schedule", task.ScheduleText(), "description", task.Description)
 	}
 	a.scheduler.Start(ctx)
 }
@@ -445,9 +445,9 @@ func (a *App) ServeMetrics(ctx context.Context) {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 	go func() {
-		a.Log.Info("Prometheus operation", "addr", addr+"/metrics")
+		a.Log.Info("Prometheus metrics started", "addr", addr+"/metrics")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			a.Log.Error("operation", "error", err)
+			a.Log.Error("Metrics server exited unexpectedly", "error", err)
 		}
 	}()
 }

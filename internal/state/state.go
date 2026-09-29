@@ -309,7 +309,7 @@ func (m *Manager) RecordJobRun(name string, success bool, startedAt time.Time,
 		return
 	}
 	job.Failures++
-	message := "operation"
+	message := "Unknown error"
 	if runErr != nil {
 		message = runErr.Error()
 	}

@@ -105,12 +105,12 @@ func TestEmptySectionsAreOmitted(t *testing.T) {
 		nil, nil, 0, nil, now)
 
 	rendered := Render(summary)
-	for _, unwanted := range []string{"最先见底", "消耗最多", "需要处理"} {
+	for _, unwanted := range []string{"Shortest runway", "Highest spending", "Needs attention"} {
 		if contains(rendered, unwanted) {
 			t.Errorf("没有内容时不该出现「%s」小节：\n%s", unwanted, rendered)
 		}
 	}
-	if !contains(rendered, "All healthy") {
+	if !contains(rendered, ", all healthy") {
 		t.Errorf("no-alert output should say all healthy:\n%s", rendered)
 	}
 	if summary.TotalConsumed != nil {

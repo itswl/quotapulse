@@ -68,7 +68,7 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 	if target.FilePath != "" {
 		if dir := filepath.Dir(target.FilePath); dir != "" && dir != "." {
 			if err := os.MkdirAll(dir, 0o755); err != nil {
-				return nil, fmt.Errorf("operation %s operation:%w", dir, err)
+				return nil, fmt.Errorf("Failed to create the data directory %s: %w", dir, err)
 			}
 		}
 	}
@@ -100,7 +100,7 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 		q = newMySQLQuerier(db)
 	default:
 		db.Close()
-		return nil, fmt.Errorf("operation %s operation", target.Engine)
+		return nil, fmt.Errorf("No query implementation for %s", target.Engine)
 	}
 
 	return &sqlStore{

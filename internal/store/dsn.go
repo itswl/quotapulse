@@ -32,12 +32,12 @@ type Target struct {
 func ParseURL(databaseURL string) (Target, error) {
 	raw := strings.TrimSpace(databaseURL)
 	if raw == "" {
-		return Target{}, fmt.Errorf("DATABASE_URL operation")
+		return Target{}, fmt.Errorf("DATABASE_URL is empty")
 	}
 
 	scheme, rest, ok := strings.Cut(raw, "://")
 	if !ok {
-		return Target{}, fmt.Errorf("DATABASE_URL operation :// :%q", databaseURL)
+		return Target{}, fmt.Errorf("DATABASE_URL is missing \"://\": %q", databaseURL)
 	}
 	// Implementation note.
 	// Implementation note.
@@ -51,7 +51,7 @@ func ParseURL(databaseURL string) (Target, error) {
 	case "mysql", "mariadb":
 		return mysqlTarget(rest)
 	default:
-		return Target{}, fmt.Errorf("Unsupported database type %q,operation sqlite / postgresql / mysql", dialect)
+		return Target{}, fmt.Errorf("Unsupported database type %q; only sqlite / postgresql / mysql are supported", dialect)
 	}
 }
 
@@ -133,7 +133,7 @@ func sqliteTarget(rest string) (Target, error) {
 
 	params, err := url.ParseQuery(query)
 	if err != nil {
-		return Target{}, fmt.Errorf("sqlite operation:%w", err)
+		return Target{}, fmt.Errorf("Invalid query parameters in the sqlite connection string: %w", err)
 	}
 	// Implementation note.
 	// Implementation note.
@@ -166,7 +166,7 @@ func sqliteTarget(rest string) (Target, error) {
 func postgresTarget(rest string) (Target, error) {
 	parts, err := parseConnURL(rest)
 	if err != nil {
-		return Target{}, fmt.Errorf("postgresql operation:%w", err)
+		return Target{}, fmt.Errorf("Failed to parse the postgresql connection string: %w", err)
 	}
 
 	target := url.URL{Scheme: "postgres", Path: "/" + parts.Database}
@@ -194,7 +194,7 @@ func postgresTarget(rest string) (Target, error) {
 func mysqlTarget(rest string) (Target, error) {
 	parts, err := parseConnURL(rest)
 	if err != nil {
-		return Target{}, fmt.Errorf("mysql operation:%w", err)
+		return Target{}, fmt.Errorf("Failed to parse the mysql connection string: %w", err)
 	}
 
 	host := parts.Host
@@ -218,7 +218,7 @@ func mysqlTarget(rest string) (Target, error) {
 
 	params, err := url.ParseQuery(parts.Query)
 	if err != nil {
-		return Target{}, fmt.Errorf("mysql operation:%w", err)
+		return Target{}, fmt.Errorf("Invalid query parameters in the mysql connection string: %w", err)
 	}
 	// Implementation note.
 	if !params.Has("parseTime") {

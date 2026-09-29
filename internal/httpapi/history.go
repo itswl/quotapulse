@@ -28,7 +28,7 @@ func (s *Server) handleBalanceHistory(w http.ResponseWriter, r *http.Request) {
 		Days:      days, Limit: limit,
 	})
 	if err != nil {
-		s.log().Error("operation", "error", err)
+		s.log().Error("Failed to query balance history", "error", err)
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -54,7 +54,7 @@ func (s *Server) handleBalanceTrend(w http.ResponseWriter, r *http.Request) {
 
 	trend, err := s.Store.BalanceTrend(r.Context(), projectID, days)
 	if err != nil {
-		s.log().Error("operation", "error", err)
+		s.log().Error("Failed to load the balance trend", "error", err)
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -83,7 +83,7 @@ func (s *Server) handleAlertHistory(w http.ResponseWriter, r *http.Request) {
 		Days:      days, Limit: limit,
 	})
 	if err != nil {
-		s.log().Error("operation", "error", err)
+		s.log().Error("Failed to query alert history", "error", err)
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -101,7 +101,7 @@ func (s *Server) handleAlertStats(w http.ResponseWriter, r *http.Request) {
 	}
 	stats, err := s.Store.AlertStats(r.Context(), days)
 	if err != nil {
-		s.log().Error("operation", "error", err)
+		s.log().Error("Failed to load alert statistics", "error", err)
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -129,7 +129,7 @@ func (s *Server) handleEmailAlertHistory(w http.ResponseWriter, r *http.Request)
 		Days:    days, Limit: limit,
 	})
 	if err != nil {
-		s.log().Error("operationEmail alertoperation", "error", err)
+		s.log().Error("Failed to query email alert history", "error", err)
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}

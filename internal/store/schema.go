@@ -20,7 +20,7 @@ var schemaFS embed.FS
 func createTables(ctx context.Context, db *sql.DB, engine Engine) error {
 	raw, err := schemaFS.ReadFile("schema/" + string(engine) + ".sql")
 	if err != nil {
-		return fmt.Errorf("Not found %s operation SQL:%w", engine, err)
+		return fmt.Errorf("Schema SQL for %s not found: %w", engine, err)
 	}
 	for _, stmt := range splitStatements(string(raw)) {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {

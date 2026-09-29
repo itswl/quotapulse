@@ -35,7 +35,7 @@ func LoadEnvFile(path string) error {
 		line = strings.TrimPrefix(line, "export ")
 		key, value, ok := strings.Cut(line, "=")
 		if !ok {
-			return fmt.Errorf("%s operation %d operation KEY=VALUE operation", path, lineNo)
+			return fmt.Errorf("%s line %d is not in KEY=VALUE format", path, lineNo)
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
@@ -191,7 +191,7 @@ func DiscoverMailboxes(declared []model.Mailbox) []model.Mailbox {
 // Implementation note.
 func ResolveAPIKey(p model.Project, ordinal int) (string, string) {
 	if p.APIKey != "" {
-		return p.APIKey, "operation api_key operation"
+		return p.APIKey, "the api_key field in the configuration"
 	}
 	for _, name := range ProviderKeyEnvNames(p.Provider, ordinal) {
 		if value, ok := raw(name); ok {

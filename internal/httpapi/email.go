@@ -51,7 +51,7 @@ type mailboxRequest struct {
 // Implementation note.
 // Implementation note.
 func (s *Server) handleSaveMailbox(w http.ResponseWriter, r *http.Request) {
-	if !s.requireDynamicConfig(w, "operation") {
+	if !s.requireDynamicConfig(w, "mailboxes") {
 		return
 	}
 	var body mailboxRequest
@@ -104,28 +104,28 @@ func (s *Server) handleSaveMailbox(w http.ResponseWriter, r *http.Request) {
 			missing = append(missing, "password")
 		}
 		if len(missing) > 0 {
-			fail(w, http.StatusBadRequest, "operation: "+joinComma(missing))
+			fail(w, http.StatusBadRequest, "A new mailbox is missing required fields: "+joinComma(missing))
 			return
 		}
 	}
 	target.FromEnv = false
 
 	if err := s.Store.UpsertMailbox(r.Context(), target); err != nil {
-		s.log().Error("operation", "mailbox", body.Name, "error", err)
-		fail(w, storeWriteStatus(err), "operation")
+		s.log().Error("Failed to save mailbox configuration", "mailbox", body.Name, "error", err)
+		fail(w, storeWriteStatus(err), "Save failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "mailbox", body.Name, "new", isNew)
+	s.log().Info("[AUDIT] Mailbox saved", "mailbox", body.Name, "new", isNew)
 
-	action := "operation"
+	action := "updated"
 	if isNew {
-		action = "operation"
+		action = "added"
 	}
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation" + action})
+	ok(w, map[string]any{"message": "Mailbox [" + body.Name + "] " + action})
 }
 
 func (s *Server) handleDeleteMailbox(w http.ResponseWriter, r *http.Request) {
-	if !s.requireDynamicConfig(w, "operation") {
+	if !s.requireDynamicConfig(w, "mailboxes") {
 		return
 	}
 	var body nameRequest
@@ -133,25 +133,25 @@ func (s *Server) handleDeleteMailbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Name == "" {
-		fail(w, http.StatusBadRequest, "operation: name")
+		fail(w, http.StatusBadRequest, "Missing required parameter: name")
 		return
 	}
 	cfg := s.Resolver.Load(r.Context())
 	existing := findMailbox(cfg.Mailboxes, body.Name)
 	if existing == nil {
-		fail(w, http.StatusNotFound, "operation: "+body.Name)
+		fail(w, http.StatusNotFound, "Mailbox not found: "+body.Name)
 		return
 	}
 	if existing.FromEnv {
-		fail(w, http.StatusBadRequest, "operation ["+body.Name+"] operationenvironment variableauto-discovered,operation EMAIL_* operationrestart")
+		fail(w, http.StatusBadRequest, "Mailbox ["+body.Name+"] was auto-discovered from environment variables; remove its EMAIL_* variables and restart")
 		return
 	}
 	if err := s.Store.DeleteMailbox(r.Context(), body.Name); err != nil {
-		fail(w, storeWriteStatus(err), "operation")
+		fail(w, storeWriteStatus(err), "Delete failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "mailbox", body.Name)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	s.log().Info("[AUDIT] Mailbox deleted", "mailbox", body.Name)
+	ok(w, map[string]any{"message": "Mailbox [" + body.Name + "] deleted"})
 }
 
 func (s *Server) handleEmailScanState(w http.ResponseWriter, r *http.Request) {
@@ -175,12 +175,12 @@ func (s *Server) handleEmailScan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if days < 1 || days > maxScanDays {
-		fail(w, http.StatusBadRequest, "days operation 1-"+itoa(maxScanDays)+" operation")
+		fail(w, http.StatusBadRequest, "days must be a whole number from 1 to "+itoa(maxScanDays))
 		return
 	}
 
 	if busy := s.scanGuard.acquire(); busy != "" {
-		fail(w, http.StatusTooManyRequests, "operation"+busy)
+		fail(w, http.StatusTooManyRequests, "Scan "+busy)
 		return
 	}
 	defer s.scanGuard.release()
@@ -188,7 +188,7 @@ func (s *Server) handleEmailScan(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Resolver.Load(r.Context())
 	mailboxes := cfg.EnabledMailboxes()
 	if len(mailboxes) == 0 {
-		fail(w, http.StatusBadRequest, "operation")
+		fail(w, http.StatusBadRequest, "No mailboxes are configured, or all of them are disabled")
 		return
 	}
 
@@ -201,11 +201,11 @@ func (s *Server) handleEmailScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summary := s.State.EmailScan().Summary
-	s.log().Info("[AUDIT] operation", "days", days, "dry_run", dryRun,
+	s.log().Info("[AUDIT] Mailbox scan", "days", days, "dry_run", dryRun,
 		"mailboxes", len(result.Mailboxes), "alerts", len(result.Alerts))
 	ok(w, map[string]any{
-		"message": "operation:" + itoa(summary.TotalEmails) + " operation," +
-			itoa(summary.TotalAlerts) + " operation",
+		"message": "Scan complete: " + itoa(summary.TotalEmails) + " emails, " +
+			itoa(summary.TotalAlerts) + " alerts",
 		"summary":                summary,
 		"mailboxes":              result.Mailboxes,
 		"dry_run":                dryRun,

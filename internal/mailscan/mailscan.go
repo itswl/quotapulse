@@ -68,7 +68,7 @@ func (s *Scanner) Scan(ctx context.Context, mailboxes []model.Mailbox, days int,
 		Alerts:    []model.EmailAlert{},
 	}
 	if len(mailboxes) == 0 {
-		s.log().Error("operation")
+		s.log().Error("No mailboxes are configured, or all of them are disabled")
 		return result
 	}
 
@@ -129,7 +129,7 @@ func (s *Scanner) scanMailbox(ctx context.Context, m model.Mailbox, state *scanS
 	if err != nil {
 		out.Success = false
 		out.Error = model.Ptr(err.Error())
-		s.log().Error("operation", "mailbox", name, "error", err)
+		s.log().Error("Failed to scan mailbox", "mailbox", name, "error", err)
 		if !state.dryRun {
 			s.sendMailboxError(ctx, name, m.Host, err.Error())
 		}
@@ -146,7 +146,7 @@ func (s *Scanner) scanInbox(ctx context.Context, m model.Mailbox, name string, s
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
-			s.log().Warn("operation", "mailbox", name, "error", err)
+			s.log().Warn("Error while disconnecting from the mailbox", "mailbox", name, "error", err)
 		}
 	}()
 
@@ -194,13 +194,13 @@ func (s *Scanner) fetchBatch(conn mailConn, nums []uint32, name string) [][]byte
 	if err == nil {
 		return raws
 	}
-	s.log().Warn("operation,operation", "mailbox", name, "error", err)
+	s.log().Warn("Batch fetch failed; fetching messages one at a time", "mailbox", name, "error", err)
 
 	raws = make([][]byte, 0, len(nums))
 	for _, num := range nums {
 		one, err := conn.Fetch([]uint32{num})
 		if err != nil {
-			s.log().Warn("operation", "mailbox", name, "seq", num, "error", err)
+			s.log().Warn("Failed to fetch message", "mailbox", name, "seq", num, "error", err)
 			continue
 		}
 		raws = append(raws, one...)
@@ -213,7 +213,7 @@ func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state
 	msg, err := parseMessage(raw)
 	if err != nil {
 		// Implementation note.
-		s.log().Warn("operation,operation", "mailbox", mailbox, "error", err)
+		s.log().Warn("Malformed message; scanning the raw text", "mailbox", mailbox, "error", err)
 	}
 	if !state.seen.mark(msg.ID) {
 		return model.EmailAlert{}, false
@@ -250,7 +250,7 @@ func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state
 	case s.duplicated(ctx, alert, state.days):
 		// Implementation note.
 		alert.Duplicate = true
-		s.log().Info("Email alertoperation,operation", "mailbox", mailbox, "subject", msg.Subject)
+		s.log().Info("Email alert was already sent; skipping the duplicate", "mailbox", mailbox, "subject", msg.Subject)
 	default:
 		alert.AlertSent = s.send(ctx, alert)
 	}
@@ -262,7 +262,7 @@ func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state
 func (s *Scanner) duplicated(ctx context.Context, alert model.EmailAlert, days int) bool {
 	recent, err := s.Store.HasRecentEmailAlert(ctx, alert.Mailbox, alert.Sender, alert.Subject, alert.Date, max(days, 1))
 	if err != nil {
-		s.log().Warn("operationEmail alertoperation,operation", "mailbox", alert.Mailbox, "error", err)
+		s.log().Warn("Failed to check for a duplicate email alert; treating it as not yet notified", "mailbox", alert.Mailbox, "error", err)
 		return false
 	}
 	return recent
@@ -337,7 +337,7 @@ func (s *Scanner) sendMailboxError(ctx context.Context, mailbox, host, reason st
 		s.OnNotify(msg.Kind, err == nil)
 	}
 	if err != nil {
-		s.log().Error("operation", "mailbox", mailbox, "error", err)
+		s.log().Error("Failed to send the mailbox failure alert", "mailbox", mailbox, "error", err)
 	}
 }
 
@@ -414,7 +414,7 @@ func (s *Scanner) logSummary(result model.ScanResult) {
 			sent++
 		}
 	}
-	s.log().Info("operation",
+	s.log().Info("Mailbox scan summary",
 		"mailboxes", len(result.Mailboxes), "total_emails", total,
 		"total_alerts", len(result.Alerts), "alerts_sent", sent)
 }

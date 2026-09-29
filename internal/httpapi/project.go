@@ -17,7 +17,7 @@ func (s *Server) requireDynamicConfig(w http.ResponseWriter, what string) bool {
 	if s.Settings.EnableDynamicConfig {
 		return true
 	}
-	fail(w, http.StatusServiceUnavailable, "operation"+what+"operationdatabase dynamic configuration,operation ENABLE_DYNAMIC_CONFIG=true")
+	fail(w, http.StatusServiceUnavailable, "Changing "+what+" requires database dynamic configuration; set ENABLE_DYNAMIC_CONFIG=true")
 	return false
 }
 
@@ -63,7 +63,7 @@ type projectRequest struct {
 // Implementation note.
 // Implementation note.
 func (s *Server) handleSaveProject(w http.ResponseWriter, r *http.Request) {
-	if !s.requireDynamicConfig(w, "operation") {
+	if !s.requireDynamicConfig(w, "projects") {
 		return
 	}
 	var body projectRequest
@@ -95,12 +95,12 @@ func (s *Server) handleSaveProject(w http.ResponseWriter, r *http.Request) {
 			missing = append(missing, "api_key")
 		}
 		if len(missing) > 0 {
-			fail(w, http.StatusBadRequest, "operation: "+strings.Join(missing, ", "))
+			fail(w, http.StatusBadRequest, "A new project is missing required fields: "+strings.Join(missing, ", "))
 			return
 		}
 	}
 	if _, known := provider.Lookup(target.Provider); !known {
-		fail(w, http.StatusBadRequest, "Unknown provider: "+target.Provider+",operation: "+strings.Join(provider.Keys(), ", "))
+		fail(w, http.StatusBadRequest, "Unknown provider: "+target.Provider+"; supported: "+strings.Join(provider.Keys(), ", "))
 		return
 	}
 	model.NormalizeProject(&target)
@@ -108,18 +108,18 @@ func (s *Server) handleSaveProject(w http.ResponseWriter, r *http.Request) {
 	target.FromEnv = false
 
 	if err := s.Store.UpsertProject(r.Context(), target); err != nil {
-		s.log().Error("operation", "project", body.Name, "error", err)
-		fail(w, http.StatusInternalServerError, "operation")
+		s.log().Error("Failed to save project configuration", "project", body.Name, "error", err)
+		fail(w, http.StatusInternalServerError, "Save failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "project", body.Name, "new", isNew)
+	s.log().Info("[AUDIT] Project saved", "project", body.Name, "new", isNew)
 
 	s.refreshOne(r, target.Name)
-	action := "operation"
+	action := "updated"
 	if isNew {
-		action = "operation"
+		action = "added"
 	}
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation" + action})
+	ok(w, map[string]any{"message": "Project [" + body.Name + "] " + action})
 }
 
 func applyProjectPatch(target *model.Project, body projectRequest) {
@@ -148,7 +148,7 @@ type nameRequest struct {
 }
 
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
-	if !s.requireDynamicConfig(w, "operation") {
+	if !s.requireDynamicConfig(w, "projects") {
 		return
 	}
 	var body nameRequest
@@ -156,34 +156,34 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Name == "" {
-		fail(w, http.StatusBadRequest, "operation: name")
+		fail(w, http.StatusBadRequest, "Missing required parameter: name")
 		return
 	}
 
 	cfg := s.Resolver.Load(r.Context())
 	existing := findProject(cfg.Projects, body.Name)
 	if existing == nil {
-		fail(w, http.StatusNotFound, "operation: "+body.Name)
+		fail(w, http.StatusNotFound, "Project not found: "+body.Name)
 		return
 	}
 	// Implementation note.
 	if existing.FromEnv {
-		fail(w, http.StatusBadRequest, "operation ["+body.Name+"] operationenvironment variableauto-discovered,operation "+
-			strings.ToUpper(existing.Provider)+"_API_KEY operationrestart")
+		fail(w, http.StatusBadRequest, "Project ["+body.Name+"] was auto-discovered from environment variables; remove "+
+			strings.ToUpper(existing.Provider)+"_API_KEY and restart")
 		return
 	}
 
 	if err := s.Store.DeleteProject(r.Context(), body.Name); err != nil {
-		s.log().Error("operation", "project", body.Name, "error", err)
-		fail(w, http.StatusInternalServerError, "operation")
+		s.log().Error("Failed to delete project configuration", "project", body.Name, "error", err)
+		fail(w, http.StatusInternalServerError, "Delete failed")
 		return
 	}
 	s.State.RemoveBalanceProject(body.Name)
 	if s.OnBalanceUpdated != nil {
 		s.OnBalanceUpdated(s.State.Balance().Projects)
 	}
-	s.log().Info("[AUDIT] operation", "project", body.Name)
-	ok(w, map[string]any{"message": "operation [" + body.Name + "] operation"})
+	s.log().Info("[AUDIT] Project deleted", "project", body.Name)
+	ok(w, map[string]any{"message": "Project [" + body.Name + "] deleted"})
 }
 
 type thresholdRequest struct {
@@ -193,7 +193,7 @@ type thresholdRequest struct {
 
 // Implementation note.
 func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
-	if !s.requireDynamicConfig(w, "operation") {
+	if !s.requireDynamicConfig(w, "projects") {
 		return
 	}
 	var body thresholdRequest
@@ -201,18 +201,18 @@ func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.ProjectName == "" || body.NewThreshold == nil {
-		fail(w, http.StatusBadRequest, "operation: project_name, new_threshold")
+		fail(w, http.StatusBadRequest, "Missing required parameters: project_name, new_threshold")
 		return
 	}
 	if *body.NewThreshold < 0 {
-		fail(w, http.StatusBadRequest, "operationcannot be negative")
+		fail(w, http.StatusBadRequest, "The threshold cannot be negative")
 		return
 	}
 
 	cfg := s.Resolver.Load(r.Context())
 	target := findProject(cfg.Projects, body.ProjectName)
 	if target == nil {
-		fail(w, http.StatusNotFound, "operation: "+body.ProjectName)
+		fail(w, http.StatusNotFound, "Project not found: "+body.ProjectName)
 		return
 	}
 	updated := *target
@@ -220,22 +220,22 @@ func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
 	updated.FromEnv = false
 
 	if err := s.Store.UpsertProject(r.Context(), updated); err != nil {
-		s.log().Error("operation", "project", body.ProjectName, "error", err)
-		fail(w, http.StatusInternalServerError, "operation")
+		s.log().Error("Failed to update threshold", "project", body.ProjectName, "error", err)
+		fail(w, http.StatusInternalServerError, "Save failed")
 		return
 	}
-	s.log().Info("[AUDIT] operation", "project", body.ProjectName,
+	s.log().Info("[AUDIT] Project threshold updated", "project", body.ProjectName,
 		"old", target.Threshold, "new", *body.NewThreshold)
 
 	s.refreshOne(r, body.ProjectName)
-	ok(w, map[string]any{"message": "operation [" + body.ProjectName + "] operation"})
+	ok(w, map[string]any{"message": "Threshold updated for project [" + body.ProjectName + "]"})
 }
 
 // Implementation note.
 func (s *Server) refreshOne(r *http.Request, name string) {
 	outcome, err := s.Monitor.Run(r.Context(), name, !s.Settings.EnableWebAlarm)
 	if err != nil {
-		s.log().Warn("operation", "project", name, "error", err)
+		s.log().Warn("Failed to refresh project", "project", name, "error", err)
 		return
 	}
 	s.State.MergeBalance(outcome.Results)

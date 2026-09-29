@@ -111,7 +111,7 @@ func (a *Alerter) emit(ctx context.Context, projectID, projectName string, n not
 		return false
 	}
 	if err := a.Notifier.Send(ctx, notify.Message{Title: n.title, Lines: n.lines, Kind: n.kind}); err != nil {
-		a.log().Error("operation", "project", projectName, "kind", n.kind, "error", err)
+		a.log().Error("Failed to send trend alert", "project", projectName, "kind", n.kind, "error", err)
 		return false
 	}
 	if err := a.Store.SaveAlert(ctx, store.AlertRecord{

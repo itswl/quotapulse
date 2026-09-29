@@ -47,24 +47,24 @@ func (r *Resolver) fromDatabase(ctx context.Context) model.Config {
 
 	if projects, err := r.store.ListProjects(ctx); err != nil {
 		failed = true
-		r.log.Warn("operation,operationenvironment variable", "error", err)
+		r.log.Warn("Failed to read project configuration from the database; using environment variables only", "error", err)
 	} else {
 		cfg.Projects = projects
 	}
 	if subs, err := r.store.ListSubscriptions(ctx); err != nil {
 		failed = true
-		r.log.Warn("operation", "error", err)
+		r.log.Warn("Failed to read subscription configuration from the database", "error", err)
 	} else {
 		cfg.Subscriptions = subs
 	}
 	if boxes, err := r.store.ListMailboxes(ctx); err != nil {
 		failed = true
-		r.log.Warn("operation", "error", err)
+		r.log.Warn("Failed to read mailbox configuration from the database", "error", err)
 	} else {
 		cfg.Mailboxes = boxes
 	}
 	if failed && r.settings.StrictDatabaseErrors {
-		r.log.Error("STRICT_DATABASE_ERRORS operation,operation")
+		r.log.Error("STRICT_DATABASE_ERRORS is on, and failing to read dynamic configuration leaves the configuration incomplete")
 	}
 	return cfg
 }
@@ -112,5 +112,5 @@ func KeySource(p model.Project, ordinal int) (source string, candidates []string
 			return "environment variable " + name, nil
 		}
 	}
-	return "operation api_key operation", nil
+	return "the api_key field in the configuration", nil
 }

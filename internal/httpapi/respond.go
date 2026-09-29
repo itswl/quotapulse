@@ -27,7 +27,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"status":"error","message":"operation"}`))
+		_, _ = w.Write([]byte(`{"status":"error","message":"Failed to encode the response"}`))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -57,7 +57,7 @@ func ok(w http.ResponseWriter, fields map[string]any) {
 func etagJSON(w http.ResponseWriter, r *http.Request, payload any) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, "operation")
+		fail(w, http.StatusInternalServerError, "Failed to encode the response")
 		return
 	}
 	sum := md5.Sum(body)
@@ -77,12 +77,12 @@ func etagJSON(w http.ResponseWriter, r *http.Request, payload any) {
 // Implementation note.
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	if r.Body == nil {
-		fail(w, http.StatusBadRequest, "operation JSON")
+		fail(w, http.StatusBadRequest, "The request body must be valid JSON")
 		return false
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err := decoder.Decode(target); err != nil {
-		fail(w, http.StatusBadRequest, "operation JSON")
+		fail(w, http.StatusBadRequest, "The request body must be valid JSON")
 		return false
 	}
 	return true
@@ -96,10 +96,10 @@ func intParam(r *http.Request, name string, fallback, minValue, maxValue int) (i
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf("operation: %s operation", name)
+		return 0, fmt.Errorf("Invalid parameter: %s must be an integer", name)
 	}
 	if value < minValue || value > maxValue {
-		return 0, fmt.Errorf("operation: %s operation %d-%d operation", name, minValue, maxValue)
+		return 0, fmt.Errorf("Invalid parameter: %s must be between %d and %d", name, minValue, maxValue)
 	}
 	return value, nil
 }

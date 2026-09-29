@@ -26,7 +26,7 @@ type Project struct {
 	Type         string  `json:"type"`
 	OwnerProject *string `json:"owner_project"`
 	Enabled      bool    `json:"enabled"`
-	FromEnv      bool    `json:"from_env,omitempty"` // environment variableauto-discovered,operation
+	FromEnv      bool    `json:"from_env,omitempty"` // auto-discovered from environment variables; read-only on the dashboard
 }
 
 // Implementation note.

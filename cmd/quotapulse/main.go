@@ -88,8 +88,8 @@ func parseFlags() options {
 	flag.BoolVar(&opts.checkEmail, "check-email", false, "Run one mailbox scan and exit")
 	flag.IntVar(&opts.emailDays, "email-days", 1, "Number of recent days to scan")
 	flag.StringVar(&opts.project, "project", "", "Check only the selected project")
-	flag.StringVar(&opts.importConfig, "import-config", "", "operation config.json operationdatabase dynamic configuration,operation")
-	flag.BoolVar(&opts.dryRun, "dry-run", false, "operation,Check only; no alerts")
+	flag.StringVar(&opts.importConfig, "import-config", "", "Import a legacy config.json into the database dynamic configuration once; delete the file afterwards")
+	flag.BoolVar(&opts.dryRun, "dry-run", false, "Dry run: check only; no alerts")
 	flag.Parse()
 	return opts
 }
@@ -113,7 +113,7 @@ func run(ctx context.Context, instance *app.App, opts options) int {
 
 	case opts.checkBalance || opts.project != "":
 		if _, err := instance.Monitor.Run(ctx, opts.project, opts.dryRun); err != nil {
-			instance.Log.Error("operationCheck failed", "error", err)
+			instance.Log.Error("Balance check failed", "error", err)
 			return 1
 		}
 		return 0
@@ -125,7 +125,7 @@ func run(ctx context.Context, instance *app.App, opts options) int {
 
 	case opts.checkEmail:
 		if _, err := instance.ScanMailboxes(ctx, opts.emailDays, opts.dryRun); err != nil {
-			instance.Log.Error("operation", "error", err)
+			instance.Log.Error("Mailbox scan failed", "error", err)
 			return 1
 		}
 		return 0
