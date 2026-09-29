@@ -167,7 +167,7 @@ type EmailAlertRow struct {
 	Date            string   `json:"date"`
 	ServiceName     *string  `json:"service_name"`
 	Amount          *float64 `json:"amount"`
-	MatchedKeywords *string  `json:"matched_keywords"` // JSON operation
+	MatchedKeywords []string `json:"matched_keywords"` // stored as JSON array text, decoded on read
 	AlertSent       bool     `json:"alert_sent"`
 	Timestamp       string   `json:"timestamp"`
 }

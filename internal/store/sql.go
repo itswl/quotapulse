@@ -667,7 +667,7 @@ func (s *sqlStore) EmailAlerts(ctx context.Context, q EmailAlertQuery) ([]EmailA
 			Date:            row.Date,
 			ServiceName:     stringPtrOf(row.ServiceName),
 			Amount:          floatPtrOf(row.Amount),
-			MatchedKeywords: stringPtrOf(row.MatchedKeywords),
+			MatchedKeywords: decodeKeywords(row.MatchedKeywords),
 			AlertSent:       row.AlertSent.Bool,
 			Timestamp:       isoUTC(row.Timestamp),
 		})
@@ -679,6 +679,22 @@ func (s *sqlStore) EmailAlerts(ctx context.Context, q EmailAlertQuery) ([]EmailA
 //
 // Implementation note.
 // Implementation note.
+// decodeKeywords reads the JSON array text keywords are stored as. A row that isn't a
+// JSON array keeps its raw text as one keyword instead of failing the whole history.
+func decodeKeywords(value sql.NullString) []string {
+	if !value.Valid || value.String == "" {
+		return []string{}
+	}
+	var keywords []string
+	if err := json.Unmarshal([]byte(value.String), &keywords); err != nil {
+		return []string{value.String}
+	}
+	if keywords == nil {
+		return []string{}
+	}
+	return keywords
+}
+
 func encodeKeywords(keywords []string) (string, error) {
 	if keywords == nil {
 		keywords = []string{} // nil operation null,operation JSON operation

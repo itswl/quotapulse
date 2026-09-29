@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -1040,10 +1041,9 @@ func TestSaveAndQueryEmailAlerts(t *testing.T) {
 		if !row.AlertSent {
 			t.Error("alert_sent 应当是 true")
 		}
-		// Implementation note.
-		const wantKeywords = `["账单","扣费","R&D"]`
-		if row.MatchedKeywords == nil || *row.MatchedKeywords != wantKeywords {
-			t.Errorf("matched_keywords = %v，期望 %s", row.MatchedKeywords, wantKeywords)
+		// Stored as JSON array text (see TestKeywordStorageFormat), returned as a list.
+		if want := []string{"账单", "扣费", "R&D"}; !reflect.DeepEqual(row.MatchedKeywords, want) {
+			t.Errorf("matched_keywords = %q，期望 %q", row.MatchedKeywords, want)
 		}
 
 		// Implementation note.
@@ -1056,8 +1056,8 @@ func TestSaveAndQueryEmailAlerts(t *testing.T) {
 		if len(rows) != 1 {
 			t.Fatalf("期望 1 条，得到 %d 条", len(rows))
 		}
-		if rows[0].MatchedKeywords == nil || *rows[0].MatchedKeywords != "[]" {
-			t.Errorf("matched_keywords = %v，期望 []", rows[0].MatchedKeywords)
+		if rows[0].MatchedKeywords == nil || len(rows[0].MatchedKeywords) != 0 {
+			t.Errorf("matched_keywords = %v，期望空列表（JSON 里是 [] 而不是 null）", rows[0].MatchedKeywords)
 		}
 		if rows[0].Amount != nil || rows[0].ServiceName != nil {
 			t.Error("没提取到的字段应当是 nil")
@@ -1342,5 +1342,31 @@ func TestSQLiteTimestampStaysLegacyReadable(t *testing.T) {
 	}
 	if strings.Contains(stored, "UTC") {
 		t.Errorf("落盘的时间戳 %q 用了驱动的默认格式，和历史行没法比较", stored)
+	}
+}
+
+// Keywords are stored as JSON array text with CJK and & left unescaped, the way rows
+// already in existing databases were written. Reading decodes them into a list.
+func TestKeywordStorageFormat(t *testing.T) {
+	text, err := encodeKeywords([]string{"账单", "扣费", "R&D"})
+	if err != nil || text != `["账单","扣费","R&D"]` {
+		t.Fatalf("存储格式变了: %q, %v", text, err)
+	}
+	if empty, _ := encodeKeywords(nil); empty != "[]" {
+		t.Errorf("没有关键词时应存 []，实际 %q", empty)
+	}
+	cases := map[string][]string{
+		`["账单","R&D"]`: {"账单", "R&D"},
+		`[]`:           {},
+		`null`:         {},
+		`low balance`:  {"low balance"}, // not JSON: keep the text rather than drop it
+	}
+	for stored, want := range cases {
+		if got := decodeKeywords(sql.NullString{String: stored, Valid: true}); !reflect.DeepEqual(got, want) {
+			t.Errorf("decodeKeywords(%q) = %q，期望 %q", stored, got, want)
+		}
+	}
+	if got := decodeKeywords(sql.NullString{}); got == nil || len(got) != 0 {
+		t.Errorf("空列应解码成空列表: %v", got)
 	}
 }
