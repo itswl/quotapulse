@@ -10,7 +10,9 @@
         border-bottom: 1px solid var(--border);
     }
 
-    .projects-list .project-card {
+    .projects-list .project-card,
+    .projects-list .project-card.failed,
+    .projects-list .project-card.disabled {
         grid-template-columns: 1fr;
         gap: 12px;
     }
@@ -127,15 +129,23 @@
         grid-template-columns: 1fr;
     }
 
-    /* Counters become label-left / value-right rows so nothing gets truncated. */
+    /* Counters become label-left / value-right rows so nothing gets truncated. The label
+       and value live in the card's visible .stat-block, so the block is what turns. */
     .stat-card:not(.hero) {
         flex-direction: row;
         align-items: center;
-        justify-content: space-between;
         gap: 12px;
         padding: 12px 18px;
         border-right: none;
         border-bottom: 1px solid var(--border);
+    }
+
+    .stat-card:not(.hero) .stat-block {
+        flex: 1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
     }
 
     .stat-card:last-child {

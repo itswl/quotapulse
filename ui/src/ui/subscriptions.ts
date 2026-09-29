@@ -79,7 +79,7 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
                         </button>
                     </div>
                     ${renderAlertBadge(sub)}
-                    <div class="days-remaining ${daysClass}">${sub.days_until_renewal}<span class="unit"> days</span></div>
+                    <div class="days-remaining ${daysClass}">${sub.days_until_renewal}<span class="unit"> ${sub.days_until_renewal === 1 ? 'day' : 'days'}</span></div>
                 </div>
             </div>
         `;

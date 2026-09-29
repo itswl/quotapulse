@@ -120,7 +120,7 @@ func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int
 		}
 	}
 	if c.Push != nil {
-		c.Push.Notify(ctx, "Subscription reminder: "+sub.Name, fmt.Sprintf("Renews in %d days (%s)", days, sub.CycleType))
+		c.Push.Notify(ctx, "Subscription reminder: "+sub.Name, fmt.Sprintf("Renews %s (%s)", model.RenewsIn(days), sub.CycleType))
 	}
 
 	notifier := c.Notifier
@@ -158,7 +158,7 @@ func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int
 // record persists the outcome; failures land in the same history as successes so a
 // silent channel is visible instead of only living in the logs.
 func (c *Checker) record(ctx context.Context, alertID string, sub model.Subscription, days int, status, errText string) {
-	message := fmt.Sprintf("Subscription renewal reminder: %s renews in %d days", sub.Name, days)
+	message := fmt.Sprintf("Subscription renewal reminder: %s renews %s", sub.Name, model.RenewsIn(days))
 	if status == "failed" && errText != "" {
 		message = fmt.Sprintf("%s — send failed: %s", message, errText)
 	}

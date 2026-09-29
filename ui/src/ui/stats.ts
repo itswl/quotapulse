@@ -1,7 +1,7 @@
 /* Implementation note. */
 
 import { byId, setText } from '../dom.js';
-import { formatCurrency, formatRunway, getRelativeTime, needsAttention } from '../format.js';
+import { formatCurrency, formatRunway, getRelativeTime, needsAttention, pluralize } from '../format.js';
 import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, SubscriptionsResponse, SubscriptionResult } from '../api/types.js';
 import { sortSubscriptionsByNextDate } from './subscriptions.js';
@@ -78,7 +78,7 @@ export function updateRunwayStat(projects: CheckResult[]): void {
   // The hero card has room to say why, not just how many days.
   if (hint) {
     hint.textContent =
-      runway.hint || `Estimated from the last ${first.runway?.window_days ?? 7} days of balance history`;
+      runway.hint || `Estimated from the last ${pluralize(first.runway?.window_days ?? 7, 'day')} of balance history`;
   }
 }
 

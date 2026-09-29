@@ -72,7 +72,7 @@ func payloadCases() []payloadCase {
 				TypeFeishu:   `{"msg_type":"text","content":{"text":"[Subscription renewal reminder]\n\nSubscription: ChatGPT\nRenewal cycle: Annually on 03-15\nTime until renewal: Today\nRenewal amount: 20.0\nSource: credit-monitor"}}`,
 				TypeDingTalk: `{"msgtype":"markdown","markdown":{"title":"Subscription renewal reminder","text":"## Subscription renewal reminder\n\n- **Subscription**: ChatGPT\n- **Renewal cycle**: Annually on 03-15\n- **Time until renewal**: Today\n- **Renewal amount**: 20.0"}}`,
 				TypeWeCom:    `{"msgtype":"text","text":{"content":"[Subscription renewal reminder]\nSubscription: ChatGPT\nRenewal cycle: Annually on 03-15\nTime until renewal: Today\nRenewal amount: 20.0"}}`,
-				TypeCustom:   `{"Type":"SubscriptionReminder","RuleName":"ChatGPT renewal reminder","Level":"critical","Resources":[{"SubscriptionName":"ChatGPT","OwnerProject":null,"RenewalDay":315,"CycleType":"yearly","DaysUntilRenewal":0,"Amount":20.0,"Message":"Subscription [ChatGPT] renews in 0 days (Annually on 03-15), amount: 20.0"}]}`,
+				TypeCustom:   `{"Type":"SubscriptionReminder","RuleName":"ChatGPT renewal reminder","Level":"critical","Resources":[{"SubscriptionName":"ChatGPT","OwnerProject":null,"RenewalDay":315,"CycleType":"yearly","DaysUntilRenewal":0,"Amount":20.0,"Message":"Subscription [ChatGPT] renews today (Annually on 03-15), amount: 20.0"}]}`,
 			},
 		},
 		{

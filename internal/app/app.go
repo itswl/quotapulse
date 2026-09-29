@@ -199,7 +199,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		},
 		{
 			Name:        "email_scan",
-			Description: fmt.Sprintf("Scan mailboxes for billing and renewal emails from the last %d days; sends real notifications", settings.EmailScanDays),
+			Description: fmt.Sprintf("Scan mailboxes for billing and renewal emails from the last %s; sends real notifications", model.Quantity(settings.EmailScanDays, "day", "days")),
 			DailyTimes:  settings.EmailScanTimes,
 			Run: func(ctx context.Context) (any, error) {
 				return a.ScanMailboxes(ctx, settings.EmailScanDays, false)

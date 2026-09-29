@@ -132,7 +132,7 @@ func (a *Alerter) runwayNotice(result *model.CheckResult) notice {
 		lines: append(head(result),
 			"**Provider**: "+result.Provider,
 			"**Current balance**: "+thousands(deref(r.CurrentBalance), 2),
-			fmt.Sprintf("**Average daily spend**: %s (last %d days)", thousands(deref(r.BurnPerDay), 2), r.WindowDays),
+			fmt.Sprintf("**Average daily spend**: %s (last %s)", thousands(deref(r.BurnPerDay), 2), model.Quantity(r.WindowDays, "day", "days")),
 			fmt.Sprintf("**Estimated depletion**: %s, remaining %.1f days (threshold %s days)",
 				deref(r.DepletionDate), deref(r.RunwayDays), trimFloat(a.RunwayAlertDays)),
 		),
@@ -146,7 +146,7 @@ func (a *Alerter) spikeNotice(result *model.CheckResult) notice {
 	r := result.Runway
 	lines := append(head(result),
 		"**Today's spending**: "+thousands(deref(r.TodayConsumed), 2),
-		fmt.Sprintf("**Baseline spending**: %s (median over the last %d days)", thousands(deref(r.BaselineSpend), 2), r.WindowDays),
+		fmt.Sprintf("**Baseline spending**: %s (median over the last %s)", thousands(deref(r.BaselineSpend), 2), model.Quantity(r.WindowDays, "day", "days")),
 		fmt.Sprintf("**Spike multiplier**: %.1fx", deref(r.SpikeRatio)),
 		"**Current balance**: "+thousands(deref(r.CurrentBalance), 2),
 	)

@@ -10,7 +10,7 @@ import './stub-dom.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { LineChart, type LineChartOptions } from '../src/chart/line-chart.js';
+import { LineChart, niceScale, xLabelIndices, type LineChartOptions } from '../src/chart/line-chart.js';
 
 interface DrawLog {
   arcs: number;
@@ -168,5 +168,32 @@ describe('LineChart', () => {
     assert.ok(log.arcs > before);
 
     chart.destroy(); // 不抛即可
+  });
+});
+
+describe('niceScale', () => {
+  it('刻度落在 1/2/5 × 10^n 上，边界向外取整', () => {
+    assert.deepEqual(niceScale(0, 1067.98), { min: 0, max: 1250, step: 250, decimals: 0 });
+    assert.deepEqual(niceScale(0, 12.3), { min: 0, max: 12.5, step: 2.5, decimals: 1 });
+    assert.deepEqual(niceScale(640.5, 975.4), { min: 600, max: 1000, step: 100, decimals: 0 });
+    assert.deepEqual(niceScale(0, 1), { min: 0, max: 1, step: 0.2, decimals: 1 });
+    assert.deepEqual(niceScale(9.2, 9.6), { min: 9.2, max: 9.6, step: 0.1, decimals: 1 });
+  });
+
+  it('y 轴刻度文字位数一致，不再出现 213.6 和 1,067.98 混排', () => {
+    const { canvas, log } = stubCanvas();
+    new LineChart(canvas, options({ series: [{ label: 'Balance', values: [912.4, 697.19, 975.44], color: '#6366f1' }] }));
+    const ticks = log.texts.filter((t) => /^[\d,]+(\.\d+)?$/.test(t));
+    assert.ok(ticks.length >= 3, `应画出多条刻度: ${ticks}`);
+    assert.ok(ticks.every((t) => !t.includes('.')), `步长为整百时刻度不带小数: ${ticks}`);
+  });
+});
+
+describe('xLabelIndices', () => {
+  it('总是标出最后一天，挤不下时替换掉前一个标签', () => {
+    assert.deepEqual(xLabelIndices(30, 2).slice(-2), [26, 29]);
+    assert.deepEqual(xLabelIndices(10, 3), [0, 3, 6, 9]);
+    assert.deepEqual(xLabelIndices(1, 1), [0]);
+    assert.deepEqual(xLabelIndices(0, 1), []);
   });
 });

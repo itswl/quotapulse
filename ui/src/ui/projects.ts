@@ -276,10 +276,13 @@ function filterDisabledProjects(projects: ProjectConfig[]): ProjectConfig[] {
   );
 }
 
-/* Implementation note. */
+/* Rebuild the provider options, keeping the current choice selected. A provider that is
+   gone resets the filter too, so the list never stays filtered by an invisible option. */
 export function updateProviderFilter(data: CreditsResponse): void {
   const select = selectById('provider-filter');
-  const providers = [...new Set((data.projects || []).map((p) => p.provider))];
+  const providers = [
+    ...new Set([...(data.projects || []).map((p) => p.provider), ...AppState.disabledProjects.map((p) => p.provider)]),
+  ];
 
   select.innerHTML = '';
   const allOption = document.createElement('option');
@@ -293,4 +296,9 @@ export function updateProviderFilter(data: CreditsResponse): void {
     option.textContent = provider;
     select.appendChild(option);
   }
+
+  if (AppState.currentFilter !== 'all' && !providers.includes(AppState.currentFilter)) {
+    AppState.currentFilter = 'all';
+  }
+  select.value = AppState.currentFilter;
 }

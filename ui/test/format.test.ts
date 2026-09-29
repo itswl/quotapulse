@@ -9,9 +9,11 @@ import {
   escapeHTML,
   formatBalance,
   formatCurrency,
+  formatDate,
   formatRunway,
   getBalancePercentage,
   getBalanceStatus,
+  pluralize,
   getRelativeTime,
   renewalUrgency,
   typeLabel,
@@ -43,9 +45,10 @@ function runway(overrides: Partial<Runway>): Runway {
 }
 
 describe('formatCurrency', () => {
-  it('保留两位小数', () => {
+  it('保留两位小数，并按千位分组（与余额一致）', () => {
     assert.equal(formatCurrency(430.371), '430.37');
     assert.equal(formatCurrency(0), '0.00');
+    assert.equal(formatCurrency(1420), '1,420.00');
   });
 
   it('拿不到数字时给 - 而不是 0', () => {
@@ -218,5 +221,23 @@ describe('Subscription展示', () => {
     // Weekly renewals are always under 14 days out; only the reminder window counts.
     assert.equal(renewalUrgency(sub(4, { cycle_type: 'weekly' })), '');
     assert.equal(renewalUrgency(sub(1, { cycle_type: 'weekly', need_alert: true })), 'danger');
+  });
+});
+
+describe('pluralize', () => {
+  it('恰好 1 时用单数，其余用复数，界面上不再出现「1 days」', () => {
+    assert.equal(pluralize(1, 'day'), '1 day');
+    assert.equal(pluralize(0, 'day'), '0 days');
+    assert.equal(pluralize(7, 'day'), '7 days');
+    assert.equal(pluralize(1, 'match', 'matches'), '1 match');
+    assert.equal(getRelativeTime(new Date(Date.now() - 26 * 3600_000).toISOString()), '1 day ago');
+  });
+});
+
+describe('formatDate', () => {
+  it('本地时间按 ISO 顺序显示，与页面上其他日期一致；无效输入给 -', () => {
+    assert.equal(formatDate(new Date(2026, 8, 28, 6, 5).toISOString()), '2026-09-28 06:05');
+    assert.equal(formatDate(null), '-');
+    assert.equal(formatDate('not a date'), '-');
   });
 });

@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -138,23 +140,34 @@ func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest
 			target.CycleType = *body.CycleType
 		}
 	}
+	dayProblem := false
 	if len(body.RenewalDay) > 0 && string(body.RenewalDay) != "null" {
 		day, ok := parseRenewalDay(body.RenewalDay, target.CycleType)
 		if !ok {
-			problems = append(problems, `renewal_day: use MMDD for yearly/lunar_yearly, 1-31 for monthly, or 1-7 for weekly`)
+			problems = append(problems, renewalDayRule)
+			dayProblem = true
 		} else {
 			target.RenewalDay = day
 		}
 	}
+	// Checked on the result, so a cycle change that keeps the old day is caught too
+	// (monthly day 15 means nothing as a weekday).
+	if !dayProblem && !validRenewalDay(target.CycleType, target.RenewalDay) {
+		problems = append(problems, renewalDayRule)
+	}
 	if body.AlertDaysBefore != nil {
-		if *body.AlertDaysBefore < 0 {
-			problems = append(problems, "alert_days_before: cannot be negative")
+		if *body.AlertDaysBefore < 0 || *body.AlertDaysBefore > maxAlertDaysBefore {
+			problems = append(problems, fmt.Sprintf("alert_days_before: must be between 0 and %d", maxAlertDaysBefore))
 		} else {
 			target.AlertDaysBefore = *body.AlertDaysBefore
 		}
 	}
 	if body.Amount != nil {
-		target.Amount = *body.Amount
+		if *body.Amount < 0 || math.IsNaN(*body.Amount) || math.IsInf(*body.Amount, 0) {
+			problems = append(problems, "amount: must be a number of 0 or more")
+		} else {
+			target.Amount = *body.Amount
+		}
 	}
 	if body.Enabled != nil {
 		target.Enabled = *body.Enabled
@@ -172,6 +185,29 @@ func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest
 		}
 	}
 	return problems
+}
+
+const (
+	renewalDayRule     = "renewal_day: use MMDD for yearly/lunar_yearly, 1-31 for monthly, or 1-7 for weekly"
+	maxAlertDaysBefore = 365
+)
+
+// validRenewalDay reports whether day means something for the cycle. Yearly items may
+// also carry a plain day, which renews on the anniversary of the last renewal.
+func validRenewalDay(cycleType string, day int) bool {
+	switch cycleType {
+	case model.CycleWeekly:
+		return day >= 1 && day <= 7
+	case model.CycleMonthly:
+		return day >= 1 && day <= 31
+	case model.CycleYearly:
+		_, _, mmdd := subscription.SplitMMDD(day)
+		return mmdd || (day >= 1 && day <= 31)
+	case model.CycleLunarYearly:
+		month, dom, mmdd := subscription.SplitMMDD(day)
+		return mmdd && month <= 12 && dom <= 30
+	}
+	return false
 }
 
 // Implementation note.

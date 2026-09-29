@@ -94,7 +94,7 @@ The dashboard shows the estimated days remaining for each account. Weekly report
 
 ## Dashboard, API, and deployment
 
-The dashboard includes project, alert, subscription, and email views. When installed as a web app it can deliver balance, subscription, and job-failure alerts as browser push notifications (enable under Settings → Notifications). Enable dynamic configuration to create, update, and delete projects, subscriptions, and mailboxes from the UI. Enable the history API for trend charts and alert history. See [docs/API.md](docs/API.md) for the endpoint contract.
+The dashboard has project, subscription, and email views; an Alerts only filter on the projects view narrows it to accounts below their threshold or failing their check. When installed as a web app it can deliver balance, subscription, and job-failure alerts as browser push notifications (enable under Settings → Notifications). Enable dynamic configuration to create, update, and delete projects, subscriptions, and mailboxes from the UI. Enable the history API for trend charts and alert history. See [docs/API.md](docs/API.md) for the endpoint contract.
 
 The TypeScript frontend is bundled with esbuild and embedded into the binary, so the runtime does not need a separate static-file directory.
 

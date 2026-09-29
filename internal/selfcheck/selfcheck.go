@@ -142,11 +142,11 @@ func features(settings *config.Settings) string {
 }
 
 func schedules(settings *config.Settings) string {
-	return fmt.Sprintf("dashboard refresh every %d s  alert check %s  mailbox scan %s (last %d days)  weekly report %s",
+	return fmt.Sprintf("dashboard refresh every %d s  alert check %s  mailbox scan %s (last %s)  weekly report %s",
 		settings.RefreshInterval(),
 		timeutil.Describe(settings.AlertTimes, nil),
 		timeutil.Describe(settings.EmailScanTimes, nil),
-		settings.EmailScanDays,
+		model.Quantity(settings.EmailScanDays, "day", "days"),
 		timeutil.Describe(settings.WeeklyReportTimes, settings.WeeklyReportWeekdays))
 }
 
@@ -219,8 +219,8 @@ func checkSubscriptions(subs []model.Subscription) ([]string, int) {
 			problems++
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("  %s %s: %s, reminds %d days ahead, amount %g",
-			markOK, displayName(s.Name), readable, s.AlertDaysBefore, s.Amount))
+		lines = append(lines, fmt.Sprintf("  %s %s: %s, reminds %s ahead, amount %g",
+			markOK, displayName(s.Name), readable, model.Quantity(s.AlertDaysBefore, "day", "days"), s.Amount))
 	}
 	return lines, problems
 }

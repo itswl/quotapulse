@@ -243,10 +243,10 @@ func Render(s Summary) string {
 func headline(s Summary) []string {
 	state := ", all healthy"
 	if s.Accounts.Alerting > 0 {
-		state = fmt.Sprintf(", %d balance alerts", s.Accounts.Alerting)
+		state = ", " + model.Quantity(s.Accounts.Alerting, "balance alert", "balance alerts")
 	}
 	if s.Accounts.Failed > 0 {
-		state += fmt.Sprintf(", %d failed checks", s.Accounts.Failed)
+		state += ", " + model.Quantity(s.Accounts.Failed, "failed check", "failed checks")
 	}
 	lines := []string{
 		fmt.Sprintf("**Reporting period**: %s ~ %s", s.Period.Start, s.Period.End),
@@ -291,7 +291,11 @@ func subscriptionLines(subs []model.SubscriptionResult) []string {
 	var out []string
 	for _, sub := range subs {
 		amount := sub.Amount
-		out = append(out, fmt.Sprintf("- %s: renewal in %d days, %s", sub.Name, sub.DaysUntilRenewal, fmtNum(&amount)))
+		due := "renewal today"
+		if sub.DaysUntilRenewal > 0 {
+			due = "renewal in " + model.Quantity(sub.DaysUntilRenewal, "day", "days")
+		}
+		out = append(out, fmt.Sprintf("- %s: %s, %s", sub.Name, due, fmtNum(&amount)))
 	}
 	return out
 }
@@ -306,7 +310,7 @@ func problemLines(s Summary) []string {
 		out = append(out, fmt.Sprintf("- %s: Check failed, %s", item.Project, item.Error))
 	}
 	if s.Mailboxes.Failed > 0 {
-		out = append(out, fmt.Sprintf("- Mailboxes: %d connection failures", s.Mailboxes.Failed))
+		out = append(out, "- Mailboxes: "+model.Quantity(s.Mailboxes.Failed, "connection failure", "connection failures"))
 	}
 	return out
 }

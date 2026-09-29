@@ -26,11 +26,16 @@ function toNumber(value: unknown): number {
   return Number.parseFloat(String(value ?? ''));
 }
 
-/* Implementation note. */
+/* A count with its noun, singular for exactly one: "1 day", "3 days". */
+export function pluralize(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/* Two decimals with digit grouping, like balances: 1,420.00. Display only. */
 export function formatCurrency(value: unknown): string {
   const num = toNumber(value);
   if (Number.isNaN(num)) return '-';
-  return num.toFixed(2);
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /* Implementation note. */
@@ -80,7 +85,7 @@ export function formatRunway(runway: Runway | null | undefined, context: RunwayC
     return { text: 'Accumulating data', level: 'unknown', hint: 'Estimates appear after several hours of balance history' };
   }
   if (!runway.burn_per_day) {
-    return { text: 'No spending', level: 'normal', hint: `Balance did not decrease in the last ${runway.window_days} days` };
+    return { text: 'No spending', level: 'normal', hint: `Balance did not decrease in the last ${pluralize(runway.window_days, 'day')}` };
   }
   const days = runway.runway_days;
   if (days === null || days === undefined) {
@@ -115,17 +120,13 @@ export function escapeAttr(value: unknown): string {
   return escapeHTML(value);
 }
 
-/* Implementation note. */
+/* A local date and time in the ISO order the rest of the dashboard uses: 2026-09-28 06:00. */
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '-';
   const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  if (Number.isNaN(date.getTime())) return '-';
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 /* Implementation note. */
@@ -140,7 +141,7 @@ export function getRelativeTime(dateString: string | null | undefined, now: Date
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes} min ago`;
   if (hours < 24) return `${hours} hr ago`;
-  if (days < 7) return `${days} days ago`;
+  if (days < 7) return `${pluralize(days, 'day')} ago`;
   return formatDate(dateString);
 }
 

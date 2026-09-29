@@ -16,7 +16,7 @@
     --border-strong: #cfd4dc;
     --text: #15171b;
     --text-2: #5b626e;
-    --text-3: #8a919c;
+    --text-3: #686d76; /* 4.5:1 or better on every surface (WCAG AA) */
 
     --ink: #15171b;
     --ink-hover: #2b2f37;
@@ -75,7 +75,7 @@
     --border-strong: #343b47;
     --text: #e9ebef;
     --text-2: #a4acb8;
-    --text-3: #6e7683;
+    --text-3: #7d8795; /* 4.5:1 or better on every surface (WCAG AA) */
 
     --ink: #f2f3f5;
     --ink-hover: #ffffff;

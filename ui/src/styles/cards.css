@@ -331,11 +331,13 @@
     overflow: hidden;
 }
 
+/* Every row uses the same fixed and fractional tracks, never max-content, so the columns
+   line up from row to row like a table. */
 .projects-list .project-card,
 .projects-list .project-card.failed,
 .projects-list .project-card.disabled {
     display: grid;
-    grid-template-columns: minmax(220px, 1.6fr) minmax(200px, 2fr) max-content max-content;
+    grid-template-columns: minmax(230px, 1.6fr) minmax(170px, 1fr) minmax(420px, 3.1fr) 96px;
     align-items: center;
     gap: 20px;
     padding: 12px 18px;
@@ -393,23 +395,32 @@
 .projects-list .project-details {
     padding-top: 0;
     border-top: none;
-    grid-template-columns: repeat(4, max-content);
-    gap: 20px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
 }
 
+/* Label above value keeps each column narrow enough to align. */
 .projects-list .detail-item {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 5px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    min-width: 0;
     white-space: nowrap;
+}
+
+.projects-list .detail-value {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .projects-list .detail-value.failure-reason {
     white-space: normal;
+    overflow: visible;
 }
 
 .projects-list .detail-item.full-width {
-    grid-column: auto;
+    grid-column: 1 / -1;
 }
 
 .projects-list .project-actions {

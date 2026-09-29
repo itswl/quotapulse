@@ -67,7 +67,7 @@ function bindCardActions(): void {
   });
 }
 
-/* Reset search and provider filter; the current view (all / alerts) stays. */
+/* Reset search, the provider filter and Alerts only; the current view stays. */
 function clearProjectFilters(): void {
   AppState.searchQuery = '';
   AppState.currentFilter = 'all';

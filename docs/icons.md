@@ -53,7 +53,7 @@ maskable variant to a circle, so its glyph sits inside the central safe zone.
 | ![refresh](images/icons/refresh.svg) | `i-refresh` | Refresh balances now |
 | ![sliders](images/icons/sliders.svg) | `i-sliders` | Settings dialog |
 | ![card](images/icons/card.svg) | `i-card` | All-projects view |
-| ![flag](images/icons/flag.svg) | `i-flag` | Alerts-only view |
+| ![flag](images/icons/flag.svg) | `i-flag` | Alerts only filter in the projects toolbar |
 | ![cycle](images/icons/cycle.svg) | `i-cycle` | Subscriptions view and its empty state — recurring renewals |
 | ![at](images/icons/at.svg) | `i-at` | Email-scanning view and mailbox empty states |
 | ![grid](images/icons/grid.svg) | `i-grid` | Grid layout toggle |

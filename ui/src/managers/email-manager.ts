@@ -17,7 +17,7 @@ import type {
   MailboxResult,
 } from '../api/types.js';
 import { byId, inputById, inputValue, isChecked, onClick, setChecked, setInputValue, toggleDisplay } from '../dom.js';
-import { escapeAttr, escapeHTML, formatCurrency, formatDate, getRelativeTime } from '../format.js';
+import { escapeAttr, escapeHTML, formatCurrency, formatDate, getRelativeTime, pluralize } from '../format.js';
 import { AppState } from '../state.js';
 import { confirmDialog } from '../ui/confirm.js';
 import { emptyState } from '../ui/empty.js';
@@ -148,7 +148,7 @@ export const EmailManager = {
     ];
 
     if (scanned && scan) {
-      chips.push({ label: 'Scan range', value: `Last ${scan.days ?? '-'} days` });
+      chips.push({ label: 'Scan range', value: scan.days != null ? `Last ${pluralize(scan.days, 'day')}` : '-' });
       chips.push({
         label: 'Alert mode',
         value: scan.dry_run ? 'Dry run; no notifications' : 'Send real notifications',
@@ -206,7 +206,7 @@ export const EmailManager = {
     if (alerts.length === 0) {
       container.innerHTML = emptyState(
         'No alert emails',
-        `No billing or renewal keywords matched in the last ${scan.days} days`,
+        `No billing or renewal keywords matched in the last ${pluralize(scan.days ?? 0, 'day')}`,
         'mail',
         true,
       );
@@ -260,7 +260,7 @@ export const EmailManager = {
 
     try {
       if (btn) btn.disabled = true;
-      showToast(`Scanning the last ${days} days; connecting to mailboxes may take a few seconds...`, 'info');
+      showToast(`Scanning the last ${pluralize(days, 'day')}; connecting to mailboxes may take a few seconds...`, 'info');
 
       const result = await runEmailScan(days);
       await this.fetchAll();

@@ -7,7 +7,7 @@ import { describe, it } from 'node:test';
 
 import type { CheckResult, CreditsResponse, EmailAlert, Features, Runway, SubscriptionResult } from '../src/api/types.js';
 import { renderAlertCard } from '../src/managers/email-manager.js';
-import { filterProjects, renderProjectCard, renderProjects } from '../src/ui/projects.js';
+import { filterProjects, renderProjectCard, renderProjects, updateProviderFilter } from '../src/ui/projects.js';
 import { renderSubscriptionCard, renderSubscriptions, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
 import {
   monthlyCost,
@@ -483,7 +483,7 @@ describe('概览带上的订阅统计', () => {
 
     assert.equal(stubElement('sub-due-soon').textContent, '1');
     assert.equal(stubElement('sub-renewed').textContent, '1');
-    assert.equal(stubElement('sub-cost').textContent, '1665.33');
+    assert.equal(stubElement('sub-cost').textContent, '1,665.33');
   });
 
   it('全都不急时主指标平静为 0，并预告下一次续费', () => {
@@ -832,6 +832,24 @@ describe('概览里没有跑道时的说明', () => {
       assert.match(runwayUnavailableReason([project()]), /Collecting balance history/);
     } finally {
       AppState.features = features;
+    }
+  });
+});
+
+describe('服务商筛选下拉框', () => {
+  it('刷新重建选项后保持当前选择；服务商消失时连同筛选一起复位', () => {
+    resetStubDom();
+    const select = stubElement('provider-filter');
+    AppState.currentFilter = 'volc';
+    try {
+      updateProviderFilter({ last_update: null, projects: [project({ provider: 'deepseek' }), project({ provider: 'volc' })], summary: {} });
+      assert.equal(select.value, 'volc');
+
+      updateProviderFilter({ last_update: null, projects: [project({ provider: 'deepseek' })], summary: {} });
+      assert.equal(AppState.currentFilter, 'all');
+      assert.equal(select.value, 'all');
+    } finally {
+      AppState.currentFilter = 'all';
     }
   });
 });

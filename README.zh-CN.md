@@ -154,7 +154,7 @@ go build -o quotapulse ./cmd/quotapulse
 
 ## 看板与 API
 
-看板四个视图：全部项目、仅告警、订阅管理、邮箱扫描；地址栏加 `#alerts` `#subscriptions` `#email` 可直达。首次打开填 `WEB_API_KEY`。开了动态配置能在页面上增删改项目、订阅和邮箱；开了历史 API 有趋势图和历史告警邮件。接口清单见 [docs/API.md](docs/API.md)。
+看板三个视图：全部项目、订阅管理、邮箱扫描，项目视图上的「仅告警」筛选只看低于阈值或查询失败的账户；地址栏加 `#subscriptions` `#email` 可直达，`#alerts` 打开项目视图并开启该筛选。首次打开填 `WEB_API_KEY`。开了动态配置能在页面上增删改项目、订阅和邮箱；开了历史 API 有趋势图和历史告警邮件。接口清单见 [docs/API.md](docs/API.md)。
 
 前端是 TypeScript，用 esbuild 打包，产物嵌进二进制，运行时不需要额外的静态文件目录。
 

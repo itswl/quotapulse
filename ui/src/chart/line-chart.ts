@@ -65,6 +65,47 @@ interface Layout {
 
 const PADDING: Layout = { left: 64, right: 16, top: 34, bottom: 52 };
 const Y_TICKS = 5;
+
+/**
+ * Axis bounds and a round step (1, 2, 2.5 or 5 times a power of ten), the smallest that
+ * fits in maxTicks intervals, so ticks read as 0, 250, 500 rather than 213.6, 427.19.
+ * `decimals` is how many every tick label needs.
+ */
+export function niceScale(min: number, max: number, maxTicks = Y_TICKS): { min: number; max: number; step: number; decimals: number } {
+  const span = max - min || Math.abs(max) || 1;
+  const magnitude = 10 ** Math.floor(Math.log10(span / maxTicks));
+  for (const multiple of [1, 2, 2.5, 5, 10, 20]) {
+    const step = multiple * magnitude;
+    const decimals = decimalsOf(step);
+    const low = Number((Math.floor(min / step + 1e-9) * step).toFixed(decimals));
+    const high = Number((Math.ceil(max / step - 1e-9) * step).toFixed(decimals));
+    if (Math.round((high - low) / step) <= maxTicks) {
+      return { min: low, max: high === low ? low + step : high, step: Number(step.toFixed(decimals)), decimals };
+    }
+  }
+  return { min, max, step: span / maxTicks, decimals: 2 };
+}
+
+function decimalsOf(value: number): number {
+  for (let d = 0; d < 8; d += 1) {
+    const scaled = value * 10 ** d;
+    if (Math.abs(scaled - Math.round(scaled)) < 1e-6) return d;
+  }
+  return 8;
+}
+
+/* Which x labels to draw: every `step`-th, and always the last point, the latest day,
+   moved in for the label before it when the two would collide. */
+export function xLabelIndices(count: number, step: number): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < count; i += step) indices.push(i);
+  const last = count - 1;
+  if (count > 0 && indices[indices.length - 1] !== last) {
+    if (indices.length > 1 && last - (indices[indices.length - 1] ?? 0) < step) indices.pop();
+    indices.push(last);
+  }
+  return indices;
+}
 const POINT_RADIUS = 3;
 const HOVER_RADIUS = 6;
 /* Implementation note. */
@@ -215,9 +256,11 @@ export class LineChart {
     if (this.options.labels.length === 0) return;
 
     const theme = this.options.theme ?? defaultTheme(this.options.dark);
-    const { min, max } = this.range();
+    const range = this.range();
+    const scale = niceScale(range.min, range.max);
+    const { min, max } = scale;
 
-    this.drawGrid(width, height, min, max, theme);
+    this.drawGrid(width, height, scale, theme);
     this.drawXLabels(width, height, theme);
 
     for (const series of this.options.series) {
@@ -231,7 +274,8 @@ export class LineChart {
     }
   }
 
-  private drawGrid(width: number, height: number, min: number, max: number, theme: ChartTheme): void {
+  private drawGrid(width: number, height: number, scale: ReturnType<typeof niceScale>, theme: ChartTheme): void {
+    const { min, max, step, decimals } = scale;
     const ctx = this.ctx;
     ctx.save();
     ctx.strokeStyle = theme.grid;
@@ -241,14 +285,19 @@ export class LineChart {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
-    for (let i = 0; i <= Y_TICKS; i += 1) {
-      const value = min + ((max - min) * i) / Y_TICKS;
+    const ticks = Math.round((max - min) / step);
+    for (let i = 0; i <= ticks; i += 1) {
+      const value = min + step * i;
       const y = Math.round(this.yAt(value, height, min, max)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(PADDING.left, y);
       ctx.lineTo(width - PADDING.right, y);
       ctx.stroke();
-      ctx.fillText(value.toLocaleString('zh-CN', { maximumFractionDigits: 2 }), PADDING.left - 8, y);
+      ctx.fillText(
+        value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+        PADDING.left - 8,
+        y,
+      );
     }
     ctx.restore();
   }
@@ -265,7 +314,7 @@ export class LineChart {
     ctx.font = `11px ${theme.mono}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    for (let i = 0; i < labels.length; i += step) {
+    for (const i of xLabelIndices(labels.length, step)) {
       const x = this.xAt(i, width);
       ctx.save();
       ctx.translate(x, height - PADDING.bottom + 14);

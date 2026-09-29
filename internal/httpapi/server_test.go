@@ -672,3 +672,33 @@ func TestEmailScanFeatureWithoutMailboxes(t *testing.T) {
 		t.Error("开了动态配置时，即使还没有邮箱也要显示邮件页，否则加不了第一个邮箱")
 	}
 }
+
+// Values the calendar can't interpret used to be stored as they came.
+func TestSubscriptionPatchRangeChecks(t *testing.T) {
+	patch := func(start model.Subscription, body string) []string {
+		var req subscriptionRequest
+		if err := json.Unmarshal([]byte(body), &req); err != nil {
+			t.Fatalf("bad test body %s: %v", body, err)
+		}
+		return applySubscriptionPatch(&start, req)
+	}
+	monthly := model.Subscription{Name: "VPS", CycleType: model.CycleMonthly, RenewalDay: 15, AlertDaysBefore: 3}
+
+	for body, wantProblem := range map[string]bool{
+		`{"renewal_day": 99}`:                                 true,
+		`{"renewal_day": 0}`:                                  true,
+		`{"renewal_day": 28}`:                                 false,
+		`{"cycle_type": "weekly"}`:                            true, // day 15 is no weekday
+		`{"cycle_type": "weekly", "renewal_day": 5}`:          false,
+		`{"cycle_type": "yearly", "renewal_day": 1350}`:       true,
+		`{"cycle_type": "yearly", "renewal_day": "03-15"}`:    false,
+		`{"cycle_type": "lunar_yearly", "renewal_day": 1231}`: true, // lunar months have at most 30 days
+		`{"amount": -5}`:                                      true,
+		`{"alert_days_before": 400}`:                          true,
+		`{"alert_days_before": 0}`:                            false,
+	} {
+		if got := len(patch(monthly, body)) > 0; got != wantProblem {
+			t.Errorf("%s: 期望有问题=%v，实际 %v", body, wantProblem, patch(monthly, body))
+		}
+	}
+}
