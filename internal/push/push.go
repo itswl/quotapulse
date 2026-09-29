@@ -22,8 +22,11 @@ import (
 const (
 	settingVapidPublic  = "vapid_public_key"
 	settingVapidPrivate = "vapid_private_key"
-	// The Web Push spec requires the JWT sub claim to be an https URL or mailto address.
-	vapidSubscriber = "https://quotapulse.local"
+	// The Web Push spec requires the JWT sub claim to be an https URL or mailto address,
+	// and Apple validates the domain strictly — reserved TLDs like .local are rejected
+	// with 403. The mailbox is a contact address for the push service; it is never used
+	// for delivery.
+	vapidSubscriber = "mailto:push@users.noreply.github.com"
 )
 
 // Manager stores browser push subscriptions and fans alert notifications out to them.
