@@ -8,6 +8,7 @@ import {
   formatRunway,
   getBalancePercentage,
   getBalanceStatus,
+  needsAttention,
   typeLabel,
 } from '../format.js';
 import { AppState } from '../state.js';
@@ -174,7 +175,7 @@ export function filterProjects(
     result = result.filter((p) => p.provider === provider);
   }
   if (alertsOnly) {
-    result = result.filter((p) => p.need_alarm);
+    result = result.filter(needsAttention);
   }
   return result;
 }
@@ -193,7 +194,7 @@ function renderProjectsEmpty(total: number, features: Features): string {
 
   const filtering = Boolean(AppState.searchQuery) || AppState.currentFilter !== 'all';
   if (AppState.alertsOnly && !filtering) {
-    return emptyState('No alerts', 'Every monitored account is above its alert threshold.', 'check');
+    return emptyState('No alerts', 'Every account was checked and is above its alert threshold.', 'check');
   }
   return emptyState(
     'No matching projects',

@@ -54,6 +54,37 @@ func balanceAlert(projectName string, ownerProject *string, provider, balanceTyp
 	}
 }
 
+// CheckFailedAlert reports an account whose balance could not be read, such as a revoked
+// or expired key or a provider outage. Without it the account would silently drop out
+// of monitoring.
+func CheckFailedAlert(projectName string, ownerProject *string, provider, reason string) Message {
+	lines := []string{"API call: " + projectName}
+	lines = appendOwner(lines, ownerProject)
+	lines = append(lines,
+		"Provider: "+provider,
+		"Error: "+reason,
+		"Status: ❌ balance unavailable; this account is not monitored until a check succeeds",
+	)
+
+	return Message{
+		Title: "Balance check failed",
+		Lines: lines,
+		Kind:  KindCheckFailed,
+		envelope: &envelope{
+			Type:     "AlarmNotification",
+			RuleName: projectName + " balance check failed",
+			Level:    "critical",
+			Resources: []any{checkFailedResource{
+				ProjectName:  projectName,
+				OwnerProject: ownerProject,
+				Provider:     provider,
+				Error:        reason,
+				Message:      fmt.Sprintf("Project [%s] balance check failed: %s", projectName, reason),
+			}},
+		},
+	}
+}
+
 // Implementation note.
 func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 	renewalDay, daysUntilRenewal int, amount float64) Message {

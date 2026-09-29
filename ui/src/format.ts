@@ -5,7 +5,7 @@
  * Implementation note.
  */
 
-import type { BalanceType, Runway, SubscriptionResult } from './api/types.js';
+import type { BalanceType, CheckResult, Runway, SubscriptionResult } from './api/types.js';
 
 /* Implementation note. */
 export type RunwayLevel = 'danger' | 'warning' | 'normal' | 'unknown';
@@ -128,6 +128,12 @@ export function getRelativeTime(dateString: string | null | undefined, now: Date
   if (hours < 24) return `${hours} hr ago`;
   if (days < 7) return `${days} days ago`;
   return formatDate(dateString);
+}
+
+/* An account needs attention when it is below its threshold or its check failed: a
+   revoked key must not drop out of the Alerts only view and its count. */
+export function needsAttention(project: Pick<CheckResult, 'need_alarm' | 'success'>): boolean {
+  return project.need_alarm || !project.success;
 }
 
 /* Implementation note. */

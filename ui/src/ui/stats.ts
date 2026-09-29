@@ -1,7 +1,7 @@
 /* Implementation note. */
 
 import { byId, setText } from '../dom.js';
-import { formatCurrency, formatRunway, getRelativeTime } from '../format.js';
+import { formatCurrency, formatRunway, getRelativeTime, needsAttention } from '../format.js';
 import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, SubscriptionsResponse, SubscriptionResult } from '../api/types.js';
 import { sortSubscriptionsByNextDate } from './subscriptions.js';
@@ -139,14 +139,11 @@ function setBadge(id: string, count: number, tone: 'danger' | 'warning'): void {
   badge.classList.toggle('warning', tone === 'warning');
 }
 
-/* Live counts on the view switcher: alerting projects and renewals inside their
-   reminder window. A badge hides itself at zero so a healthy system stays quiet. */
+/* Live counts: accounts that need attention (below threshold or failing their check) on
+   the Alerts only chip, and renewals inside their reminder window on the view switcher.
+   A badge hides itself at zero so a healthy system stays quiet. */
 export function updateBadges(): void {
-  setBadge(
-    'alerts-badge',
-    (AppState.balanceData?.projects || []).filter((p) => p.need_alarm).length,
-    'danger',
-  );
+  setBadge('alerts-badge', (AppState.balanceData?.projects || []).filter(needsAttention).length, 'danger');
   const subs = AppState.features.subscriptions ? AppState.subscriptionData?.subscriptions || [] : [];
   setBadge('subs-badge', subs.filter((s) => s.need_alert).length, 'warning');
 }

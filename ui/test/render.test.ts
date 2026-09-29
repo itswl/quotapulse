@@ -176,6 +176,12 @@ describe('filterProjects', () => {
     assert.equal(filterProjects(projects, { search: '', provider: 'all', alertsOnly: true }).length, 1);
     assert.equal(filterProjects(projects, { search: '', provider: 'openrouter', alertsOnly: true }).length, 0);
   });
+
+  it('「仅Alert」也包含查询失败的账户，失效的密钥不能从视野里消失', () => {
+    const withFailure = [...projects, project({ project: 'aliyun-ops', provider: 'aliyun', success: false, credits: null })];
+    const shown = filterProjects(withFailure, { search: '', provider: 'all', alertsOnly: true }).map((p) => p.project);
+    assert.deepEqual(shown, ['火山-主账号', 'aliyun-ops']);
+  });
 });
 
 describe('概览里的检查失败提示', () => {

@@ -37,6 +37,19 @@ func TestMessageTemplates(t *testing.T) {
 			},
 		},
 		{
+			name:      "Balance check failed",
+			msg:       CheckFailedAlert("aliyun-ops", &owner, "Alibaba Cloud", "HTTP 401: AccessKey disabled"),
+			wantTitle: "Balance check failed",
+			wantKind:  KindCheckFailed,
+			wantLines: []string{
+				"API call: aliyun-ops",
+				"Owner project: 核心业务",
+				"Provider: Alibaba Cloud",
+				"Error: HTTP 401: AccessKey disabled",
+				"Status: ❌ balance unavailable; this account is not monitored until a check succeeds",
+			},
+		},
+		{
 			name:      "Balance alert_没有所属项目就不出这一行",
 			msg:       BalanceAlert("TestProject", nil, "OpenRouter", 5.0, 10.0),
 			wantTitle: "Balance alert",

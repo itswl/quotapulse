@@ -39,6 +39,7 @@ const (
 	KindWeeklyReport = "weekly_report"
 	KindTest         = "test"
 	KindJobFailure   = "job_failure"
+	KindCheckFailed  = "check_failed"
 )
 
 // Implementation note.

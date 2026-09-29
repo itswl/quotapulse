@@ -33,15 +33,19 @@ Each project card shows the current balance in a large monospace figure, the ale
 threshold as a colored progress bar, daily spend, and the runway estimate. Accounts
 below threshold are tinted red with a pulsing dot; an account whose key stopped working
 says so plainly — `aliyun-ops` shows "Unavailable" with the exact API error inline,
-instead of pretending the balance is zero.
+instead of pretending the balance is zero — and it counts under Alerts only, because an
+account that can't be read isn't being monitored.
 
 ## Know before you run dry
 
 Runway is the core idea. QuotaPulse stores balance snapshots, measures how fast each
 account actually burns, and projects a depletion date — "at 15.30 per day, this account
 is empty around 2026-09-30". Estimates that lack enough history say so honestly instead
-of guessing. When an account crosses its threshold, the card turns red and an alert goes
-out through your webhook once, with a cooldown so a bad night does not spam the channel.
+of guessing. When an account drops below its threshold, its card turns red at the next
+refresh and the alert goes out at the next scheduled alert check — 09:00 and 15:00
+unless `ALERT_SCHEDULE` says otherwise, or every refresh with `ENABLE_WEB_ALARM=true`.
+A cooldown then holds it to once a day while the balance stays low, with or without the
+database. A check that fails outright, such as a revoked key, alerts the same way.
 
 ![Dashboard, dark theme](images/dashboard-dark.png)
 

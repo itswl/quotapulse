@@ -117,7 +117,7 @@ func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool
 
 	adapter, err := provider.New(p.Provider, p.APIKey, m.Client)
 	if err != nil {
-		return m.failure(p, err)
+		return m.failure(ctx, p, err, dryRun)
 	}
 
 	cacheKey := cacheKeyFor(p.Provider, p.APIKey)
@@ -128,7 +128,7 @@ func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool
 	} else {
 		if credits, err = adapter.Fetch(ctx); err != nil {
 			m.log().Error("Failed to fetch balance", "project", p.Name, "error", err)
-			return m.failure(p, err)
+			return m.failure(ctx, p, err, dryRun)
 		}
 		if ttl > 0 {
 			m.cache.set(cacheKey, credits)
@@ -170,51 +170,71 @@ func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool
 	return result
 }
 
-// Implementation note.
+// sendBalanceAlert reports a balance below its threshold.
 func (m *Monitor) sendBalanceAlert(ctx context.Context, p model.Project, projectID string, credits float64) bool {
+	return m.deliver(ctx, p, projectID, projectAlert{
+		alertType: "low_balance",
+		pushTitle: "Low balance: " + p.Name,
+		pushBody:  fmt.Sprintf("Balance %v dropped below threshold %v", credits, p.Threshold),
+		history:   fmt.Sprintf("Low balance: %v < %v", credits, p.Threshold),
+		message:   notify.BalanceAlert(p.Name, p.OwnerProject, provider.DisplayName(p.Provider), credits, p.Threshold),
+		value:     &credits,
+	})
+}
+
+// projectAlert is one notification about a project: a low balance or a failed check.
+type projectAlert struct {
+	alertType string // history type; also keys the cooldown, so the two kinds don't mute each other
+	pushTitle string
+	pushBody  string
+	history   string
+	message   notify.Message
+	value     *float64
+}
+
+// deliver sends alert unless one of the same type went out within the cooldown, then
+// records the outcome. Successes feed the cooldown window; failures feed the history, so
+// a silent channel is visible instead of only living in the logs.
+func (m *Monitor) deliver(ctx context.Context, p model.Project, projectID string, alert projectAlert) bool {
 	cooldown := time.Duration(m.Settings.CooldownSeconds("balance")) * time.Second
-	last, err := m.Store.LastSentAlert(ctx, projectID, "low_balance", cooldown)
+	last, err := m.Store.LastSentAlert(ctx, projectID, alert.alertType, cooldown)
 	if err != nil {
 		m.log().Warn("Failed to query alert cooldown; treating it as not cooling down", "project", p.Name, "error", err)
 	}
-	if last != nil && !time.Now().Before(last.Add(cooldown)) == false {
-		m.log().Info("Alert is cooling down; skipping duplicate notification", "project", p.Name, "cooldown", cooldown)
+	if last != nil && time.Now().Before(last.Add(cooldown)) {
+		m.log().Info("Alert is cooling down; skipping duplicate notification", "project", p.Name, "type", alert.alertType, "cooldown", cooldown)
 		return false
 	}
 	if m.Push != nil {
-		m.Push.Notify(ctx, "Low balance: "+p.Name, fmt.Sprintf("Balance %v dropped below threshold %v", credits, p.Threshold))
+		m.Push.Notify(ctx, alert.pushTitle, alert.pushBody)
 	}
 	if m.Notifier == nil {
 		m.log().Error("Webhook URL is not configured")
 		return false
 	}
 
-	msg := notify.BalanceAlert(p.Name, p.OwnerProject, provider.DisplayName(p.Provider), credits, p.Threshold)
-	sendErr := m.Notifier.Send(ctx, msg)
+	sendErr := m.Notifier.Send(ctx, alert.message)
 	if m.OnNotify != nil {
-		m.OnNotify(msg.Kind, sendErr == nil)
+		m.OnNotify(alert.message.Kind, sendErr == nil)
 	}
 	if sendErr != nil {
-		m.log().Error("Failed to send balance alert", "project", p.Name, "error", sendErr)
-		m.recordAlert(ctx, projectID, p, credits, "failed", sendErr.Error())
+		m.log().Error("Failed to send alert", "project", p.Name, "type", alert.alertType, "error", sendErr)
+		m.recordAlert(ctx, projectID, p, alert, "failed", sendErr.Error())
 		return false
 	}
-
-	m.recordAlert(ctx, projectID, p, credits, "sent", "")
+	m.recordAlert(ctx, projectID, p, alert, "sent", "")
 	return true
 }
 
-// recordAlert persists both sides of the story: successful notifications feed the
-// cooldown window, failures feed the history so a silent channel is visible.
-func (m *Monitor) recordAlert(ctx context.Context, projectID string, p model.Project, credits float64, status, errText string) {
-	message := fmt.Sprintf("Low balance: %v < %v", credits, p.Threshold)
+func (m *Monitor) recordAlert(ctx context.Context, projectID string, p model.Project, alert projectAlert, status, errText string) {
+	message := alert.history
 	if status == "failed" && errText != "" {
 		message = fmt.Sprintf("%s — send failed: %s", message, errText)
 	}
 	if err := m.Store.SaveAlert(ctx, store.AlertRecord{
-		AlertID: projectID, Name: p.Name, AlertType: "low_balance", Status: status,
+		AlertID: projectID, Name: p.Name, AlertType: alert.alertType, Status: status,
 		Message:   message,
-		Value:     &credits,
+		Value:     alert.value,
 		Threshold: model.Ptr(p.Threshold),
 	}); err != nil {
 		m.log().Warn("Failed to record alert", "project", p.Name, "error", err)
@@ -241,12 +261,26 @@ func (m *Monitor) analyze(ctx context.Context, results []model.CheckResult, dryR
 	return runways, m.Alerter.Check(ctx, results, dryRun)
 }
 
-func (m *Monitor) failure(p model.Project, err error) model.CheckResult {
+// failure reports a check that could not read the balance. Outside dry runs it also
+// alerts, under the same cooldown as low balances: a revoked or expired key would
+// otherwise drop the account out of monitoring without a word.
+func (m *Monitor) failure(ctx context.Context, p model.Project, err error, dryRun bool) model.CheckResult {
 	message := err.Error()
-	return model.CheckResult{
+	result := model.CheckResult{
 		Project: p.Name, OwnerProject: p.OwnerProject, Provider: p.Provider,
 		Type: p.Type, Success: false, Error: &message,
 	}
+	if dryRun {
+		return result
+	}
+	result.AlarmSent = m.deliver(ctx, p, p.ID(), projectAlert{
+		alertType: "check_failed",
+		pushTitle: "Balance check failed: " + p.Name,
+		pushBody:  message,
+		history:   "Balance check failed: " + message,
+		message:   notify.CheckFailedAlert(p.Name, p.OwnerProject, provider.DisplayName(p.Provider), message),
+	})
+	return result
 }
 
 func (m *Monitor) logSummary(results []model.CheckResult, elapsed time.Duration) {

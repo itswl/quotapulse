@@ -259,3 +259,70 @@ func TestResponseCache(t *testing.T) {
 		t.Error("第二次应标记为缓存，页面上要能看出来")
 	}
 }
+
+// failingProject points at an upstream that rejects the key, like a revoked AccessKey.
+func failingProject(t *testing.T) model.Project {
+	t.Helper()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"message":"AccessKey disabled"}`, http.StatusUnauthorized)
+	}))
+	t.Cleanup(upstream.Close)
+	provider.RegisterSpec(provider.Spec{
+		Key: "revokedupstream", Name: "失效密钥平台", DefaultType: model.TypeBalance, URL: upstream.URL,
+		Extract: func(map[string]any) (float64, error) { return 0, errors.New("unreachable") },
+	})
+	p := testProject(50)
+	p.Provider = "revokedupstream"
+	return p
+}
+
+// A failed check used to send nothing, so a revoked key dropped the account out of
+// monitoring without a word.
+func TestFailedCheckAlertsOnceUnderCooldown(t *testing.T) {
+	m, st, notifier := newTestMonitor(t, nil, "0")
+	p := failingProject(t)
+
+	result := m.CheckProject(context.Background(), p, false)
+	if result.Success || result.Error == nil {
+		t.Fatalf("上游 401 应当查询失败: %+v", result)
+	}
+	if !result.AlarmSent || notifier.count() != 1 {
+		t.Fatalf("查询失败应发一条告警: alarm_sent=%v 通知 %d 条", result.AlarmSent, notifier.count())
+	}
+	if kind := notifier.messages[0].Kind; kind != notify.KindCheckFailed {
+		t.Errorf("通知分类应是 %s，实际 %s", notify.KindCheckFailed, kind)
+	}
+	if len(st.alerts) != 1 || st.alerts[0].AlertType != "check_failed" || st.alerts[0].Status != "sent" {
+		t.Fatalf("应留一条 check_failed 记录，实际 %+v", st.alerts)
+	}
+	if !strings.Contains(st.alerts[0].Message, "401") {
+		t.Errorf("记录里应有失败原因，实际 %q", st.alerts[0].Message)
+	}
+
+	now := time.Now()
+	st.lastSent = &now
+	if again := m.CheckProject(context.Background(), p, false); again.AlarmSent || notifier.count() != 1 {
+		t.Errorf("冷却窗口内不该重复发送: 通知 %d 条", notifier.count())
+	}
+}
+
+func TestFailedCheckDryRunSendsNothing(t *testing.T) {
+	m, st, notifier := newTestMonitor(t, nil, "0")
+	result := m.CheckProject(context.Background(), failingProject(t), true)
+	if result.Success || result.AlarmSent || notifier.count() != 0 || len(st.alerts) != 0 {
+		t.Fatalf("测试模式下查询失败也不该发送或留痕: %+v, 通知 %d 条", result, notifier.count())
+	}
+}
+
+// Without a database the cooldown used to have no memory, so every scheduled check
+// repeated the alert.
+func TestCooldownHoldsWithoutDatabase(t *testing.T) {
+	m, _, notifier := newTestMonitor(t, nil, "8.5")
+	m.Store = store.Volatile()
+	for range 3 {
+		m.CheckProject(context.Background(), testProject(50), false)
+	}
+	if notifier.count() != 1 {
+		t.Fatalf("没有数据库时冷却也应生效: 3 次检查应只发 1 条，实际 %d 条", notifier.count())
+	}
+}

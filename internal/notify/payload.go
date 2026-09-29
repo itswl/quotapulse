@@ -96,6 +96,14 @@ type balanceResource struct {
 	Message      string  `json:"Message"`
 }
 
+type checkFailedResource struct {
+	ProjectName  string  `json:"ProjectName"`
+	OwnerProject *string `json:"OwnerProject"`
+	Provider     string  `json:"Provider"`
+	Error        string  `json:"Error"`
+	Message      string  `json:"Message"`
+}
+
 type subscriptionResource struct {
 	SubscriptionName string  `json:"SubscriptionName"`
 	OwnerProject     *string `json:"OwnerProject"`

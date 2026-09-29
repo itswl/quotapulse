@@ -144,7 +144,9 @@ func keywords(settings *config.Settings) []string {
 // Implementation note.
 func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error) {
 	if !settings.EnableDatabase {
-		return store.Null(), nil
+		// Nothing is persisted, but alert cooldowns and email de-duplication still need
+		// to know what was sent, or every scheduled check would repeat every alert.
+		return store.Volatile(), nil
 	}
 	st, err := store.Open(context.Background(), store.Options{
 		DatabaseURL:       settings.DatabaseURL,
@@ -157,7 +159,7 @@ func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error)
 			return nil, fmt.Errorf("Database initialization failed: %w", err)
 		}
 		log.Warn("Database initialization failed,operation", "error", err)
-		return store.Null(), nil
+		return store.Volatile(), nil
 	}
 	log.Info("Database initialized")
 	return st, nil
@@ -258,6 +260,11 @@ func (a *App) refreshAll(ctx context.Context, dryRun bool) (any, error) {
 		}
 	}
 	detail["need_alert"] = needAlert
+	// Every account failing is an outage rather than a bad key. The state above is still
+	// updated, but the job counts as failed so /health and the failure escalation see it.
+	if summary.Total > 0 && summary.Failed == summary.Total {
+		return detail, fmt.Errorf("all %d balance checks failed", summary.Total)
+	}
 	return detail, nil
 }
 
