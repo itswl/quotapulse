@@ -18,6 +18,10 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
 
+    // No automatic @types: Node built-ins are declared in test/node-builtins.d.ts, and tools
+    // installed with --no-save (puppeteer-core brings @types/node) must not make the local
+    // typecheck pass where CI's fails.
+    "types": [],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
