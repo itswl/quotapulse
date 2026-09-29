@@ -28,7 +28,7 @@
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/static/app.css?v=__BUILD_ID__">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'><path d='M14.05 17.64A6 6 0 1 1 17.64 14.05'/><path d='M15 15l4 4'/></g></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><linearGradient id='c' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a3b8fc'/><stop offset='1' stop-color='%235878ef'/></linearGradient></defs><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g transform='translate(2.4 2.4) scale(.8)'><circle cx='12' cy='12' r='8.8' fill='url(%23c)'/><path d='M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5' fill='none' stroke='%2315171b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>">
 </head>
 <body>
     <!-- Icon sprite. Every icon is a <symbol> on a 24px grid drawn for a 1.75px round stroke;
@@ -36,10 +36,14 @@
          Fill and stroke are inherited from the referencing <svg class="icon">. -->
     <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
         <defs>
-            <!-- Brand mark: a quota ring with the tail of a Q -->
+            <!-- Brand mark: a coin (the balance) with a heartbeat (the monitoring) cut through
+                 it. The cut is painted in the tile color instead of masked, because masks
+                 inside a hidden sprite don't render in every engine; the symbol is only used
+                 on the ink brand tile. Keep in sync with the favicon in <head> and
+                 ui/scripts/render-icons.mjs. -->
             <symbol id="i-logo" viewBox="0 0 24 24">
-                <path d="M14.39 18.58A7 7 0 1 1 18.58 14.39"/>
-                <path d="M15.4 15.4L20 20"/>
+                <circle cx="12" cy="12" r="8.8" fill="currentColor" stroke="none"/>
+                <path d="M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5" fill="none" stroke-width="2.3" style="stroke: var(--ink)"/>
             </symbol>
             <!-- Appearance: half-filled disc, rotated in dark mode -->
             <symbol id="i-theme" viewBox="0 0 24 24">

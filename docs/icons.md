@@ -15,8 +15,10 @@ For how the interface looks in practice, see [overview.md](overview.md).
 - **Static markup** references a symbol with `<svg class="icon"><use href="#i-search"></use></svg>`.
 - **Rendered markup** (project cards, subscriptions, toasts, …) gets the same references
   from the constants in `ui/src/ui/icons.ts`, so both paths emit identical output.
-- **The favicon** is the brand mark inlined as a data URI in the `<head>`; keep it in
-  sync with `i-logo` when the mark changes.
+- **The favicon and the home-screen icons** use the colored version of the mark: the
+  favicon is inlined as a data URI in the `<head>`, and `ui/scripts/render-icons.mjs`
+  renders the PNGs in `ui/www/icons`. Keep both in sync with `i-logo` when the mark
+  changes.
 
 ## Drawing rules
 
@@ -26,19 +28,27 @@ Every symbol follows the same constraints, which is what keeps the set coherent:
 | --- | --- |
 | Canvas | 24 × 24 grid |
 | Stroke | 1.75 px, round caps and round joins (set globally in `base.css`) |
-| Color | inherited via `currentColor`; icons never hard-code a palette color |
-| Fill | none, except deliberate accents (the theme disc, the info dot) |
+| Color | inherited via `currentColor`; icons never hard-code a palette color (the brand mark's cut uses the tile's `--ink` token) |
+| Fill | none, except deliberate solids (the brand coin, the theme disc, the info dot) |
 | Sizing | set by the surrounding context; `.icon` defaults to 16 px |
 
 Because stroke and color come from CSS, one drawing serves every context: a 15 px icon in
 a button, a 44 px one in an empty state, and the tinted hover states on destructive
 actions all reuse the same paths.
 
+## App icon
+
+The home-screen icon puts the mark in the accent blue on the dark tile. iOS uses the
+opaque 180px `apple-touch-icon` and applies its own rounded mask; Android crops the
+maskable variant to a circle, so its glyph sits inside the central safe zone.
+
+![Home-screen icon](../ui/www/icons/icon-192.png)
+
 ## The set
 
 | Icon | Symbol | Used for |
 | --- | --- | --- |
-| ![logo](images/icons/logo.svg) | `i-logo` | Brand mark — a quota ring with the tail of a Q; navigation tile and favicon |
+| ![logo](images/icons/logo.svg) | `i-logo` | Brand mark — a coin (the balance) with a heartbeat (the monitoring) cut through it; navigation tile, favicon, and home-screen icon |
 | ![theme](images/icons/theme.svg) | `i-theme` | Theme toggle; the filled half swaps sides by rotating 180° in dark mode |
 | ![refresh](images/icons/refresh.svg) | `i-refresh` | Refresh balances now |
 | ![sliders](images/icons/sliders.svg) | `i-sliders` | Settings dialog |
