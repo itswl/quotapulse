@@ -39,7 +39,7 @@ instead of pretending the balance is zero.
 
 Runway is the core idea. QuotaPulse stores balance snapshots, measures how fast each
 account actually burns, and projects a depletion date — "at 15.30 per day, this account
-is empty around 2026-09-22". Estimates that lack enough history say so honestly instead
+is empty around 2026-09-30". Estimates that lack enough history say so honestly instead
 of guessing. When an account crosses its threshold, the card turns red and an alert goes
 out through your webhook once, with a cooldown so a bad night does not spam the channel.
 
@@ -57,11 +57,10 @@ aligned in a compact table, and the toggle remembers your choice.
 Subscriptions are sorted by next renewal date, with the days-remaining figure escalating
 from amber (14 days) to red (7). Renewed something early? Mark it and QuotaPulse pushes
 the next reminder out; the mark is visible until you clear it. Weekly, monthly,
-Gregorian-yearly, and lunar-yearly cycles are all supported.
- Switching to this view reshapes the
-overview band: the hero figure becomes the number of renewals due within 7 days — with
-the next one named — flanked by due-in-30-days, renewed-this-cycle, and an estimated
-monthly cost that normalizes the different billing cycles.
+Gregorian-yearly, and lunar-yearly cycles are all supported. Switching to this view
+reshapes the overview band: the hero figure becomes the number of renewals due within
+7 days — with the next one named — flanked by due-in-30-days, renewed-this-cycle, and an
+estimated monthly cost that normalizes the different billing cycles.
 
 ![Subscription reminders](images/subscriptions.png)
 
