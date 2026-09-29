@@ -140,3 +140,33 @@ func contains(haystack, needle string) bool {
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
+
+// TestCheckRemindsAgainAfterAMarkedRenewal walks the two lost-reminder regressions day
+// by day through Check: a yearly mark used to silence the following year, and an early
+// monthly mark fired a "renews in 0 days" reminder for the renewal it had paid for.
+func TestCheckRemindsAgainAfterAMarkedRenewal(t *testing.T) {
+	sendsBetween := func(sub model.Subscription, from, to string) int {
+		notifier := &fakeCheckerNotifier{}
+		c := quietChecker(&fakeCheckerStore{}, notifier)
+		day, last := mustDate(t, from), mustDate(t, to)
+		for ; !day.After(last); day = day.AddDate(0, 0, 1) {
+			now := day.Add(9 * time.Hour)
+			c.Now = func() time.Time { return now }
+			c.Check(context.Background(), []model.Subscription{sub}, false)
+		}
+		return notifier.calls
+	}
+
+	yearly := model.Subscription{Name: "Domain", CycleType: model.CycleYearly, RenewalDay: 315, AlertDaysBefore: 7, LastRenewedDate: model.Ptr("2025-03-15")}
+	if got := sendsBetween(yearly, "2026-03-08", "2026-03-15"); got != 8 {
+		t.Errorf("去年已续费的年付，今年提醒窗口内每天都应提醒: 期望 8 次，实际 %d 次", got)
+	}
+
+	monthly := model.Subscription{Name: "VPS", CycleType: model.CycleMonthly, RenewalDay: 15, AlertDaysBefore: 7, LastRenewedDate: model.Ptr("2026-01-10")}
+	if got := sendsBetween(monthly, "2026-01-10", "2026-02-07"); got != 0 {
+		t.Errorf("提前续费后，到下一期提醒窗口之前不应提醒: 实际 %d 次", got)
+	}
+	if got := sendsBetween(monthly, "2026-02-08", "2026-02-08"); got != 1 {
+		t.Errorf("下一期提醒窗口打开当天应提醒: 实际 %d 次", got)
+	}
+}

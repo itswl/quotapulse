@@ -5,7 +5,7 @@
  * Implementation note.
  */
 
-import type { BalanceType, Runway } from './api/types.js';
+import type { BalanceType, Runway, SubscriptionResult } from './api/types.js';
 
 /* Implementation note. */
 export type RunwayLevel = 'danger' | 'warning' | 'normal' | 'unknown';
@@ -152,10 +152,15 @@ export function cycleLabel(cycle: string | null | undefined): string {
   return 'Weekly';
 }
 
-/* Implementation note. */
-export function renewalUrgency(daysUntilRenewal: number): '' | 'warning' | 'danger' {
-  if (daysUntilRenewal <= 7) return 'danger';
-  if (daysUntilRenewal <= 14) return 'warning';
+/* Red while the renewal is inside its reminder window and unpaid; amber under 14 days
+   out. A renewed item is settled, and a weekly cycle is always under 14 days, so
+   neither gets the amber warning. */
+export function renewalUrgency(
+  sub: Pick<SubscriptionResult, 'days_until_renewal' | 'need_alert' | 'already_renewed' | 'cycle_type'>,
+): '' | 'warning' | 'danger' {
+  if (sub.already_renewed) return '';
+  if (sub.need_alert) return 'danger';
+  if (sub.cycle_type !== 'weekly' && sub.days_until_renewal <= 14) return 'warning';
   return '';
 }
 

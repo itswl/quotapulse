@@ -252,12 +252,7 @@ func (s *Server) handleMarkRenewed(w http.ResponseWriter, r *http.Request) {
 	s.log().Info("[AUDIT] operation", "subscription", body.Name, "date", renewedDate)
 	s.refreshSubscriptions(r)
 
-	renewedAt, _ := time.ParseInLocation("2006-01-02", renewedDate, time.Local)
-	next, err := subscription.NextRenewalFrom(updated.CycleType, updated.RenewalDay, renewedAt)
-	if err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	next := s.Subs.Renewal(updated).Next
 	ok(w, map[string]any{
 		"message":           "operation [" + body.Name + "] operation",
 		"next_renewal_date": next.Format("2006-01-02T15:04:05"),

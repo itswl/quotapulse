@@ -188,11 +188,19 @@ describe('Subscription展示', () => {
     assert.equal(cycleLabel('weekly'), 'Weekly');
   });
 
-  it('续费紧迫度：7 天内红，14 天内黄', () => {
-    assert.equal(renewalUrgency(3), 'danger');
-    assert.equal(renewalUrgency(7), 'danger');
-    assert.equal(renewalUrgency(8), 'warning');
-    assert.equal(renewalUrgency(14), 'warning');
-    assert.equal(renewalUrgency(15), '');
+  it('续费紧迫度：提醒窗口内红，14 天内黄，已续费和周付不标黄', () => {
+    const sub = (days: number, extra: Partial<Parameters<typeof renewalUrgency>[0]> = {}) => ({
+      days_until_renewal: days, need_alert: false, already_renewed: false, cycle_type: 'monthly' as const, ...extra,
+    });
+    assert.equal(renewalUrgency(sub(3, { need_alert: true })), 'danger');
+    assert.equal(renewalUrgency(sub(10, { need_alert: true })), 'danger');
+    assert.equal(renewalUrgency(sub(5)), 'warning');
+    assert.equal(renewalUrgency(sub(14)), 'warning');
+    assert.equal(renewalUrgency(sub(15)), '');
+    // A renewed item is settled even when the next renewal is close.
+    assert.equal(renewalUrgency(sub(3, { already_renewed: true })), '');
+    // Weekly renewals are always under 14 days out; only the reminder window counts.
+    assert.equal(renewalUrgency(sub(4, { cycle_type: 'weekly' })), '');
+    assert.equal(renewalUrgency(sub(1, { cycle_type: 'weekly', need_alert: true })), 'danger');
   });
 });

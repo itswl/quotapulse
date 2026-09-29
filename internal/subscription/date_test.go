@@ -19,8 +19,9 @@ type baselineCase struct {
 	AlreadyRenewed bool    `json:"already_renewed"`
 }
 
-// Implementation note.
-// Implementation note.
+// TestMatchesBaseline replays the legacy checker's renewal schedule: unmarked cases
+// across cycles, month ends and leap days. Cases with a renewal mark were dropped when a
+// mark started paying for exactly one renewal; TestEvaluateRenewalMarks covers marks.
 func TestMatchesBaseline(t *testing.T) {
 	raw, err := os.ReadFile("testdata/baseline_cases.json")
 	if err != nil {
@@ -30,35 +31,87 @@ func TestMatchesBaseline(t *testing.T) {
 	if err := json.Unmarshal(raw, &cases); err != nil {
 		t.Fatalf("解析基准数据失败: %v", err)
 	}
-	if len(cases) < 300 {
+	if len(cases) < 70 {
 		t.Fatalf("基准数据只有 %d 条，太少，怀疑生成有问题", len(cases))
 	}
 
 	for _, c := range cases {
-		today := mustDate(t, c.Today)
-		var lastRenewed *time.Time
-		if c.LastRenewed != nil {
-			parsed := mustDate(t, *c.LastRenewed)
-			lastRenewed = &parsed
+		if c.LastRenewed != nil || c.AlreadyRenewed {
+			t.Fatalf("基准数据只应包含未标记续费的用例: %+v", c)
 		}
-
-		days, next := NextRenewal(c.Cycle, c.RenewalDay, today, lastRenewed)
+		today := mustDate(t, c.Today)
+		days, next := NextRenewal(c.Cycle, c.RenewalDay, today, nil)
 		if days != c.Days || next.Format("2006-01-02") != c.Next {
-			t.Errorf("%s/%d 在 %s（上次续费 %v）: 期望 %d 天后的 %s，实际 %d 天后的 %s",
-				c.Cycle, c.RenewalDay, c.Today, derefString(c.LastRenewed),
-				c.Days, c.Next, days, next.Format("2006-01-02"))
+			t.Errorf("%s/%d 在 %s: 期望 %d 天后的 %s，实际 %d 天后的 %s",
+				c.Cycle, c.RenewalDay, c.Today, c.Days, c.Next, days, next.Format("2006-01-02"))
 			continue
 		}
+		// Without a mark, Evaluate is the plain schedule.
+		if got := Evaluate(c.Cycle, c.RenewalDay, today, nil, 7); got.AlreadyRenewed || got.Days != c.Days || !got.Next.Equal(next) {
+			t.Errorf("%s/%d 在 %s: 未标记时 Evaluate 应与排期一致，实际 %+v", c.Cycle, c.RenewalDay, c.Today, got)
+		}
+	}
+}
 
-		already := false
-		if lastRenewed != nil {
-			start := cycleStart(c.Cycle, c.RenewalDay, startOfDay(today), next)
-			already = !lastRenewed.Before(start)
-		}
-		if already != c.AlreadyRenewed {
-			t.Errorf("%s/%d 在 %s（上次续费 %v）: 已续费判断期望 %v，实际 %v",
-				c.Cycle, c.RenewalDay, c.Today, derefString(c.LastRenewed), c.AlreadyRenewed, already)
-		}
+// TestEvaluateRenewalMarks pins what a renewal mark means: it pays for one renewal,
+// reminders for that renewal stop, and the next renewal is reminded about when its
+// window opens. The first two groups are the regressions that lost reminders.
+func TestEvaluateRenewalMarks(t *testing.T) {
+	tests := []struct {
+		name        string
+		cycle       string
+		renewalDay  int
+		window      int
+		marked      string
+		today       string
+		next        string
+		days        int
+		renewed     bool
+		wantReminds bool
+	}{
+		// Yearly on 03-15, paid on the day: the 2026 renewal is still reminded about.
+		{"yearly paid on the day", "yearly", 315, 7, "2025-03-15", "2025-03-15", "2026-03-15", 365, true, false},
+		{"yearly mid-cycle after paying", "yearly", 315, 7, "2025-03-15", "2025-09-01", "2026-03-15", 195, true, false},
+		{"yearly next window opens", "yearly", 315, 7, "2025-03-15", "2026-03-08", "2026-03-15", 7, false, true},
+		{"yearly next renewal day", "yearly", 315, 7, "2025-03-15", "2026-03-15", "2026-03-15", 0, false, true},
+		{"yearly paid a few days early", "yearly", 315, 7, "2025-03-10", "2026-03-08", "2026-03-15", 7, false, true},
+		{"yearly paid a few days late", "yearly", 315, 7, "2025-03-20", "2026-03-08", "2026-03-15", 7, false, true},
+		{"yearly paid a month early", "yearly", 315, 7, "2025-02-15", "2025-03-08", "2026-03-15", 372, true, false},
+
+		// Monthly on the 15th, paid on the 10th: no "renews in 0 days" on the 15th.
+		{"monthly paid early", "monthly", 15, 7, "2026-01-10", "2026-01-10", "2026-02-15", 36, true, false},
+		{"monthly renewal day after paying early", "monthly", 15, 7, "2026-01-10", "2026-01-15", "2026-02-15", 31, true, false},
+		{"monthly day after the renewal", "monthly", 15, 7, "2026-01-10", "2026-01-16", "2026-02-15", 30, true, false},
+		{"monthly next window opens", "monthly", 15, 7, "2026-01-10", "2026-02-08", "2026-02-15", 7, false, true},
+		{"monthly paid on the day", "monthly", 15, 3, "2026-01-15", "2026-01-15", "2026-02-15", 31, true, false},
+		{"monthly paid late", "monthly", 15, 3, "2026-01-17", "2026-01-17", "2026-02-15", 29, true, false},
+		{"monthly paid late, next window", "monthly", 15, 3, "2026-01-17", "2026-02-12", "2026-02-15", 3, false, true},
+		{"monthly stale mark", "monthly", 15, 3, "2025-11-10", "2026-01-12", "2026-01-15", 3, false, true},
+		{"monthly month end paid late", "monthly", 31, 3, "2026-03-01", "2026-03-01", "2026-03-31", 30, true, false},
+
+		// A window as long as the cycle: the mark pays for the renewal it was nagging about.
+		{"weekly marked mid-week", "weekly", 1, 7, "2026-01-06", "2026-01-06", "2026-01-19", 13, true, false},
+		{"weekly covered renewal day", "weekly", 1, 7, "2026-01-06", "2026-01-12", "2026-01-19", 7, true, false},
+		{"weekly next week", "weekly", 1, 7, "2026-01-06", "2026-01-13", "2026-01-19", 6, false, true},
+
+		// Yearly without a month and day renews on the anniversary of the mark.
+		{"anniversary mid-year", "yearly", 15, 7, "2025-06-01", "2025-12-01", "2026-06-01", 182, true, false},
+		{"anniversary window opens", "yearly", 15, 7, "2025-06-01", "2026-05-25", "2026-06-01", 7, false, true},
+
+		{"lunar paid before new year", "lunar_yearly", 101, 7, "2024-02-05", "2024-02-06", "2025-01-29", 358, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			marked := mustDate(t, tt.marked)
+			got := Evaluate(tt.cycle, tt.renewalDay, mustDate(t, tt.today), &marked, tt.window)
+			reminds := !got.AlreadyRenewed && got.Days >= 0 && got.Days <= tt.window
+			if got.Next.Format("2006-01-02") != tt.next || got.Days != tt.days || got.AlreadyRenewed != tt.renewed || reminds != tt.wantReminds {
+				t.Fatalf("%s/%d 于 %s 标记续费，%s 时: 期望 %d 天后的 %s（已续费 %v，提醒 %v），实际 %d 天后的 %s（已续费 %v，提醒 %v）",
+					tt.cycle, tt.renewalDay, tt.marked, tt.today,
+					tt.days, tt.next, tt.renewed, tt.wantReminds,
+					got.Days, got.Next.Format("2006-01-02"), got.AlreadyRenewed, reminds)
+			}
+		})
 	}
 }
 
@@ -173,11 +226,4 @@ func mustDate(t *testing.T, value string) time.Time {
 		t.Fatalf("测试数据里的日期解析失败 %q: %v", value, err)
 	}
 	return parsed
-}
-
-func derefString(p *string) string {
-	if p == nil {
-		return "无"
-	}
-	return *p
 }

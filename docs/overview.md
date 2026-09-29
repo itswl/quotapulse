@@ -54,9 +54,10 @@ aligned in a compact table, and the toggle remembers your choice.
 
 ## Never miss a renewal
 
-Subscriptions are sorted by next renewal date, with the days-remaining figure escalating
-from amber (14 days) to red (7). Renewed something early? Mark it and QuotaPulse pushes
-the next reminder out; the mark is visible until you clear it. Weekly, monthly,
+Subscriptions are sorted by next renewal date. The days-remaining figure turns amber two
+weeks out and red once the renewal enters its reminder window. Paid for a renewal? Mark
+it: the mark covers that one renewal, so its reminders stop and the card moves on to the
+next date, which gets its reminders as usual when its window opens. Weekly, monthly,
 Gregorian-yearly, and lunar-yearly cycles are all supported. Switching to this view
 reshapes the overview band: the hero figure becomes the number of renewals due within
 7 days — with the next one named — flanked by due-in-30-days, renewed-this-cycle, and an

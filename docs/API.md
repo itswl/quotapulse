@@ -36,7 +36,8 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `POST /api/subscription/add` | Create a subscription; `cycle_type` supports `weekly`, `monthly`, `yearly`, and `lunar_yearly` | Subscriptions |
 | `POST /api/config/subscription` | Update a subscription; `name` identifies it and `new_name` renames it | Subscriptions |
 | `POST` or `DELETE /api/subscription/delete` | Delete `{"name":"..." }` | Subscriptions |
-| `POST /api/subscription/mark_renewed` | Mark or clear renewal status; accepts optional `renewed_date` | Subscriptions |
+| `POST /api/subscription/mark_renewed` | Marks a renewal as paid; `renewed_date` defaults to today. A mark pays for one renewal: the one whose reminder window the date falls in, otherwise the nearer one. Returns `next_renewal_date`, the next renewal that will be reminded about | Subscriptions, dynamic configuration |
+| `POST /api/subscription/clear_renewed` | Removes the renewal mark from `{"name":"..."}` | Subscriptions, dynamic configuration |
 | `GET /api/providers` | Supported providers and default balance types | — |
 | `GET /api/config/projects` | Project configuration with redacted keys | — |
 | `POST /api/config/project` | Create or update a project; empty `api_key` preserves an existing key | Dynamic configuration |

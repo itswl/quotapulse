@@ -33,7 +33,7 @@ function renderAlertBadge(sub: SubscriptionResult): string {
 }
 
 export function renderSubscriptionCard(sub: SubscriptionResult): string {
-  const daysClass = renewalUrgency(sub.days_until_renewal);
+  const daysClass = renewalUrgency(sub);
   const amount = Number(sub.amount) || 0;
   const ownerProject = sub.owner_project || 'No owner project';
   const subName = sub.name || 'Unknown subscription';

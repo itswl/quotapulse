@@ -250,9 +250,10 @@ describe('renderSubscriptionCard', () => {
     assert.match(html, /days-remaining ">20<span class="unit"> days<\/span>/);
   });
 
-  it('剩余 7 天内标红，14 天内标黄', () => {
-    assert.match(renderSubscriptionCard(subscription({ days_until_renewal: 5 })), /days-remaining danger/);
+  it('提醒窗口内标红，14 天内标黄，已续费不标色', () => {
+    assert.match(renderSubscriptionCard(subscription({ days_until_renewal: 5, need_alert: true })), /days-remaining danger/);
     assert.match(renderSubscriptionCard(subscription({ days_until_renewal: 10 })), /days-remaining warning/);
+    assert.match(renderSubscriptionCard(subscription({ days_until_renewal: 5, already_renewed: true })), /days-remaining ">5</);
   });
 
   it('Renewed时换成「Clear renewal mark」按钮', () => {

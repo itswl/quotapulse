@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/6tail/lunar-go/calendar"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/push"
@@ -26,6 +25,9 @@ type Checker struct {
 
 	// Implementation note.
 	OnNotify func(kind string, ok bool)
+
+	// Now is the clock; nil means time.Now. Tests and the docs screenshot harness pin it.
+	Now func() time.Time
 }
 
 // Notification states surfaced on the subscription page. not_due is intentionally
@@ -55,23 +57,9 @@ func (c *Checker) Check(ctx context.Context, subs []model.Subscription, dryRun b
 }
 
 func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, dryRun bool) model.SubscriptionResult {
-	loc := time.Local
-	if sub.Timezone != "" {
-		if loaded, loadErr := time.LoadLocation(sub.Timezone); loadErr == nil {
-			loc = loaded
-		} else {
-			c.log().Warn("Invalid timezone; using server local time", "name", sub.Name, "timezone", sub.Timezone)
-		}
-	}
-	today := time.Now().In(loc)
-	lastRenewed := parseRenewedDate(sub.LastRenewedDate, today.Location(), c.log())
-	days, next := NextRenewal(sub.CycleType, sub.RenewalDay, today, lastRenewed)
-
-	alreadyRenewed := false
-	if lastRenewed != nil {
-		start := cycleStart(sub.CycleType, sub.RenewalDay, startOfDay(today), next)
-		alreadyRenewed = !lastRenewed.Before(start)
-	}
+	today := c.now().In(c.location(sub))
+	renewal := c.renewalOn(sub, today)
+	days, next, alreadyRenewed := renewal.Days, renewal.Next, renewal.AlreadyRenewed
 	needAlert := days >= 0 && days <= sub.AlertDaysBefore && !alreadyRenewed
 
 	result := model.SubscriptionResult{
@@ -118,7 +106,7 @@ func (c *Checker) checkOne(ctx context.Context, sub model.Subscription, dryRun b
 // slip past the window by a second the way a trailing count could.
 func (c *Checker) dispatch(ctx context.Context, sub model.Subscription, days int) (string, *string, string) {
 	alertID := model.SubscriptionID(sub.Name)
-	now := time.Now()
+	now := c.now()
 	last, err := c.Store.LastSentAlert(ctx, alertID, "subscription_renewal", c.Cooldown)
 	if err != nil {
 		c.log().Warn("Failed to query alert cooldown; treating it as not cooling down", "name", sub.Name, "error", err)
@@ -210,41 +198,39 @@ func (c *Checker) logSummary(results []model.SubscriptionResult) {
 	c.log().Info("operationCheck summary", "total", len(results), "need_alert", needAlert, "sent", sent)
 }
 
+// Renewal places sub on its renewal calendar for today, in the subscription's timezone.
+// It is what Check reports, so callers such as the mark-renewed endpoint agree with it.
+func (c *Checker) Renewal(sub model.Subscription) Renewal {
+	return c.renewalOn(sub, c.now().In(c.location(sub)))
+}
+
+func (c *Checker) renewalOn(sub model.Subscription, today time.Time) Renewal {
+	lastRenewed := parseRenewedDate(sub.LastRenewedDate, today.Location(), c.log())
+	return Evaluate(sub.CycleType, sub.RenewalDay, today, lastRenewed, sub.AlertDaysBefore)
+}
+
+func (c *Checker) location(sub model.Subscription) *time.Location {
+	if sub.Timezone == "" {
+		return time.Local
+	}
+	loc, err := time.LoadLocation(sub.Timezone)
+	if err != nil {
+		c.log().Warn("Invalid timezone; using server local time", "name", sub.Name, "timezone", sub.Timezone)
+		return time.Local
+	}
+	return loc
+}
+
+func (c *Checker) now() time.Time {
+	if c.Now != nil {
+		return c.Now()
+	}
+	return time.Now()
+}
+
 func (c *Checker) log() *slog.Logger {
 	if c.Log != nil {
 		return c.Log
 	}
 	return slog.Default()
-}
-
-// Implementation note.
-func NextRenewalFrom(cycleType string, renewalDay int, from time.Time) (time.Time, error) {
-	switch cycleType {
-	case model.CycleWeekly:
-		ahead := renewalDay - isoWeekday(from)
-		if ahead <= 0 {
-			ahead += 7
-		}
-		return from.AddDate(0, 0, ahead), nil
-	case model.CycleMonthly:
-		return shiftMonth(from, 1, renewalDay), nil
-	case model.CycleYearly:
-		month, day, ok := SplitMMDD(renewalDay)
-		if !ok {
-			// Implementation note.
-			return safeReplaceYear(from, from.Year()+1), nil
-		}
-		return safeMonthDate(from.Year()+1, time.Month(month), day, from.Location()), nil
-	case model.CycleLunarYearly:
-		from = startOfDay(from)
-		next := nextLunarYearlyDate(renewalDay, from)
-		if !next.After(from) {
-			lunarToday := calendar.NewLunarFromDate(from)
-			if candidate, ok := lunarDate(lunarToday.GetYear()+1, renewalDay, from.Location()); ok {
-				next = candidate
-			}
-		}
-		return next, nil
-	}
-	return time.Time{}, fmt.Errorf("Unsupported cycle type: %s", cycleType)
 }

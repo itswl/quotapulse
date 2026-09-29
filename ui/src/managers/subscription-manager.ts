@@ -129,8 +129,9 @@ async function saveSubscription(event: Event): Promise<void> {
     enabled: isChecked('sub-enabled'),
   };
 
+  // On edit an emptied field has to be sent as "" to clear the mark; a missing key keeps it.
   const lastRenewed = inputById('sub-last-renewed').value;
-  if (lastRenewed) data.last_renewed_date = lastRenewed;
+  if (lastRenewed || isEdit) data.last_renewed_date = lastRenewed;
 
   let endpoint: string = ENDPOINTS.addSubscription;
   if (isEdit) {
