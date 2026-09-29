@@ -1,7 +1,7 @@
 /* Implementation note. */
 
 import { getTrend } from '../api/endpoints.js';
-import type { TrendData, TrendResponse } from '../api/types.js';
+import type { TrendData, TrendPoint, TrendResponse } from '../api/types.js';
 import { LineChart, type ChartTheme } from '../chart/line-chart.js';
 import { byId, requireById } from '../dom.js';
 import { escapeHTML, formatCurrency } from '../format.js';
@@ -116,10 +116,33 @@ function chartTheme(dark: boolean): ChartTheme {
   };
 }
 
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+const dayKey = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/**
+ * Chart points and labels for a trend. The store keeps every check, hourly by default, so
+ * 30 days is about 720 snapshots; a history longer than two days is charted as one point
+ * per local day (its last snapshot), and a shorter one keeps its hourly detail.
+ */
+export function trendPoints(history: TrendPoint[]): { points: TrendPoint[]; labels: string[] } {
+  const byDay = new Map<string, TrendPoint>();
+  for (const point of history) byDay.set(dayKey(new Date(point.timestamp)), point); // the day's last wins
+  if (byDay.size > 2) {
+    const points = [...byDay.values()];
+    return { points, labels: points.map((p) => { const d = new Date(p.timestamp); return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`; }) };
+  }
+  return {
+    points: history,
+    labels: history.map((p) => {
+      const d = new Date(p.timestamp);
+      return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }),
+  };
+}
+
 function renderTrendChart(trendData: TrendData): void {
   const canvas = requireById<HTMLCanvasElement>('trend-chart');
-  const history = trendData.history || [];
-  const labels = history.map((h) => new Date(h.timestamp).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }));
+  const { points: history, labels } = trendPoints(trendData.history || []);
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   const options = {

@@ -5,10 +5,12 @@ depends on. It checks balances across providers, estimates how long each balance
 last, reminds you before subscriptions renew, and reads billing emails straight from
 your mailbox — then tells you before things run dry, not after.
 
-This page walks through the project using screenshots. Everything shown runs on demo
-data; the interface ships in light and dark themes and follows your system preference
-until you toggle it. For installation and configuration, see the
-[README](../README.md); for the icon system, see [icons.md](icons.md).
+This page walks through the project using screenshots. Everything shown is demo data on
+a fixed date, rendered from the real dashboard by `node ui/scripts/docs-screenshots.mjs`,
+so the pictures can be regenerated after a UI change. The interface ships in light and
+dark themes and follows your system preference until you toggle it. For installation and
+configuration, see the [README](../README.md); for the icon system, see
+[icons.md](icons.md).
 
 ## One dashboard for every account
 
@@ -16,46 +18,49 @@ The landing view answers the only question that matters at a glance: how long un
 something runs out. The overview band leads with the shortest runway across all
 accounts — here `volc-1` has 1.2 days left — followed by the total, healthy, and
 alerting project counters. The time of the last successful check sits in the top
-navigation beside the brand, on phones too, and the dot next to it turns amber or red
-when the data ages out, a refresh fails, or every account fails its check. It stays red
+navigation beside the brand, on phones too. The dot next to it turns amber or red when
+the data ages out, a refresh fails, or every account fails its check, and it stays red
 until a load succeeds.
 
 A live amber badge appears on Subscriptions in the view switcher when renewals enter
 their reminder window, and it disappears at zero, so a quiet system stays quiet. In the
 projects toolbar, an Alerts only chip narrows the cards down to accounts below their
-threshold and carries the same red count — a filter that lives with the list it
-filters, not a second kind of page. Each view also reshapes the overview band to answer
-its own question — projects show runway and counters, subscriptions show renewal
-stats, and on the email view the band steps aside for the scan summary chips.
+threshold or failing their check, and carries the same red count — a filter that lives
+with the list it filters, not a second kind of page. Each view also reshapes the
+overview band to answer its own question — projects show runway and counters,
+subscriptions show renewal stats, and on the email view the band steps aside for the
+scan summary chips.
 
 ![Dashboard, light theme, grid view](images/dashboard-light.png)
 
 Each project card shows the current balance in a large monospace figure, the balance
 against its alert threshold as a progress bar that turns amber as it closes in and red
 below it, daily spend, and the runway estimate. Accounts below threshold are tinted red
-with a pulsing dot; an account whose key stopped working
-says so plainly — `aliyun-ops` shows "Unavailable" with the exact API error inline,
-instead of pretending the balance is zero — and it counts under Alerts only, because an
-account that can't be read isn't being monitored.
+with a pulsing dot. An account whose key stopped working says so plainly — `aliyun-ops`
+shows "Unavailable" with the exact API error inline, instead of pretending the balance
+is zero — and it counts under Alerts only, because an account that can't be read isn't
+being monitored.
 
 ## Know before you run dry
 
 Runway is the core idea. QuotaPulse stores balance snapshots, measures how fast each
 account actually burns, and projects a depletion date — "at 15.30 per day, this account
-is empty around 2026-09-30". A card without an estimate says why instead of
-guessing: the history is still filling up, the database is off, or it is a quota plan,
-which only uses its threshold. When an account drops below its threshold, its card turns red at the next
-refresh and the alert goes out at the next scheduled alert check — 09:00 and 15:00
-unless `ALERT_SCHEDULE` says otherwise, or every refresh with `ENABLE_WEB_ALARM=true`.
-A cooldown then holds it to once a day while the balance stays low, with or without the
+is empty around 2026-09-30". A card without an estimate says why instead of guessing:
+the history is still filling up, the database is off, or it is a quota plan, which only
+uses its threshold.
+
+When an account drops below its threshold, its card turns red at the next refresh and
+the alert goes out at the next scheduled alert check — 09:00 and 15:00 unless
+`ALERT_SCHEDULE` says otherwise, or every refresh with `ENABLE_WEB_ALARM=true`. A
+cooldown then holds it to once a day while the balance stays low, with or without the
 database. A check that fails outright, such as a revoked key, alerts the same way.
 
 ![Dashboard, dark theme](images/dashboard-dark.png)
 
 ## Two ways to read the same data
 
-The grid view is for scanning; the list view is for comparing. The same numbers stay
-aligned in a compact table, and the toggle remembers your choice.
+The grid view is for scanning; the list view is for comparing. The same numbers line up
+in columns like a compact table, and the toggle remembers your choice.
 
 ![List view](images/project-list.png)
 
@@ -65,10 +70,12 @@ Subscriptions are sorted by next renewal date. The days-remaining figure turns a
 weeks out and red once the renewal enters its reminder window. Paid for a renewal? Mark
 it: the mark covers that one renewal, so its reminders stop and the card moves on to the
 next date, which gets its reminders as usual when its window opens. Weekly, monthly,
-Gregorian-yearly, and lunar-yearly cycles are all supported. Switching to this view
-reshapes the overview band: the hero figure becomes the number of renewals due within
-7 days — with the next one named — flanked by due-in-30-days, renewed-this-cycle, and an
-estimated monthly cost that normalizes the different billing cycles.
+Gregorian-yearly, and lunar-yearly cycles are all supported.
+
+Switching to this view reshapes the overview band: the hero figure becomes the number of
+renewals due within 7 days — with the next one named — flanked by due-in-30-days,
+renewed-this-cycle, and an estimated monthly cost that normalizes the different billing
+cycles.
 
 ![Subscription reminders](images/subscriptions.png)
 
@@ -87,8 +94,9 @@ positive can be muted per sender, and unmuted again under Muted senders.
 ## History you can see
 
 With the optional database enabled, every check becomes a data point. "View trend" on a
-card opens a 30-day balance chart with the alert threshold as a dashed line and a hover
-tooltip. The chart draws with the theme's own colors and fonts, in both modes.
+card opens a 30-day balance chart, one point per day, with the alert threshold as a
+dashed line and a hover tooltip. The chart draws with the theme's own colors and fonts,
+in both modes.
 
 ![Balance trend dialog, dark theme](images/trend-modal.png)
 
@@ -105,8 +113,8 @@ skeletons on screen.
 
 ## Good from the first minute
 
-A fresh install shows a getting-started panel that names the exact environment variable
-to set, rather than an empty grid. Filters that match nothing offer a one-click reset.
+A fresh install shows a getting-started panel that names the environment variables to
+set, rather than an empty grid. Filters that match nothing offer a one-click reset.
 
 ![Empty state](images/empty-state.png)
 

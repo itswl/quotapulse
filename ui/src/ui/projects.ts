@@ -218,8 +218,8 @@ function renderProjectsEmpty(total: number, features: Features): string {
       ? `<button type="button" class="btn-primary js-open-add-project">${ICON_PLUS}Add project</button>`
       : '';
     const text = features.dynamic_config
-      ? 'Add a provider account here, or set {PROVIDER}_API_KEY in the environment and restart the service.'
-      : 'Set {PROVIDER}_API_KEY in the environment and restart the service, or enable ENABLE_DYNAMIC_CONFIG to add projects from the dashboard.';
+      ? 'Add a provider account here, or set its key in the environment (DEEPSEEK_API_KEY, OPENROUTER_API_KEY, …) and restart the service.'
+      : 'Set a provider key in the environment (DEEPSEEK_API_KEY, OPENROUTER_API_KEY, …) and restart the service, or enable ENABLE_DYNAMIC_CONFIG to add projects from the dashboard.';
     return emptyState('No projects yet', text, 'info', false, action);
   }
 

@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { LineChart, niceScale, xLabelIndices, type LineChartOptions } from '../src/chart/line-chart.js';
+import { trendPoints } from '../src/managers/trend-manager.js';
 
 interface DrawLog {
   arcs: number;
@@ -195,5 +196,23 @@ describe('xLabelIndices', () => {
     assert.deepEqual(xLabelIndices(10, 3), [0, 3, 6, 9]);
     assert.deepEqual(xLabelIndices(1, 1), [0]);
     assert.deepEqual(xLabelIndices(0, 1), []);
+  });
+});
+
+describe('trendPoints', () => {
+  const hourly = (hours: number, start = Date.parse('2026-09-01T00:00:00+08:00')) =>
+    Array.from({ length: hours }, (_, i) => ({ timestamp: new Date(start + i * 3600_000).toISOString(), balance: 1000 - i, need_alarm: false }));
+
+  it('超过两天的历史按天取最后一个快照，30 天约 720 个点只画 30 个', () => {
+    const { points, labels } = trendPoints(hourly(30 * 24));
+    assert.equal(points.length, 30);
+    assert.equal(points[0]?.balance, 1000 - 23, '每天取当天最后一个快照');
+    assert.equal(new Set(labels).size, labels.length, '日期标签不重复');
+  });
+
+  it('两天以内保留逐小时的细节，标签带时间', () => {
+    const { points, labels } = trendPoints(hourly(30));
+    assert.equal(points.length, 30);
+    assert.match(labels[0] ?? '', /^\d\d\/\d\d \d\d:\d\d$/);
   });
 });
