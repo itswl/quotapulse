@@ -108,7 +108,7 @@
                         <span class="meta-item"><span class="k">Amount</span>${_(n)}</span>
                         <span class="meta-item">${bt(e.cycle_type)}</span>
                         ${e.next_renewal_date?`<span class="meta-item"><span class="k">Next renewal</span>${p(e.next_renewal_date)}</span>`:""}
-                        ${e.already_renewed?'<span class="meta-item status-badge success">Renewed</span>':""}
+                        ${e.already_renewed?'<span class="meta-item"><span class="status-badge success">Renewed</span></span>':""}
                     </div>
                 </div>
                 <div class="subscription-status">

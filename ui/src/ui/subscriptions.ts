@@ -61,7 +61,7 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
                         <span class="meta-item"><span class="k">Amount</span>${formatCurrency(amount)}</span>
                         <span class="meta-item">${cycleLabel(sub.cycle_type)}</span>
                         ${sub.next_renewal_date ? `<span class="meta-item"><span class="k">Next renewal</span>${escapeHTML(sub.next_renewal_date)}</span>` : ''}
-                        ${sub.already_renewed ? '<span class="meta-item status-badge success">Renewed</span>' : ''}
+                        ${sub.already_renewed ? '<span class="meta-item"><span class="status-badge success">Renewed</span></span>' : ''}
                     </div>
                 </div>
                 <div class="subscription-status">

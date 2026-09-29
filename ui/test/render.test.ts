@@ -260,6 +260,8 @@ describe('renderSubscriptionCard', () => {
     assert.match(html, /js-clear-renewed/);
     assert.ok(!html.includes('js-mark-renewed'));
     assert.match(html, /status-badge success">Renewed</);
+    // The badge's dot and the meta separator are both ::before; on one element they collide.
+    assert.match(html, /<span class="meta-item"><span class="status-badge success">Renewed<\/span><\/span>/);
   });
 
   it('未续费时是「标记Renewed」按钮', () => {
