@@ -30,13 +30,14 @@ export async function pushState(): Promise<PushState> {
 
 /** Ask for permission, register the service worker, and subscribe with the server's VAPID key. */
 export async function enablePush(): Promise<PushState> {
-  const base = await pushState();
-  if (!base.supported) {
+  if (typeof Notification === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('This browser does not support push notifications');
   }
+  // iOS WebKit 只在点击手势的同步调用栈里弹权限窗——任何 await 之后请求都会被静默拒绝，
+  // 所以 requestPermission 必须是第一件事。
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('Notification permission was denied');
+    throw new Error(permission === 'denied' ? 'Notifications are blocked for this site in the browser settings' : 'Notification permission was not granted');
   }
   const { publicKey } = await request<{ status: 'success'; publicKey: string }>('/api/push/config');
   const registration = await navigator.serviceWorker.register('/sw.js');
