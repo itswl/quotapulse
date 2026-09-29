@@ -200,7 +200,8 @@ describe('xLabelIndices', () => {
 });
 
 describe('trendPoints', () => {
-  const hourly = (hours: number, start = Date.parse('2026-09-01T00:00:00+08:00')) =>
+  // Local midnight: trendPoints groups by the viewer's day, so the test must not assume a timezone.
+  const hourly = (hours: number, start = new Date(2026, 8, 1).getTime()) =>
     Array.from({ length: hours }, (_, i) => ({ timestamp: new Date(start + i * 3600_000).toISOString(), balance: 1000 - i, need_alarm: false }));
 
   it('超过两天的历史按天取最后一个快照，30 天约 720 个点只画 30 个', () => {
