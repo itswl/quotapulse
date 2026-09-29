@@ -96,6 +96,19 @@ describe('formatRunway', () => {
     assert.equal(formatRunway(runway({ confidence: 'none', burn_per_day: 10, runway_days: 5 })).text, 'Accumulating data');
   });
 
+  it('说明为什么没有估算：配额不估算，没开数据库要提示开启，而不是永远「Accumulating data」', () => {
+    const quota = formatRunway(null, { balanceType: 'quota', database: true });
+    assert.equal(quota.text, 'Not estimated');
+    assert.match(quota.hint, /Quota plans/);
+
+    const noDatabase = formatRunway(null, { balanceType: 'balance', database: false });
+    assert.equal(noDatabase.text, 'Needs history');
+    assert.match(noDatabase.hint, /ENABLE_DATABASE=true/);
+
+    // With the database on, a missing estimate really is a history still filling up.
+    assert.equal(formatRunway(null, { balanceType: 'balance', database: true }).text, 'Accumulating data');
+  });
+
   it('没有消耗时说「No spending」，不是「用不完」也不是 0', () => {
     const result = formatRunway(runway({ burn_per_day: 0, window_days: 7 }));
     assert.equal(result.text, 'No spending');
@@ -136,12 +149,15 @@ describe('formatRunway', () => {
 });
 
 describe('getBalanceStatus', () => {
-  it('按Balance相对阈值的比例分三档', () => {
-    assert.equal(getBalanceStatus(100, 50), 'normal'); // 200%
-    assert.equal(getBalanceStatus(25, 50), 'normal'); // 50%
-    assert.equal(getBalanceStatus(20, 50), 'warning'); // 40%
-    assert.equal(getBalanceStatus(10, 50), 'warning'); // 20%
-    assert.equal(getBalanceStatus(9, 50), 'danger'); // 18%
+  it('低于阈值即为红色，与卡片的 Alert 状态一致；接近阈值（1.5 倍以内）为黄色', () => {
+    assert.equal(getBalanceStatus(100, 50), 'normal'); // 2x
+    assert.equal(getBalanceStatus(75, 50), 'normal'); // exactly 1.5x
+    assert.equal(getBalanceStatus(74, 50), 'warning'); // closing in
+    assert.equal(getBalanceStatus(50, 50), 'warning'); // at the threshold, not below
+    assert.equal(getBalanceStatus(49.99, 50), 'danger');
+    // 96.50 against 100 is alerting; it used to get a nearly full green bar.
+    assert.equal(getBalanceStatus(96.5, 100), 'danger');
+    assert.equal(getBalanceStatus(9, 50), 'danger');
   });
 
   it('阈值为 0（不Alert）时一律算Healthy', () => {

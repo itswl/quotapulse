@@ -43,6 +43,16 @@ export function updateFailedHint(projects: CheckResult[]): void {
   label.title = `Unavailable balances: ${failed.map((p) => p.project).join(', ')}`;
 }
 
+/* Why the band has no shortest runway to show. */
+export function runwayUnavailableReason(projects: CheckResult[]): string {
+  if (projects.length === 0) return 'Add a project to see how long its balance will last';
+  if (AppState.features.database === false) return 'Runway estimates need balance history; set ENABLE_DATABASE=true';
+  if (!projects.some((p) => p.success && p.type !== 'quota')) {
+    return 'Quota plans only use their alert thresholds; runways are estimated for balances and credits';
+  }
+  return 'Collecting balance history; estimates appear after several hours';
+}
+
 export function updateRunwayStat(projects: CheckResult[]): void {
   const value = byId('shortest-runway');
   const label = byId('shortest-runway-label');
@@ -51,7 +61,7 @@ export function updateRunwayStat(projects: CheckResult[]): void {
 
   const first = shortestRunway(projects);
   if (!first) {
-    const reason = 'Enable the database and collect balance history to estimate runway';
+    const reason = runwayUnavailableReason(projects);
     value.textContent = '—';
     value.className = 'stat-value';
     label.textContent = 'Shortest runway';

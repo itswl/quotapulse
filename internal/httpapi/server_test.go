@@ -185,9 +185,12 @@ func TestFeaturesReflectsToggles(t *testing.T) {
 	if features["subscriptions"] != true || features["history"] != true || features["dynamic_config"] != false {
 		t.Errorf("能力开关没有如实反映: %v", features)
 	}
+	// No database behind this server, so the dashboard must not promise runway estimates.
+	if features["database"] != false {
+		t.Errorf("没有数据库时 database 应为 false: %v", features["database"])
+	}
 }
 
-// Implementation note.
 // A fresh install, or deleting the last project, leaves an empty list after a check.
 // That is a real answer, not "not initialized", or the getting-started panel and a
 // deleted card's removal would never show.
@@ -204,6 +207,7 @@ func TestCreditsWithNoProjectsAfterACheck(t *testing.T) {
 	}
 }
 
+// Implementation note.
 func TestCreditsBeforeFirstCheck(t *testing.T) {
 	s, handler := newServer(t, nil)
 

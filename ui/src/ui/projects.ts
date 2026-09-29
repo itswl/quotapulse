@@ -38,7 +38,7 @@ export function renderProjectCard(project: CheckResult, features: Features): str
   const provider = project.provider || 'unknown';
   const type = project.type || 'balance';
   const label = typeLabel(type);
-  const runway = formatRunway(project.runway);
+  const runway = formatRunway(project.runway, { balanceType: project.type, database: features.database });
   const burn = project.runway ? project.runway.burn_per_day : null;
 
   const projectNameAttr = escapeAttr(projectName);

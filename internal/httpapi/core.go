@@ -84,6 +84,8 @@ type featureToggles struct {
 	DynamicConfig bool `json:"dynamic_config"`
 	History       bool `json:"history"`
 	EmailScan     bool `json:"email_scan"`
+	// Database says whether balance history is kept, which runway estimates depend on.
+	Database bool `json:"database"`
 }
 
 // Implementation note.
@@ -99,6 +101,7 @@ func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 			// can't wait for an enabled mailbox to exist.
 			EmailScan: len(s.Settings.EmailScanTimes) > 0 &&
 				(len(cfg.EnabledMailboxes()) > 0 || s.Settings.EnableDynamicConfig),
+			Database: s.Store.Enabled(),
 		},
 	})
 }

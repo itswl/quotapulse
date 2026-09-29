@@ -57,12 +57,26 @@ export function formatBalance(value: unknown, type: BalanceType | string | null 
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/* What formatRunway needs to say why a runway is missing. */
+export interface RunwayContext {
+  /* Quota plans reset on their own schedule, so the server never estimates them. */
+  balanceType?: string | null;
+  /* false: no database, so no balance history to estimate from. undefined: unknown. */
+  database?: boolean;
+}
+
 /**
- * Implementation note.
- * Implementation note.
+ * The runway for a card, or why there is none: a quota plan, no database, or a history
+ * that is still too short. Never shows a missing estimate as 0 days.
  */
-export function formatRunway(runway: Runway | null | undefined): RunwayDisplay {
+export function formatRunway(runway: Runway | null | undefined, context: RunwayContext = {}): RunwayDisplay {
+  if (context.balanceType === 'quota') {
+    return { text: 'Not estimated', level: 'unknown', hint: 'Quota plans reset on their own schedule, so they only use the alert threshold' };
+  }
   if (!runway || runway.confidence === 'none') {
+    if (context.database === false) {
+      return { text: 'Needs history', level: 'unknown', hint: 'Runway estimates need balance history; set ENABLE_DATABASE=true' };
+    }
     return { text: 'Accumulating data', level: 'unknown', hint: 'Estimates appear after several hours of balance history' };
   }
   if (!runway.burn_per_day) {
@@ -142,12 +156,14 @@ export function getBalancePercentage(balance: number, threshold: number): number
   return (balance / threshold) * 100;
 }
 
-/* Implementation note. */
+/* The bar's colour: red below the alert threshold, matching the card's Alert status;
+   amber within 1.5x of it, as the balance closes in; green otherwise. A threshold of 0
+   never alerts. */
 export function getBalanceStatus(balance: number, threshold: number): BalanceStatus {
-  const percentage = getBalancePercentage(balance, threshold);
-  if (percentage >= 50) return 'normal';
-  if (percentage >= 20) return 'warning';
-  return 'danger';
+  if (threshold <= 0) return 'normal';
+  if (balance < threshold) return 'danger';
+  if (balance < threshold * 1.5) return 'warning';
+  return 'normal';
 }
 
 /* Implementation note. */

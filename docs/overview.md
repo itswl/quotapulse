@@ -30,9 +30,10 @@ stats, and on the email view the band steps aside for the scan summary chips.
 
 ![Dashboard, light theme, grid view](images/dashboard-light.png)
 
-Each project card shows the current balance in a large monospace figure, the alert
-threshold as a colored progress bar, daily spend, and the runway estimate. Accounts
-below threshold are tinted red with a pulsing dot; an account whose key stopped working
+Each project card shows the current balance in a large monospace figure, the balance
+against its alert threshold as a progress bar that turns amber as it closes in and red
+below it, daily spend, and the runway estimate. Accounts below threshold are tinted red
+with a pulsing dot; an account whose key stopped working
 says so plainly — `aliyun-ops` shows "Unavailable" with the exact API error inline,
 instead of pretending the balance is zero — and it counts under Alerts only, because an
 account that can't be read isn't being monitored.
@@ -41,8 +42,9 @@ account that can't be read isn't being monitored.
 
 Runway is the core idea. QuotaPulse stores balance snapshots, measures how fast each
 account actually burns, and projects a depletion date — "at 15.30 per day, this account
-is empty around 2026-09-30". Estimates that lack enough history say so honestly instead
-of guessing. When an account drops below its threshold, its card turns red at the next
+is empty around 2026-09-30". A card without an estimate says why instead of
+guessing: the history is still filling up, the database is off, or it is a quota plan,
+which only uses its threshold. When an account drops below its threshold, its card turns red at the next
 refresh and the alert goes out at the next scheduled alert check — 09:00 and 15:00
 unless `ALERT_SCHEDULE` says otherwise, or every refresh with `ENABLE_WEB_ALARM=true`.
 A cooldown then holds it to once a day while the balance stays low, with or without the

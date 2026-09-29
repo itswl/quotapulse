@@ -12,6 +12,7 @@ import { renderSubscriptionCard, renderSubscriptions, sortSubscriptionsByNextDat
 import {
   monthlyCost,
   refreshOverview,
+  runwayUnavailableReason,
   shortestRunway,
   updateBadges,
   updateFailedHint,
@@ -815,6 +816,22 @@ describe('停用的项目和订阅', () => {
       assert.match(container.innerHTML, /js-edit-subscription" data-name="Old VPS"/);
     } finally {
       AppState.disabledSubscriptions = [];
+    }
+  });
+});
+
+describe('概览里没有跑道时的说明', () => {
+  it('按原因说明：没有项目、没开数据库、全是配额、还在积累', () => {
+    const features = AppState.features;
+    try {
+      assert.match(runwayUnavailableReason([]), /Add a project/);
+      AppState.features = { ...ALL_ON, database: false };
+      assert.match(runwayUnavailableReason([project()]), /ENABLE_DATABASE=true/);
+      AppState.features = { ...ALL_ON, database: true };
+      assert.match(runwayUnavailableReason([project({ type: 'quota' })]), /Quota plans/);
+      assert.match(runwayUnavailableReason([project()]), /Collecting balance history/);
+    } finally {
+      AppState.features = features;
     }
   });
 });

@@ -43,6 +43,8 @@ export interface Features {
   dynamic_config: boolean;
   history: boolean;
   email_scan: boolean;
+  /* Balance history is kept, so runways can be estimated. Absent from older servers. */
+  database?: boolean;
 }
 
 export interface FeaturesResponse {
