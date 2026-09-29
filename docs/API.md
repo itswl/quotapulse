@@ -55,7 +55,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /api/history/email-alerts` | Email alert history; accepts `days`, `limit`, and `mailbox` | History API |
 | `POST /mcp` | Read-only Streamable HTTP MCP endpoint; includes status, capabilities, the provider catalog, redacted config views, history, trends, and alert statistics | `ENABLE_MCP` |
 
-Subscriptions require `ENABLE_SUBSCRIPTIONS`. Dynamic writes require `ENABLE_DYNAMIC_CONFIG` and `ENABLE_DATABASE`. History endpoints require `ENABLE_HISTORY_API`. Dashboard-triggered refreshes and scans send real notifications only when `ENABLE_WEB_ALARM=true`.
+Subscriptions require `ENABLE_SUBSCRIPTIONS`. `/api/features` reports `email_scan` once a mailbox is configured (with a scan schedule), or always with `ENABLE_EMAIL_SCAN=true`. Dynamic writes require `ENABLE_DYNAMIC_CONFIG` and `ENABLE_DATABASE`. History endpoints require `ENABLE_HISTORY_API`. Dashboard-triggered refreshes and scans send real notifications only when `ENABLE_WEB_ALARM=true`.
 
 ## Examples
 

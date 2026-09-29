@@ -29,6 +29,7 @@ type Settings struct {
 	EnableDynamicConfig bool
 	EnableHistoryAPI    bool
 	EnableSubscriptions bool
+	EnableEmailScan     bool // show the email view before any mailbox exists, to add the first one
 	EnablePrometheus    bool
 	EnableWebAlarm      bool
 	EnableMCP           bool
@@ -126,6 +127,7 @@ func Load() (*Settings, error) {
 		EnableDynamicConfig: e.boolean("ENABLE_DYNAMIC_CONFIG", false),
 		EnableHistoryAPI:    e.boolean("ENABLE_HISTORY_API", false),
 		EnableSubscriptions: e.boolean("ENABLE_SUBSCRIPTIONS", false),
+		EnableEmailScan:     e.boolean("ENABLE_EMAIL_SCAN", false),
 		EnablePrometheus:    e.boolean("ENABLE_PROMETHEUS", false),
 		EnableWebAlarm:      e.boolean("ENABLE_WEB_ALARM", false),
 		EnableMCP:           e.boolean("ENABLE_MCP", false),

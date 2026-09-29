@@ -62,6 +62,7 @@ The most important variables are:
 | `ENABLE_DATABASE` / `DATABASE_URL` | `false` / SQLite URL | Enable history and dynamic configuration |
 | `ENABLE_HISTORY_API` | `false` | Enable history endpoints and trend charts |
 | `ENABLE_SUBSCRIPTIONS` | `false` | Enable renewal reminders |
+| `ENABLE_EMAIL_SCAN` | `false` | Show the Email scanning view before any mailbox is configured, so the first one can be added from the dashboard; a configured mailbox shows it anyway |
 | `ENABLE_PROMETHEUS` / `METRICS_PORT` | `false` / `9100` | Expose Prometheus metrics |
 | `BURN_RATE_WINDOW_DAYS` / `RUNWAY_ALERT_DAYS` | `7` / `7` | Runway calculation and alert threshold |
 | `SPEND_SPIKE_RATIO` | `3` | Spending-spike multiplier; `0` disables the alert |

@@ -651,8 +651,9 @@ func TestEmailSuppressionNeedsHistoryAndStorage(t *testing.T) {
 	}
 }
 
-// The Email scanning tab is where the first mailbox gets added, so with dynamic config
-// it must not wait for an enabled mailbox to exist.
+// The Email scanning view stays hidden until email is set up: a configured mailbox with
+// a scan schedule, or ENABLE_EMAIL_SCAN=true, which shows it before the first mailbox
+// exists so that mailbox can be added from the dashboard.
 func TestEmailScanFeatureWithoutMailboxes(t *testing.T) {
 	flag := func(tweak func(*config.Settings)) bool {
 		_, handler := newServer(t, tweak)
@@ -666,10 +667,21 @@ func TestEmailScanFeatureWithoutMailboxes(t *testing.T) {
 	}
 	schedule := func(s *config.Settings) { s.EmailScanTimes = loaded.EmailScanTimes }
 	if flag(schedule) {
-		t.Error("没有邮箱也不能在页面上添加时，不应显示邮件页")
+		t.Error("没有邮箱时默认不应显示邮件页")
 	}
-	if !flag(func(s *config.Settings) { schedule(s); s.EnableDynamicConfig = true }) {
-		t.Error("开了动态配置时，即使还没有邮箱也要显示邮件页，否则加不了第一个邮箱")
+	if flag(func(s *config.Settings) { schedule(s); s.EnableDynamicConfig = true }) {
+		t.Error("只开动态配置不代表要用邮件扫描，默认不应显示邮件页")
+	}
+	if !flag(func(s *config.Settings) { s.EnableEmailScan = true; s.EnableDynamicConfig = true }) {
+		t.Error("ENABLE_EMAIL_SCAN=true 时即使还没有邮箱也要显示邮件页，好在页面上添加第一个邮箱")
+	}
+
+	// A mailbox configured through the environment shows it without the flag, as before.
+	t.Setenv("EMAIL_HOST", "imap.example.com")
+	t.Setenv("EMAIL_USERNAME", "ops@example.com")
+	t.Setenv("EMAIL_PASSWORD", "secret")
+	if !flag(schedule) {
+		t.Error("已配置邮箱时应显示邮件页")
 	}
 }
 

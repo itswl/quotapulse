@@ -87,7 +87,9 @@ bills, expiry and renewal notices, suspensions. `EMAIL_EXTRA_ALERT_KEYWORDS` add
 of your own, such as "invoice" to catch every invoice. Summary chips show what a scan
 found, each mailbox reports its own connection status, and matched emails are listed
 with the keywords that flagged them and whether a notification went out. A false
-positive can be muted per sender, and unmuted again under Muted senders.
+positive can be muted per sender, and unmuted again under Muted senders. The view stays
+hidden until a mailbox is configured; `ENABLE_EMAIL_SCAN=true` shows it earlier, so the
+first mailbox can be added from the dashboard.
 
 ![Email scanning](images/email-scanning.png)
 

@@ -107,6 +107,7 @@ go build -o quotapulse ./cmd/quotapulse
 | `ENABLE_DYNAMIC_CONFIG` | `false` | 业务清单改从数据库读 |
 | `ENABLE_HISTORY_API` | `false` | 历史数据接口、趋势图、历史告警邮件 |
 | `ENABLE_SUBSCRIPTIONS` | `false` | 订阅提醒 |
+| `ENABLE_EMAIL_SCAN` | `false` | 邮箱扫描页；不开时只在配置了邮箱后才显示，开启后还没有邮箱也显示，方便在页面上添加第一个 |
 | `CONFIG_ENCRYPTION_KEY` | 无 | 设置后数据库里的 `api_key` 和邮箱密码加密存储（`enc:v1:` 前缀），接受 Fernet key 或任意口令；`AUTO_ENCRYPT_ON_READ`（默认 true）把读到的旧明文回写成密文 |
 | `ENABLE_PROMETHEUS` / `METRICS_PORT` | `false` / `9100` | 指标端口 |
 | `WEB_PORT` / `WEB_ENABLE_CORS` / `CORS_ORIGINS` | `8080` / `false` / 无 | Web 服务 |
