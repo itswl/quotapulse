@@ -78,3 +78,42 @@ func (s *Server) handlePushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	ok(w, map[string]any{"status": "success"})
 }
+
+// handlePushTest delivers a test notification to every registered browser and reports
+// the per-browser outcome, so delivery problems surface immediately instead of at the
+// first real alert.
+func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
+	if s.Push == nil {
+		fail(w, http.StatusServiceUnavailable, "push is not available")
+		return
+	}
+	subs, err := s.Store.ListPushSubscriptions(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(subs) == 0 {
+		fail(w, http.StatusBadRequest, "no browser is subscribed yet; enable browser push first")
+		return
+	}
+	sent, failed := 0, 0
+	var failures []string
+	for _, sub := range subs {
+		if err := s.Push.SendTo(r.Context(), sub, "QuotaPulse test notification", "If you can read this, browser push works."); err != nil {
+			failed++
+			failures = append(failures, shortEndpointOf(sub.Endpoint)+": "+err.Error())
+			continue
+		}
+		sent++
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "success", "sent": sent, "failed": failed, "failures": failures,
+	})
+}
+
+func shortEndpointOf(endpoint string) string {
+	if len(endpoint) > 48 {
+		return endpoint[:48] + "…"
+	}
+	return endpoint
+}

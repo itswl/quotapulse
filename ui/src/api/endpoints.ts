@@ -91,6 +91,7 @@ export const ENDPOINTS = {
   pushConfig: '/api/push/config',
   pushSubscribe: '/api/push/subscribe',
   pushUnsubscribe: '/api/push/unsubscribe',
+  pushTest: '/api/push/test',
     saveEmail: '/api/config/email',
   deleteEmail: '/api/config/email/delete',
 } as const;

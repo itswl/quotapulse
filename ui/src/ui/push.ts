@@ -71,3 +71,18 @@ export async function disablePush(): Promise<PushState> {
   }
   return pushState();
 }
+
+export interface TestPushResult {
+  sent: number;
+  failed: number;
+  failures: string[];
+}
+
+/** Ask the server to deliver a test notification to every registered browser. */
+export async function broadcastTestPush(): Promise<TestPushResult> {
+  const result = await request<{ status: 'success'; sent: number; failed: number; failures?: string[] }>(
+    '/api/push/test',
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+  return { sent: result.sent, failed: result.failed, failures: result.failures ?? [] };
+}

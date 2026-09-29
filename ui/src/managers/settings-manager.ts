@@ -13,7 +13,7 @@ import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.j
 import { AppState, parseRefreshMinutes, writeStorage } from '../state.js';
 import { bindModalClose, openModal } from '../ui/modal.js';
 import { formatServerCadence } from '../format.js';
-import { disablePush, enablePush, pushState } from '../ui/push.js';
+import { broadcastTestPush, disablePush, enablePush, pushState } from '../ui/push.js';
 import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'settings-modal';
@@ -88,6 +88,31 @@ async function syncPushButton(): Promise<void> {
   }
 }
 
+/** Deliver a test notification through the server so delivery problems surface now. */
+async function sendTestPush(): Promise<void> {
+  const button = byId<HTMLButtonElement>('push-test-btn');
+  const status = byId('push-status');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const result = await broadcastTestPush();
+    if (status) {
+      status.hidden = false;
+      status.textContent = `Test push delivered to ${result.sent} browser(s)` + (result.failed > 0 ? `, ${result.failed} failed` : '');
+    }
+    showToast(`Test push sent to ${result.sent} browser(s)`, 'success');
+  } catch (error) {
+    const message = error instanceof Error && error.message ? error.message : 'Test push failed';
+    if (status) {
+      status.hidden = false;
+      status.textContent = message;
+    }
+    showToast(message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function togglePush(): Promise<void> {
   const button = byId<HTMLButtonElement>('push-toggle-btn');
   if (!button) return;
@@ -140,6 +165,7 @@ export function bindSettingsManager(): void {
   onClick('settings-btn', openSettingsModal);
   onClick('test-notify-btn', () => void sendTestNotification());
   onClick('push-toggle-btn', () => void togglePush());
+  onClick('push-test-btn', () => void sendTestPush());
   bindModalClose(MODAL_ID, '.js-close-settings-modal');
 
   byId('setting-auto-refresh')?.addEventListener('change', (event) => {

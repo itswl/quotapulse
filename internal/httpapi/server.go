@@ -101,6 +101,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/push/config", s.handlePushConfig)
 	mux.HandleFunc("POST /api/push/subscribe", s.handlePushSubscribe)
 	mux.HandleFunc("POST /api/push/unsubscribe", s.handlePushUnsubscribe)
+	mux.HandleFunc("POST /api/push/test", s.handlePushTest)
 	mux.HandleFunc("POST /api/subscription/snooze", s.handleSubscriptionSnooze)
 	mux.HandleFunc("POST /api/subscription/timezone", s.handleSubscriptionTimezone)
 	mux.HandleFunc("POST /api/subscription/webhook", s.handleSubscriptionWebhook)
