@@ -9,8 +9,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -22,11 +24,13 @@ import (
 const (
 	settingVapidPublic  = "vapid_public_key"
 	settingVapidPrivate = "vapid_private_key"
-	// The Web Push spec requires the JWT sub claim to be an https URL or mailto address,
-	// and Apple validates the domain strictly — reserved TLDs like .local are rejected
-	// with 403. The mailbox is a contact address for the push service; it is never used
-	// for delivery.
-	vapidSubscriber = "mailto:push@users.noreply.github.com"
+	// vapidSubscriber becomes the VAPID JWT "sub" claim. webpush-go prepends "mailto:" to
+	// any value that is not an https URL, so this must be a bare address — passing
+	// "mailto:x@y" signs "mailto:mailto:x@y". Apple rejects that, and non-public hosts
+	// such as https://quotapulse.local, with 403 BadJwtToken (checked against
+	// web.push.apple.com); Chrome and Firefox accept both, which is how the bug hid.
+	// It is a contact for the push service and is never used for delivery.
+	vapidSubscriber = "push@users.noreply.github.com"
 )
 
 // Manager stores browser push subscriptions and fans alert notifications out to them.
@@ -138,17 +142,27 @@ func (m *Manager) SendTo(ctx context.Context, sub model.PushSubscription, title,
 		m.log().Warn("Push notification failed", "endpoint", shortEndpoint(sub.Endpoint), "error", err)
 		return fmt.Errorf("push service rejected the notification: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode < 300 {
+		return nil
+	}
+	// Push services explain rejections in the body (Apple: {"reason":"BadJwtToken"}).
+	// Keep it: a bare status code made the iOS failure undiagnosable from the logs.
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	reason := strings.TrimSpace(string(raw))
+	m.log().Warn("Push service rejected the notification",
+		"endpoint", shortEndpoint(sub.Endpoint), "status", resp.StatusCode, "reason", reason)
+	detail := fmt.Sprintf("HTTP %d", resp.StatusCode)
+	if reason != "" {
+		detail += ": " + reason
+	}
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 		if delErr := m.Store.DeletePushSubscription(ctx, sub.Endpoint); delErr != nil {
 			m.log().Warn("Failed to prune expired push subscription", "error", delErr)
 		}
-		return fmt.Errorf("push endpoint is gone (HTTP %d); the browser registration was pruned", resp.StatusCode)
+		return fmt.Errorf("push endpoint is gone (%s); the browser registration was pruned", detail)
 	}
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("push service returned HTTP %d", resp.StatusCode)
-	}
-	return nil
+	return fmt.Errorf("push service returned %s", detail)
 }
 
 // Subscribe registers or refreshes one browser.
