@@ -333,6 +333,12 @@ export interface BalanceHistoryRecord {
   timestamp: string;
 }
 
+/* A mailbox+sender pair muted as a false positive: matched emails stay in history but don't notify. */
+export interface EmailSuppression {
+  mailbox: string;
+  sender: string;
+}
+
 /* Implementation note. */
 export interface EmailAlertRecord {
   id: number;

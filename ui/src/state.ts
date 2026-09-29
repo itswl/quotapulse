@@ -5,7 +5,7 @@
  * filters, the latest API payloads and feature flags.
  */
 
-import type { CreditsResponse, Features, SubscriptionsResponse } from './api/types.js';
+import type { CreditsResponse, Features, ProjectConfig, SubscriptionConfig, SubscriptionsResponse } from './api/types.js';
 
 export type ViewName = 'all' | 'subscriptions' | 'email';
 
@@ -45,6 +45,10 @@ export interface AppStateShape {
   balanceLoadFailed: boolean;
   /* Why the latest subscription load failed, or null. Tells "could not load" apart from "disabled". */
   subscriptionLoadError: unknown;
+  /* Disabled items aren't checked, so the status APIs leave them out; with dynamic config
+     their cards come from the configuration so they can be edited and turned back on. */
+  disabledProjects: ProjectConfig[];
+  disabledSubscriptions: SubscriptionConfig[];
   features: Features;
   lastUpdate: Date | null;
   autoRefreshTimer: ReturnType<typeof setInterval> | null;
@@ -99,6 +103,8 @@ export const AppState: AppStateShape = {
   subscriptionData: null,
   balanceLoadFailed: false,
   subscriptionLoadError: null,
+  disabledProjects: [],
+  disabledSubscriptions: [],
   // Conservative defaults until /api/features answers: optional views stay hidden.
   features: { subscriptions: false, dynamic_config: false, history: false, email_scan: false },
   lastUpdate: null,

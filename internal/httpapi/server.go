@@ -105,9 +105,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subscription/snooze", s.handleSubscriptionSnooze)
 	mux.HandleFunc("POST /api/subscription/timezone", s.handleSubscriptionTimezone)
 	mux.HandleFunc("POST /api/subscription/webhook", s.handleSubscriptionWebhook)
-	mux.HandleFunc("GET /api/email/suppressions", s.handleListEmailSuppressions)
-	mux.HandleFunc("POST /api/email/suppression", s.handleAddEmailSuppression)
-	mux.HandleFunc("POST /api/email/suppression/delete", s.handleDeleteEmailSuppression)
 
 	// Implementation note.
 	mux.HandleFunc("GET /api/providers", s.handleProviders)
@@ -139,6 +136,10 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc("GET /api/history/alerts", s.handleAlertHistory)
 		mux.HandleFunc("GET /api/history/stats", s.handleAlertStats)
 		mux.HandleFunc("GET /api/history/email-alerts", s.handleEmailAlertHistory)
+		// Muting a sender needs somewhere to keep it, like the history it filters.
+		mux.HandleFunc("GET /api/email/suppressions", s.handleListEmailSuppressions)
+		mux.HandleFunc("POST /api/email/suppression", s.handleAddEmailSuppression)
+		mux.HandleFunc("POST /api/email/suppression/delete", s.handleDeleteEmailSuppression)
 	}
 	if s.Settings.EnableMCP && s.MCP != nil {
 		mux.Handle("POST /mcp", s.MCP)

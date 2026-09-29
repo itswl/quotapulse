@@ -5,9 +5,10 @@ import './stub-dom.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { CheckResult, CreditsResponse, Features, Runway, SubscriptionResult } from '../src/api/types.js';
+import type { CheckResult, CreditsResponse, EmailAlert, Features, Runway, SubscriptionResult } from '../src/api/types.js';
+import { renderAlertCard } from '../src/managers/email-manager.js';
 import { filterProjects, renderProjectCard, renderProjects } from '../src/ui/projects.js';
-import { renderSubscriptionCard, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
+import { renderSubscriptionCard, renderSubscriptions, sortSubscriptionsByNextDate } from '../src/ui/subscriptions.js';
 import {
   monthlyCost,
   refreshOverview,
@@ -736,5 +737,84 @@ describe('formatServerCadence', () => {
     assert.equal(formatServerCadence({ schedule: 'Every 3600 seconds', next_run: null }), 'Server checks every 1 hr');
     assert.equal(formatServerCadence(null), null);
     assert.equal(formatServerCadence({ schedule: '', next_run: null }), null);
+  });
+});
+
+describe('邮件告警卡片的误报按钮', () => {
+  const alert: EmailAlert = {
+    mailbox: 'Ops', sender: 'billing@example.com', subject: 'Invoice #4471', date: '2026-09-30',
+    keywords: ['invoice'], service_name: null, amount: null, alert_sent: true,
+  };
+
+  it('没开 History API 时不显示：静音没有地方保存，点了也不会生效', () => {
+    assert.ok(!renderAlertCard(alert, {}).includes('js-email-suppress'));
+  });
+
+  it('可静音时按钮带上邮箱和发件人，点击处理器靠这两个值', () => {
+    assert.match(renderAlertCard(alert, { canMute: true }), /js-email-suppress" data-mailbox="Ops" data-sender="billing@example.com"/);
+  });
+
+  it('已静音的发件人显示状态而不是再给一个按钮', () => {
+    const html = renderAlertCard(alert, { canMute: true, muted: true });
+    assert.match(html, /Sender muted/);
+    assert.ok(!html.includes('js-email-suppress'));
+  });
+});
+
+describe('停用的项目和订阅', () => {
+  const disabledProject = {
+    name: 'old-key', provider: 'deepseek', api_key: '***', threshold: 10, type: 'balance' as const,
+    owner_project: null, enabled: false,
+  };
+
+  it('停用的项目从配置渲染成可编辑的卡片，否则永远没法重新启用', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    const features = AppState.features;
+    AppState.features = { ...ALL_ON };
+    AppState.disabledProjects = [disabledProject];
+    try {
+      renderProjects({ last_update: null, projects: [project()], summary: {} });
+      assert.match(container.innerHTML, /project-card disabled/);
+      assert.match(container.innerHTML, /js-edit-project" data-project="old-key"/);
+
+      // Alerts only is about accounts that need attention; a disabled one isn't checked at all.
+      AppState.alertsOnly = true;
+      renderProjects({ last_update: null, projects: [project()], summary: {} });
+      assert.ok(!container.innerHTML.includes('old-key'));
+    } finally {
+      AppState.alertsOnly = false;
+      AppState.disabledProjects = [];
+      AppState.features = features;
+    }
+  });
+
+  it('只有停用项目时显示它们，而不是「还没有项目」', () => {
+    resetStubDom();
+    const container = stubElement('projects-container');
+    AppState.disabledProjects = [disabledProject];
+    try {
+      renderProjects({ last_update: null, projects: [], summary: {} });
+      assert.match(container.innerHTML, /old-key/);
+      assert.ok(!container.innerHTML.includes('No projects yet'));
+    } finally {
+      AppState.disabledProjects = [];
+    }
+  });
+
+  it('停用的订阅也有编辑入口', () => {
+    resetStubDom();
+    const container = stubElement('subscriptions-container');
+    AppState.disabledSubscriptions = [{
+      name: 'Old VPS', owner_project: null, cycle_type: 'monthly', renewal_day: 5, alert_days_before: 3,
+      amount: 20, enabled: false, last_renewed_date: null,
+    }];
+    try {
+      renderSubscriptions({ last_update: null, subscriptions: [subscription()], summary: {} });
+      assert.match(container.innerHTML, /subscription-card disabled/);
+      assert.match(container.innerHTML, /js-edit-subscription" data-name="Old VPS"/);
+    } finally {
+      AppState.disabledSubscriptions = [];
+    }
   });
 });

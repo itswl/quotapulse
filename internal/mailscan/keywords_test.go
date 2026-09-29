@@ -5,10 +5,11 @@ import (
 	"testing"
 )
 
-// Implementation note.
-// Implementation note.
+// The default list is product behavior: a missing word loses a class of alerts, an extra
+// word adds a batch of false positives. A count mismatch means the list changed; think
+// through which alerts that adds or removes before updating the number.
 func TestDefaultAlertKeywordsIsUnchanged(t *testing.T) {
-	if got, want := len(DefaultAlertKeywords), 40; got != want {
+	if got, want := len(DefaultAlertKeywords), 50; got != want {
 		t.Fatalf("默认关键词数量 = %d, 期望 %d", got, want)
 	}
 	for _, kw := range []string{"欠费", "余额不足", "停机", "overdue", "payment failed"} {
@@ -37,7 +38,16 @@ func TestMatchKeywords(t *testing.T) {
 			[]string{"欠费", "余额不足", "请及时续费"}},
 		{"续费提醒", "续费提醒", "", []string{"续费提醒"}},
 		{"suspended", "", "Your account has been suspended", []string{"suspended"}},
-		{"跨主题和正文查找", "服务通知", "余额预警：当前余额低于阈值", []string{"余额预警"}},
+		{"跨主题和正文查找", "服务通知", "余额预警：当前余额低于阈值", []string{"余额预警", "余额低于"}},
+		// How providers phrase the same warnings in a sentence.
+		{"余额低于阈值的句子", "Your Volcengine account balance is below 50 CNY", "", []string{"balance is below"}},
+		{"余额偏低", "Your credit balance is low", "", []string{"balance is low"}},
+		{"额度快用完", "Your OpenRouter credits are running low", "", []string{"credits are running low"}},
+		{"余额不够付款", "", "Your account balance is insufficient to renew", []string{"balance is insufficient"}},
+		{"带连字符的充值", "Please top-up your account", "", []string{"top-up"}},
+		{"中文余额低于", "您的账户余额低于预警值", "", []string{"余额低于"}},
+		// A plain monthly invoice needs no action, so it is left to the extra keywords.
+		{"普通账单不告警", "Invoice #4471-2 for September is ready", "", nil},
 		{"没有关键词", "周报通知", "本周工作总结", nil},
 		{"空邮件", "", "", nil},
 	}

@@ -9,7 +9,7 @@ import './styles/index.css';
 
 import { byId, debounce, onClick, selectById } from './dom.js';
 import { loadData, loadFeatures, refreshNow, startAutoRefresh, stopAutoRefresh } from './data.js';
-import { bindEmailManager, deleteEmail, editEmail } from './managers/email-manager.js';
+import { bindEmailManager, deleteEmail, editEmail, suppressEmail, unsuppressEmail } from './managers/email-manager.js';
 import { bindProjectManager, deleteProject, editProject } from './managers/project-manager.js';
 import { bindSettingsManager } from './managers/settings-manager.js';
 import {
@@ -45,6 +45,8 @@ function bindCardActions(): void {
       ['.js-show-trend', (el) => void showProjectTrend(el.dataset['project'] ?? '', el.dataset['provider'] ?? '')],
       ['.js-edit-email', (el) => editEmail(el.dataset['name'] ?? '')],
       ['.js-delete-email', (el) => void deleteEmail(el.dataset['name'] ?? '')],
+      ['.js-email-suppress', (el) => void suppressEmail(el.dataset['mailbox'] ?? '', el.dataset['sender'] ?? '')],
+      ['.js-email-unsuppress', (el) => void unsuppressEmail(el.dataset['mailbox'] ?? '', el.dataset['sender'] ?? '')],
       ['.js-mark-renewed', (el) => void markSubscriptionRenewed(el.dataset['name'] ?? '')],
       ['.js-clear-renewed', (el) => void clearSubscriptionRenewed(el.dataset['name'] ?? '')],
       ['.js-snooze-subscription', (el) => void snoozeSubscription(el.dataset['name'] ?? '')],

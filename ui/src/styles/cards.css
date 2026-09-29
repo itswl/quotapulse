@@ -37,6 +37,19 @@
     border-color: var(--border-strong);
 }
 
+/* Disabled: configured but not checked. Dimmed, but the actions stay usable. */
+.project-card.disabled,
+.subscription-card.disabled {
+    opacity: 0.62;
+}
+
+.project-card.disabled:hover,
+.project-card.disabled:focus-within,
+.subscription-card.disabled:hover,
+.subscription-card.disabled:focus-within {
+    opacity: 1;
+}
+
 /* First paint: cards cascade in. `backwards` fill releases the animation afterwards so
    the hover transform still applies. */
 .stagger .project-card {
@@ -137,7 +150,8 @@
     animation: alert-pulse 2s var(--ease-out) infinite;
 }
 
-.project-status.failed {
+.project-status.failed,
+.project-status.disabled {
     background: var(--text-3);
     box-shadow: 0 0 0 3px var(--surface-sunken);
 }
@@ -318,7 +332,8 @@
 }
 
 .projects-list .project-card,
-.projects-list .project-card.failed {
+.projects-list .project-card.failed,
+.projects-list .project-card.disabled {
     display: grid;
     grid-template-columns: minmax(220px, 1.6fr) minmax(200px, 2fr) max-content max-content;
     align-items: center;

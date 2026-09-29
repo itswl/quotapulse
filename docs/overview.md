@@ -72,10 +72,13 @@ estimated monthly cost that normalizes the different billing cycles.
 
 ## Let the mailbox do the bookkeeping
 
-Point QuotaPulse at an IMAP mailbox and it picks out billing and renewal emails by
-keyword: balance warnings, invoices, top-up confirmations. Summary chips show what a
-scan found, each mailbox reports its own connection status, and matched emails are
-listed with the keywords that flagged them and whether a notification went out.
+Point QuotaPulse at an IMAP mailbox and it picks out the billing emails that need action
+by keyword, in English and Chinese: low or insufficient balance, overdue and unpaid
+bills, expiry and renewal notices, suspensions. `EMAIL_EXTRA_ALERT_KEYWORDS` adds words
+of your own, such as "invoice" to catch every invoice. Summary chips show what a scan
+found, each mailbox reports its own connection status, and matched emails are listed
+with the keywords that flagged them and whether a notification went out. A false
+positive can be muted per sender, and unmuted again under Muted senders.
 
 ![Email scanning](images/email-scanning.png)
 

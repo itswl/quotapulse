@@ -155,14 +155,15 @@ async function saveSubscription(event: Event): Promise<void> {
 /* Implementation note. */
 export async function editSubscription(name: string): Promise<void> {
   try {
-    const current = (AppState.subscriptionData?.subscriptions || []).find((s) => s.name === name);
+    // Look in the configuration first: a disabled subscription isn't in the checked results.
+    const result = await getSubscriptionsConfig();
+    const full = (result.subscriptions || []).find((s) => s.name === name);
+    const current = full ?? (AppState.subscriptionData?.subscriptions || []).find((s) => s.name === name);
     if (!current) {
       showToast('Subscription not found', 'error');
       return;
     }
-    const result = await getSubscriptionsConfig();
-    const full = (result.subscriptions || []).find((s) => s.name === name);
-    openSubscriptionModal(full ?? current);
+    openSubscriptionModal(current);
   } catch (error) {
     console.error('Failed to load subscription:', error);
     showToast('Load failed', 'error');

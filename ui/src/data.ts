@@ -6,7 +6,14 @@
  */
 
 import { byId, toggleDisplay } from './dom.js';
-import { getCredits, getFeatures, getSubscriptions, refresh as refreshApi } from './api/endpoints.js';
+import {
+  getCredits,
+  getFeatures,
+  getProjectsConfig,
+  getSubscriptions,
+  getSubscriptionsConfig,
+  refresh as refreshApi,
+} from './api/endpoints.js';
 import type { SubscriptionsResponse } from './api/types.js';
 import { AppState } from './state.js';
 import { emptyState, loadErrorDetail } from './ui/empty.js';
@@ -38,6 +45,22 @@ export async function loadFeatures(): Promise<void> {
 
 const NO_SUBSCRIPTIONS: SubscriptionsResponse = { last_update: null, subscriptions: [], summary: {} };
 
+/* Refresh the disabled projects and subscriptions from the configuration. Best effort:
+   on failure the previous lists stay, since they only add cards. */
+async function loadDisabledItems(): Promise<void> {
+  if (!AppState.features.dynamic_config) return;
+  const [projects, subscriptions] = await Promise.allSettled([
+    getProjectsConfig(),
+    AppState.features.subscriptions ? getSubscriptionsConfig() : Promise.resolve(null),
+  ]);
+  if (projects.status === 'fulfilled') {
+    AppState.disabledProjects = (projects.value.projects || []).filter((p) => p.enabled === false);
+  }
+  if (subscriptions.status === 'fulfilled') {
+    AppState.disabledSubscriptions = (subscriptions.value?.subscriptions || []).filter((s) => s.enabled === false);
+  }
+}
+
 /**
  * Load balances and subscriptions and render the active view. The two load independently:
  * a failing /api/credits must not leave the subscription view, its badge and its counters
@@ -48,6 +71,7 @@ export async function fetchAndRender(rebuildFilter = false): Promise<void> {
   const [balance, subscriptions] = await Promise.allSettled([
     getCredits(),
     AppState.features.subscriptions ? getSubscriptions() : Promise.resolve(NO_SUBSCRIPTIONS),
+    loadDisabledItems(),
   ]);
 
   AppState.balanceLoadFailed = balance.status === 'rejected';
@@ -75,7 +99,7 @@ export async function fetchAndRender(rebuildFilter = false): Promise<void> {
 
 /* Re-fetch balances after a project change. */
 export async function reloadProjects(): Promise<void> {
-  const balanceData = await getCredits();
+  const [balanceData] = await Promise.all([getCredits(), loadDisabledItems()]);
   AppState.balanceData = balanceData;
   AppState.balanceLoadFailed = false;
   renderProjects(balanceData);
@@ -84,7 +108,7 @@ export async function reloadProjects(): Promise<void> {
 
 /* Re-fetch subscriptions after a subscription change, bypassing the ETag cache. */
 export async function reloadSubscriptions(): Promise<void> {
-  const subscriptionData = await getSubscriptions(true);
+  const [subscriptionData] = await Promise.all([getSubscriptions(true), loadDisabledItems()]);
   AppState.subscriptionData = subscriptionData;
   AppState.subscriptionLoadError = null;
   renderSubscriptions(subscriptionData);

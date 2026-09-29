@@ -6,8 +6,16 @@
  */
 
 import { mutate } from '../api/client.js';
-import { ENDPOINTS, getEmailHistory, getEmailScanState, getMailboxes, runEmailScan } from '../api/endpoints.js';
-import type { EmailAlert, EmailAlertRecord, EmailScanState, MailboxConfig, MailboxPayload, MailboxResult } from '../api/types.js';
+import { ENDPOINTS, getEmailHistory, getEmailScanState, getEmailSuppressions, getMailboxes, runEmailScan } from '../api/endpoints.js';
+import type {
+  EmailAlert,
+  EmailAlertRecord,
+  EmailScanState,
+  EmailSuppression,
+  MailboxConfig,
+  MailboxPayload,
+  MailboxResult,
+} from '../api/types.js';
 import { byId, inputById, inputValue, isChecked, onClick, setChecked, setInputValue, toggleDisplay } from '../dom.js';
 import { escapeAttr, escapeHTML, formatCurrency, formatDate, getRelativeTime } from '../format.js';
 import { AppState } from '../state.js';
@@ -26,12 +34,16 @@ interface EmailManagerState {
   mailboxes: MailboxConfig[];
   scan: EmailScanState | null;
   history: EmailAlertRecord[];
+  suppressions: EmailSuppression[];
   loaded: boolean;
 }
 
 interface AlertCardOptions {
   dryRun?: boolean;
   history?: boolean;
+  /* Muting needs the History API (it is kept in the database next to the history). */
+  canMute?: boolean;
+  muted?: boolean;
 }
 
 /* Implementation note. */
@@ -42,6 +54,7 @@ export const EmailManager = {
     mailboxes: [],
     scan: null,
     history: [],
+    suppressions: [],
     loaded: false,
   } as EmailManagerState,
 
@@ -66,8 +79,29 @@ export const EmailManager = {
     const [mailboxResult, scanState] = await Promise.all([getMailboxes(), getEmailScanState()]);
     this.state.mailboxes = mailboxResult.emails || [];
     this.state.scan = scanState ?? null;
-    this.state.history = AppState.features.history ? await this.fetchHistory() : [];
+    const [history, suppressions] = AppState.features.history
+      ? await Promise.all([this.fetchHistory(), this.fetchSuppressions()])
+      : [[], []];
+    this.state.history = history;
+    this.state.suppressions = suppressions;
     this.state.loaded = true;
+  },
+
+  async fetchSuppressions(): Promise<EmailSuppression[]> {
+    try {
+      return (await getEmailSuppressions()).data || [];
+    } catch (error) {
+      console.warn('Muted senders unavailable:', error);
+      return [];
+    }
+  },
+
+  isMuted(alert: { mailbox?: string | null; sender?: string | null }): boolean {
+    return this.state.suppressions.some((s) => s.mailbox === alert.mailbox && s.sender === alert.sender);
+  },
+
+  cardOptions(extra: AlertCardOptions, alert: AnyAlert): AlertCardOptions {
+    return { ...extra, canMute: AppState.features.history, muted: this.isMuted(alert) };
   },
 
   async fetchHistory(): Promise<EmailAlertRecord[]> {
@@ -88,6 +122,7 @@ export const EmailManager = {
     this.renderMailboxes();
     this.renderAlerts();
     this.renderHistory();
+    this.renderSuppressions();
     toggleDisplay('add-email-btn', AppState.features.dynamic_config);
   },
 
@@ -178,7 +213,9 @@ export const EmailManager = {
       return;
     }
 
-    container.innerHTML = alerts.map((alert) => renderAlertCard(alert, { dryRun: scan.dry_run ?? false })).join('');
+    container.innerHTML = alerts
+      .map((alert) => renderAlertCard(alert, this.cardOptions({ dryRun: scan.dry_run ?? false }, alert)))
+      .join('');
   },
 
   renderHistory(): void {
@@ -196,7 +233,18 @@ export const EmailManager = {
     container.innerHTML =
       history.length === 0
         ? emptyState('No history yet', 'Emails alerted by scheduled or Web scans are stored in the database', 'mail', true)
-        : history.map((record) => renderAlertCard(record, { history: true })).join('');
+        : history.map((record) => renderAlertCard(record, this.cardOptions({ history: true }, record))).join('');
+  },
+
+  /* Muted senders, so a mute can be undone from the dashboard. Hidden when there are none. */
+  renderSuppressions(): void {
+    const block = byId('email-suppressions-block');
+    const container = byId('email-suppressions-container');
+    if (!block || !container) return;
+
+    const muted = AppState.features.history ? this.state.suppressions : [];
+    block.style.display = muted.length > 0 ? 'block' : 'none';
+    container.innerHTML = muted.map(renderSuppressionRow).join('');
   },
 
   // Implementation note.
@@ -326,7 +374,13 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
                 </div>
                 <div class="email-alert-side">
                     ${badge}
-                    <button class="btn-link js-email-suppress" data-mailbox="${escapeAttr(alert.mailbox || '')}" data-sender="${escapeAttr(alert.sender || '')}" title="Mute this sender for this mailbox (false positive)">False positive</button>
+                    ${
+                      options.muted
+                        ? '<span class="status-badge muted" title="Emails from this sender no longer notify">Sender muted</span>'
+                        : options.canMute
+                          ? `<button type="button" class="btn-link js-email-suppress" data-mailbox="${escapeAttr(alert.mailbox || '')}" data-sender="${escapeAttr(alert.sender || '')}" title="Mute this sender for this mailbox (false positive)">False positive</button>`
+                          : ''
+                    }
                     ${options.history && alert.timestamp ? `<span>Recorded ${escapeHTML(formatDate(alert.timestamp))}</span>` : ''}
                 </div>
             </div>
@@ -425,12 +479,40 @@ export async function deleteEmail(name: string): Promise<void> {
   }
 }
 
+function renderSuppressionRow(item: EmailSuppression): string {
+  return `
+            <div class="subscription-card suppression-row">
+                <div class="subscription-info">
+                    <h3>${escapeHTML(item.sender)}</h3>
+                    <div class="subscription-meta"><span class="meta-item project-meta">${escapeHTML(item.mailbox)}</span></div>
+                </div>
+                <button type="button" class="btn-secondary js-email-unsuppress" data-mailbox="${escapeAttr(item.mailbox)}" data-sender="${escapeAttr(item.sender)}">Unmute</button>
+            </div>
+        `;
+}
+
 /** Mute a mailbox+sender pair so future billing emails from it stay silent. */
 export async function suppressEmail(mailbox: string, sender: string): Promise<void> {
   if (!mailbox || !sender) {
     return;
   }
-  if (await mutate(ENDPOINTS.emailSuppressionAdd, { mailbox, sender }, { success: 'Sender muted for this mailbox', fail: 'Suppress failed' })) {
+  const confirmed = await confirmDialog({
+    title: `Mute ${sender}?`,
+    message: `Emails from this sender in ${mailbox} stay in the history but stop notifying. You can unmute it under Muted senders.`,
+    confirmLabel: 'Mute sender',
+  });
+  if (!confirmed) return;
+  if (await mutate(ENDPOINTS.emailSuppressionAdd, { mailbox, sender }, { success: 'Sender muted for this mailbox', fail: 'Mute failed' })) {
+    await EmailManager.load(true);
+  }
+}
+
+/** Undo a mute so the sender notifies again. */
+export async function unsuppressEmail(mailbox: string, sender: string): Promise<void> {
+  if (!mailbox || !sender) {
+    return;
+  }
+  if (await mutate(ENDPOINTS.emailSuppressionDelete, { mailbox, sender }, { success: 'Sender unmuted', fail: 'Unmute failed' })) {
     await EmailManager.load(true);
   }
 }

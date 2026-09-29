@@ -57,9 +57,9 @@ func (nullStore) ListEmailSuppressions(context.Context) ([]model.EmailSuppressio
 	return nil, nil
 }
 
-func (nullStore) AddEmailSuppression(context.Context, string, string) error { return nil }
+func (nullStore) AddEmailSuppression(context.Context, string, string) error { return ErrDisabled }
 
-func (nullStore) DeleteEmailSuppression(context.Context, string, string) error { return nil }
+func (nullStore) DeleteEmailSuppression(context.Context, string, string) error { return ErrDisabled }
 
 func (nullStore) ListPushSubscriptions(context.Context) ([]model.PushSubscription, error) {
 	return nil, nil

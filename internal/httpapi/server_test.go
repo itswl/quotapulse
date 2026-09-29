@@ -597,7 +597,7 @@ func TestSubscriptionSettingEndpoints(t *testing.T) {
 
 func TestEmailSuppressionEndpoints(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1"}
+	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1", EnableHistoryAPI: true}
 	st, storeErr := store.Open(context.Background(), store.Options{DatabaseURL: "sqlite://" + filepath.Join(t.TempDir(), "test.db")})
 	if storeErr != nil {
 		t.Fatalf("open test store: %v", storeErr)
@@ -629,5 +629,42 @@ func TestEmailSuppressionEndpoints(t *testing.T) {
 	rec = call(http.MethodGet, "/api/email/suppressions", "")
 	if !strings.Contains(rec.Body.String(), `"count":0`) {
 		t.Fatalf("删除后列表应为空: %s", rec.Body.String())
+	}
+}
+
+// Without the History API the routes don't exist, and without a database a mute can't
+// be kept, so neither may answer "success" for a sender that will keep notifying.
+func TestEmailSuppressionNeedsHistoryAndStorage(t *testing.T) {
+	_, withoutHistory := newServer(t, nil)
+	// The SPA's catch-all GET route turns an unknown POST into 405 rather than 404.
+	if rec := request(t, withoutHistory, "POST", "/api/email/suppression", `{"mailbox":"ops","sender":"a@b.c"}`, true); rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("没开 History API 时应不存在该接口: %d", rec.Code)
+	}
+
+	_, noDatabase := newServer(t, func(s *config.Settings) { s.EnableHistoryAPI = true })
+	if rec := request(t, noDatabase, "POST", "/api/email/suppression", `{"mailbox":"ops","sender":"a@b.c"}`, true); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("没有数据库时静音无法保存，应返回 503 而不是成功: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// The Email scanning tab is where the first mailbox gets added, so with dynamic config
+// it must not wait for an enabled mailbox to exist.
+func TestEmailScanFeatureWithoutMailboxes(t *testing.T) {
+	flag := func(tweak func(*config.Settings)) bool {
+		_, handler := newServer(t, tweak)
+		features, _ := decode(t, request(t, handler, "GET", "/api/features", "", true))["features"].(map[string]any)
+		return features["email_scan"] == true
+	}
+	t.Setenv("EMAIL_SCAN_SCHEDULE", "10:00")
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	schedule := func(s *config.Settings) { s.EmailScanTimes = loaded.EmailScanTimes }
+	if flag(schedule) {
+		t.Error("没有邮箱也不能在页面上添加时，不应显示邮件页")
+	}
+	if !flag(func(s *config.Settings) { schedule(s); s.EnableDynamicConfig = true }) {
+		t.Error("开了动态配置时，即使还没有邮箱也要显示邮件页，否则加不了第一个邮箱")
 	}
 }

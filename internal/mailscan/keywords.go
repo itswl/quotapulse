@@ -5,17 +5,21 @@ import (
 	"strings"
 )
 
-// Implementation note.
+// DefaultAlertKeywords is the default alert keyword list. EMAIL_ALERT_KEYWORDS replaces
+// it and EMAIL_EXTRA_ALERT_KEYWORDS appends to it.
 //
-// Implementation note.
-// Implementation note.
+// The order matters: matches are reported in this order, and where two keywords match at
+// the same place in the text, the earlier one wins. The list targets emails that need
+// action (low or insufficient balance, overdue or unpaid bills, expiry, renewal,
+// suspension); informational mail such as every monthly invoice is left to the extras.
 var DefaultAlertKeywords = []string{
-	// Implementation note.
+	// Chinese
 	"欠费", "余额不足", "余额预警", "余额告警",
 	"即将到期", "已到期", "续费提醒", "续费通知",
 	"账单逾期", "缴费通知", "请及时续费", "停机",
 	"暂停服务", "服务即将暂停", "充值提醒",
-	// Implementation note.
+	"余额低于", "额度不足", "即将耗尽",
+	// English
 	"overdue", "past due", "payment due", "payment overdue",
 	"low balance", "insufficient balance", "balance alert",
 	"expiring soon", "expired", "expiration notice",
@@ -24,6 +28,9 @@ var DefaultAlertKeywords = []string{
 	"service suspension", "service suspended", "suspended",
 	"recharge reminder", "top up", "account suspended",
 	"unpaid invoice", "outstanding balance", "payment failed",
+	// The same warnings as providers usually phrase them in a sentence.
+	"balance is low", "balance is below", "balance is insufficient",
+	"balance is running low", "credits are running low", "insufficient funds", "top-up",
 }
 
 // Implementation note.

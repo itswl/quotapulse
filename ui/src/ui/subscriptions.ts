@@ -2,7 +2,8 @@
 
 import { requireById } from '../dom.js';
 import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, renewalUrgency } from '../format.js';
-import type { SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
+import { AppState } from '../state.js';
+import type { SubscriptionConfig, SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
 import { emptyState, loadErrorDetail } from './empty.js';
 import { ICON_CALENDAR, ICON_CHECK, ICON_DELETE, ICON_EDIT, ICON_UNDO } from './icons.js';
 
@@ -95,6 +96,35 @@ export function sortSubscriptionsByNextDate(subscriptions: SubscriptionResult[])
   });
 }
 
+/* A disabled subscription isn't checked, so the status API leaves it out; its card comes
+   from the configuration so it can be edited and turned back on. */
+export function renderDisabledSubscriptionCard(sub: SubscriptionConfig): string {
+  const subNameAttr = escapeAttr(sub.name);
+  return `
+            <div class="subscription-card disabled">
+                <div class="subscription-info">
+                    <h3>${escapeHTML(sub.name)}</h3>
+                    <div class="subscription-meta">
+                        <span class="meta-item project-meta">${escapeHTML(sub.owner_project || 'No owner project')}</span>
+                        <span class="meta-item"><span class="k">Amount</span>${formatCurrency(Number(sub.amount) || 0)}</span>
+                        <span class="meta-item">${cycleLabel(sub.cycle_type)}</span>
+                        <span class="meta-item"><span class="status-badge muted" title="No reminders are sent">Disabled</span></span>
+                    </div>
+                </div>
+                <div class="subscription-status">
+                    <div class="subscription-actions">
+                        <button class="action-icon-btn js-edit-subscription" data-name="${subNameAttr}" title="Edit">
+                            ${ICON_EDIT}
+                        </button>
+                        <button class="action-icon-btn danger js-delete-subscription" data-name="${subNameAttr}" title="Delete">
+                            ${ICON_DELETE}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+}
+
 /* A failed load says so, with a retry, instead of looking like an empty list. */
 export function renderSubscriptionsError(error: unknown): void {
   requireById('subscriptions-container').innerHTML = emptyState(
@@ -111,8 +141,10 @@ export function renderSubscriptions(data: SubscriptionsResponse): void {
   const subscriptions = data.subscriptions || [];
   const sortedSubscriptions = sortSubscriptionsByNextDate(subscriptions);
 
+  const disabled = AppState.disabledSubscriptions;
+
   container.innerHTML =
-    subscriptions.length === 0
+    subscriptions.length === 0 && disabled.length === 0
       ? emptyState('No subscriptions', 'No subscription reminders yet', 'calendar')
-      : sortedSubscriptions.map((s) => renderSubscriptionCard(s)).join('');
+      : [...sortedSubscriptions.map((s) => renderSubscriptionCard(s)), ...disabled.map(renderDisabledSubscriptionCard)].join('');
 }

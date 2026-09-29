@@ -12,7 +12,7 @@ import {
   typeLabel,
 } from '../format.js';
 import { AppState } from '../state.js';
-import type { CheckResult, CreditsResponse, Features } from '../api/types.js';
+import type { CheckResult, CreditsResponse, Features, ProjectConfig } from '../api/types.js';
 import { emptyState } from './empty.js';
 import { ICON_ARROW_RIGHT, ICON_DELETE, ICON_EDIT, ICON_PLUS } from './icons.js';
 
@@ -44,16 +44,7 @@ export function renderProjectCard(project: CheckResult, features: Features): str
   const projectNameAttr = escapeAttr(projectName);
   const providerAttr = escapeAttr(provider);
 
-  // Implementation note.
-  const optionalActions = features.dynamic_config
-    ? `
-                        <button class="action-icon-btn js-edit-project" data-project="${projectNameAttr}" title="Edit project">
-                            ${ICON_EDIT}
-                        </button>
-                        <button class="action-icon-btn danger js-delete-project" data-project="${projectNameAttr}" title="Delete project">
-                            ${ICON_DELETE}
-                        </button>`
-    : '';
+  const optionalActions = projectActions(projectNameAttr, features);
 
   const trendAction = features.history
     ? `<div class="project-actions">
@@ -110,6 +101,54 @@ export function renderProjectCard(project: CheckResult, features: Features): str
         `;
 }
 
+/* Edit and delete need dynamic configuration; nameAttr is already escaped. */
+function projectActions(nameAttr: string, features: Features): string {
+  if (!features.dynamic_config) return '';
+  return `
+                        <button class="action-icon-btn js-edit-project" data-project="${nameAttr}" title="Edit project">
+                            ${ICON_EDIT}
+                        </button>
+                        <button class="action-icon-btn danger js-delete-project" data-project="${nameAttr}" title="Delete project">
+                            ${ICON_DELETE}
+                        </button>`;
+}
+
+/* A disabled project isn't checked, so the balance list leaves it out. Its card comes
+   from the configuration instead, or it could never be edited and turned back on. */
+export function renderDisabledProjectCard(project: ProjectConfig, features: Features): string {
+  const projectName = project.name || 'Unknown project';
+  const provider = project.provider || 'unknown';
+  const ownerProject = project.owner_project || 'No owner project';
+
+  return `
+            <div class="project-card disabled" data-provider="${escapeAttr(provider)}" data-status="disabled">
+                <div class="project-header">
+                    <div class="project-info">
+                        <h3>${escapeHTML(projectName)}</h3>
+                        <div class="project-meta-row">
+                            <span class="project-provider">${escapeHTML(provider)}</span>
+                            <span class="owner-project-badge">${escapeHTML(ownerProject)}</span>
+                        </div>
+                    </div>
+                    <div class="project-header-side">
+                        ${projectActions(escapeAttr(projectName), features)}
+                        <div class="project-status disabled"></div>
+                    </div>
+                </div>
+                <div class="project-balance">
+                    <div class="balance-label">Current balance</div>
+                    <div class="balance-value unavailable">Disabled</div>
+                </div>
+                <div class="project-details">
+                    <div class="detail-item full-width">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value">Not checked. Edit the project and enable it to resume monitoring.</span>
+                    </div>
+                </div>
+            </div>
+        `;
+}
+
 /* Implementation note. */
 function renderFailedCard(project: CheckResult, features: Features): string {
   const projectName = project.project || 'Unknown project';
@@ -120,15 +159,7 @@ function renderFailedCard(project: CheckResult, features: Features): string {
   const projectNameAttr = escapeAttr(projectName);
   const providerAttr = escapeAttr(provider);
 
-  const optionalActions = features.dynamic_config
-    ? `
-                        <button class="action-icon-btn js-edit-project" data-project="${projectNameAttr}" title="Edit project">
-                            ${ICON_EDIT}
-                        </button>
-                        <button class="action-icon-btn danger js-delete-project" data-project="${projectNameAttr}" title="Delete project">
-                            ${ICON_DELETE}
-                        </button>`
-    : '';
+  const optionalActions = projectActions(projectNameAttr, features);
 
   return `
             <div class="project-card failed" data-provider="${providerAttr}" data-status="failed">
@@ -215,6 +246,7 @@ export function renderProjects(data: CreditsResponse): void {
     provider: AppState.currentFilter,
     alertsOnly: AppState.alertsOnly,
   });
+  const disabled = filterDisabledProjects(AppState.disabledProjects);
 
   // Cards cascade in on the first paint only; refreshes and filter changes swap in place.
   const firstPaint = !container.innerHTML.includes('project-card');
@@ -225,9 +257,23 @@ export function renderProjects(data: CreditsResponse): void {
   byId('view-grid-btn')?.classList.toggle('active', !isList);
 
   container.innerHTML =
-    filtered.length === 0
-      ? renderProjectsEmpty(projects.length, AppState.features)
-      : filtered.map((p) => renderProjectCard(p, AppState.features)).join('');
+    filtered.length === 0 && disabled.length === 0
+      ? renderProjectsEmpty(projects.length + AppState.disabledProjects.length, AppState.features)
+      : [
+          ...filtered.map((p) => renderProjectCard(p, AppState.features)),
+          ...disabled.map((p) => renderDisabledProjectCard(p, AppState.features)),
+        ].join('');
+}
+
+/* Disabled cards follow the same search and provider filter, and never count as alerts. */
+function filterDisabledProjects(projects: ProjectConfig[]): ProjectConfig[] {
+  if (AppState.alertsOnly) return [];
+  const query = AppState.searchQuery.toLowerCase();
+  return projects.filter(
+    (p) =>
+      (AppState.currentFilter === 'all' || p.provider === AppState.currentFilter) &&
+      (!query || p.name.toLowerCase().includes(query) || p.provider.toLowerCase().includes(query)),
+  );
 }
 
 /* Implementation note. */

@@ -5,6 +5,7 @@ import type {
   CreditsResponse,
   EmailAlertRecord,
   EmailScanState,
+  EmailSuppression,
   EmailsConfigResponse,
   FeaturesResponse,
   HealthResponse,
@@ -49,6 +50,9 @@ export const getEmailScanState = (): Promise<EmailScanState> => request<EmailSca
 
 export const getEmailHistory = (days = 30, limit = 100): Promise<HistoryListResponse<EmailAlertRecord>> =>
   request<HistoryListResponse<EmailAlertRecord>>(`/api/history/email-alerts?days=${days}&limit=${limit}`);
+
+export const getEmailSuppressions = (): Promise<HistoryListResponse<EmailSuppression>> =>
+  request<HistoryListResponse<EmailSuppression>>('/api/email/suppressions');
 
 export const getHealth = (): Promise<HealthResponse> => request<HealthResponse>('/health');
 

@@ -130,7 +130,7 @@ func (s *Server) handleAddEmailSuppression(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if err := s.Store.AddEmailSuppression(r.Context(), body.Mailbox, body.Sender); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		fail(w, storeWriteStatus(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "success"})
@@ -147,7 +147,7 @@ func (s *Server) handleDeleteEmailSuppression(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if err := s.Store.DeleteEmailSuppression(r.Context(), body.Mailbox, body.Sender); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		fail(w, storeWriteStatus(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "success"})

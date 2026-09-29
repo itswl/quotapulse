@@ -95,7 +95,10 @@ func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 			Subscriptions: s.Settings.EnableSubscriptions,
 			DynamicConfig: s.Settings.EnableDynamicConfig,
 			History:       s.Settings.EnableHistoryAPI,
-			EmailScan:     len(s.Settings.EmailScanTimes) > 0 && len(cfg.EnabledMailboxes()) > 0,
+			// With dynamic config the tab is where the first mailbox gets added, so it
+			// can't wait for an enabled mailbox to exist.
+			EmailScan: len(s.Settings.EmailScanTimes) > 0 &&
+				(len(cfg.EnabledMailboxes()) > 0 || s.Settings.EnableDynamicConfig),
 		},
 	})
 }
