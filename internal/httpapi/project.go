@@ -234,11 +234,17 @@ func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
 // Implementation note.
 func (s *Server) refreshOne(r *http.Request, name string) {
 	outcome, err := s.Monitor.Run(r.Context(), name, !s.Settings.EnableWebAlarm)
-	if err != nil {
+	switch {
+	case projectDisabled(err):
+		// Disabled: it isn't checked, so its last result leaves the dashboard, as a
+		// full refresh would drop it too.
+		s.State.RemoveBalanceProject(name)
+	case err != nil:
 		s.log().Warn("Failed to refresh project", "project", name, "error", err)
 		return
+	default:
+		s.State.MergeBalance(outcome.Results)
 	}
-	s.State.MergeBalance(outcome.Results)
 	if s.OnBalanceUpdated != nil {
 		s.OnBalanceUpdated(s.State.Balance().Projects)
 	}

@@ -7,6 +7,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | 400 | Invalid request parameters |
 | 401 | Missing, invalid, or expired API key |
 | 404 | Resource not found or the corresponding capability is disabled |
+| 409 | The project a refresh names is disabled, so it is not checked |
 | 429 | The same refresh or scan is already running, or is cooling down; on `/mcp`, the key exceeded `MCP_RATE_LIMIT_PER_MINUTE` (see `Retry-After`) |
 | 503 | `WEB_API_KEY` is unset, a capability is disabled, or the service is not ready |
 
@@ -18,7 +19,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /health` | Readiness check; requires data, fresh results, and successful scheduled jobs | — |
 | `GET /api/features` | Enabled optional capabilities | — |
 | `GET /api/credits` | Current balance state for all projects | — |
-| `GET/POST /api/refresh` | Run an immediate balance check; POST accepts `project_name`; one run at a time, with a 30-second cooldown | — |
+| `GET/POST /api/refresh` | Run an immediate balance check; POST accepts `project_name` (404 if unknown, 409 if disabled); one run at a time, with a 30-second cooldown | — |
 | `POST /api/notify/test` | Sends a canary message through the configured webhook and returns the delivery error verbatim, so the channel can be verified without waiting for a real alert | `WEB_API_KEY` |
 | `POST /api/subscription/snooze` | Postpones one subscription's reminders by `days` (1-365) without marking it renewed | `ENABLE_DYNAMIC_CONFIG` |
 | `POST /api/subscription/timezone` | Evaluates one subscription in `timezone` (IANA name); empty resets to server time | `ENABLE_DYNAMIC_CONFIG` |

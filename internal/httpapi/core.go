@@ -142,6 +142,19 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A name that can't be checked is refused before it takes the refresh slot and its
+	// cooldown.
+	if projectName != "" {
+		switch p := findProject(s.Resolver.Load(r.Context()).Projects, projectName); {
+		case p == nil:
+			fail(w, http.StatusNotFound, "Project not found: "+projectName)
+			return
+		case !p.Enabled:
+			fail(w, http.StatusConflict, "Project ["+projectName+"] is disabled; enable it to check its balance")
+			return
+		}
+	}
+
 	if busy := s.refreshGuard.acquire(); busy != "" {
 		fail(w, http.StatusTooManyRequests, "Refresh "+busy)
 		return
@@ -154,6 +167,10 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	outcome, err := s.Monitor.Run(r.Context(), projectName, dryRun)
 	if err != nil {
+		if status := refreshStatus(err); status != http.StatusInternalServerError {
+			fail(w, status, err.Error())
+			return
+		}
 		fail(w, http.StatusInternalServerError, "Refresh failed: "+err.Error())
 		return
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -362,5 +363,52 @@ func TestFailedCheckErrorNeverCarriesTheKey(t *testing.T) {
 	}
 	if len(st.alerts) == 0 || strings.Contains(st.alerts[0].Message, secret) {
 		t.Fatalf("告警历史里不能出现密钥: %+v", st.alerts)
+	}
+}
+
+// dbProjects serves a project list the way the database-backed configuration does.
+type dbProjects struct {
+	*fakeStore
+	projects []model.Project
+}
+
+func (d *dbProjects) ListProjects(context.Context) ([]model.Project, error) { return d.projects, nil }
+
+// A disabled project is never checked, not even when a refresh names it: saving one on
+// the dashboard used to call its provider right away.
+func TestNamedRunNeverChecksADisabledProject(t *testing.T) {
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"total_balance":"5"}`))
+	}))
+	t.Cleanup(upstream.Close)
+	provider.RegisterSpec(provider.Spec{
+		Key: "testdisabled", Name: "停用测试", DefaultType: model.TypeBalance, URL: upstream.URL,
+		Extract: func(data map[string]any) (float64, error) {
+			value, _ := provider.Num(data["total_balance"])
+			return value, nil
+		},
+	})
+	settings := &config.Settings{EnableDynamicConfig: true, RequestTimeout: 5}
+	st := &dbProjects{fakeStore: newFakeStore(), projects: []model.Project{
+		{Name: "停用账户", Provider: "testdisabled", APIKey: "k", Type: model.TypeBalance, Enabled: false},
+		{Name: "启用账户", Provider: "testdisabled", APIKey: "k", Type: model.TypeBalance, Enabled: true},
+	}}
+	m := &Monitor{Settings: settings, Resolver: config.NewResolver(settings, st, nil), Store: st, Client: provider.NewClient(5 * time.Second)}
+
+	if _, err := m.Run(t.Context(), "停用账户", true); !errors.Is(err, ErrProjectDisabled) {
+		t.Fatalf("按名称刷新停用的项目应返回 ErrProjectDisabled，实际 %v", err)
+	}
+	if _, err := m.Run(t.Context(), "不存在", true); !errors.Is(err, ErrProjectNotFound) || err.Error() != "Project not found: 不存在" {
+		t.Fatalf("不存在的项目应返回 ErrProjectNotFound 并保留原来的提示，实际 %v", err)
+	}
+	if n := calls.Load(); n != 0 {
+		t.Fatalf("停用的项目不应被检查，上游却被调用了 %d 次", n)
+	}
+	outcome, err := m.Run(t.Context(), "启用账户", true)
+	if err != nil || len(outcome.Results) != 1 || !outcome.Results[0].Success || calls.Load() != 1 {
+		t.Fatalf("启用的项目应照常检查: %v %+v（上游调用 %d 次）", err, outcome.Results, calls.Load())
 	}
 }

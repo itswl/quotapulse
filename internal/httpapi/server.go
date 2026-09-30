@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -219,6 +220,22 @@ func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request, token string, 
 		return
 	}
 	next.ServeHTTP(w, r.WithContext(config.WithMCPCaller(r.Context(), caller)))
+}
+
+// projectDisabled reports whether a run named a disabled project, which is never checked.
+func projectDisabled(err error) bool { return errors.Is(err, monitor.ErrProjectDisabled) }
+
+// refreshStatus is the HTTP status for a failed refresh: a named project that doesn't
+// exist, or is disabled, is the caller's mistake, not ours.
+func refreshStatus(err error) int {
+	switch {
+	case errors.Is(err, monitor.ErrProjectNotFound):
+		return http.StatusNotFound
+	case projectDisabled(err):
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // mcpCaller matches token against the MCP keys, then WEB_API_KEY. Every comparison is

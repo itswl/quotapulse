@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -39,6 +40,13 @@ type Monitor struct {
 	cache responseCache
 }
 
+// Errors of a run that names a project.
+var (
+	ErrProjectNotFound = errors.New("Project not found")
+	// ErrProjectDisabled: a disabled project is never checked, not even by name.
+	ErrProjectDisabled = errors.New("Project is disabled")
+)
+
 // Implementation note.
 type Outcome struct {
 	Results []model.CheckResult
@@ -52,11 +60,11 @@ func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Out
 	started := time.Now()
 	cfg := m.Resolver.Load(ctx)
 
-	projects := m.selectProjects(cfg, projectName)
+	projects, err := m.selectProjects(cfg, projectName)
+	if err != nil {
+		return Outcome{}, err
+	}
 	if len(projects) == 0 {
-		if projectName != "" {
-			return Outcome{}, fmt.Errorf("Project not found: %s", projectName)
-		}
 		m.log().Warn("No projects to monitor; check {PROVIDER}_API_KEY or database dynamic configuration")
 		return Outcome{}, nil
 	}
@@ -73,16 +81,20 @@ func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Out
 
 // Implementation note.
 // Implementation note.
-func (m *Monitor) selectProjects(cfg model.Config, projectName string) []model.Project {
+func (m *Monitor) selectProjects(cfg model.Config, projectName string) ([]model.Project, error) {
 	if projectName == "" {
-		return cfg.EnabledProjects()
+		return cfg.EnabledProjects(), nil
 	}
 	for _, p := range cfg.Projects {
-		if p.Name == projectName {
-			return []model.Project{p}
+		if p.Name != projectName {
+			continue
 		}
+		if !p.Enabled {
+			return nil, fmt.Errorf("%w: %s", ErrProjectDisabled, projectName)
+		}
+		return []model.Project{p}, nil
 	}
-	return nil
+	return nil, fmt.Errorf("%w: %s", ErrProjectNotFound, projectName)
 }
 
 // Implementation note.

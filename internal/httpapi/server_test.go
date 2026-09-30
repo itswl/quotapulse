@@ -780,3 +780,40 @@ func TestMCPKeyAuthentication(t *testing.T) {
 		t.Errorf("限速按 key 计算，另一个 key 不受影响: %d", rec.Code)
 	}
 }
+
+// Saving a project as disabled takes its card off the dashboard instead of checking it,
+// and a refresh that names it, or a project that doesn't exist, is refused without
+// taking the refresh cooldown. The key is not in Volcengine's AK:SK format, so even a
+// regression that checked the project would fail locally, never reaching the provider.
+func TestDisabledProjectIsNeverChecked(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	settings := &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1", EnableDatabase: true, EnableDynamicConfig: true, RequestTimeout: 5}
+	st, err := store.Open(context.Background(), store.Options{DatabaseURL: "sqlite://" + filepath.Join(t.TempDir(), "test.db")})
+	if err != nil {
+		t.Fatalf("open test store: %v", err)
+	}
+	defer st.Close()
+	resolver := config.NewResolver(settings, st, log)
+	s := &Server{
+		Settings: settings, Resolver: resolver, Store: st, State: state.New(), Log: log,
+		Monitor: &monitor.Monitor{Settings: settings, Resolver: resolver, Store: st, Log: log},
+	}
+	s.State.SetBalance([]model.CheckResult{{Project: "paused", Provider: "volc", Type: "balance", Success: true, Credits: model.Ptr(5.0)}})
+	handler := s.Handler()
+
+	rec := request(t, handler, "POST", "/api/config/project", `{"name":"paused","provider":"volc","api_key":"not-an-ak-sk-pair","enabled":false}`, true)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("保存停用的项目应成功: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := len(s.State.Balance().Projects); n != 0 {
+		t.Errorf("停用后它的卡片应离开看板，还剩 %d 张", n)
+	}
+	for body, want := range map[string]int{
+		`{"project_name":"paused"}`: http.StatusConflict,
+		`{"project_name":"nope"}`:   http.StatusNotFound,
+	} {
+		if rec := request(t, handler, "POST", "/api/refresh", body, true); rec.Code != want {
+			t.Errorf("%s: 期望 %d，实际 %d %s", body, want, rec.Code, rec.Body.String())
+		}
+	}
+}
