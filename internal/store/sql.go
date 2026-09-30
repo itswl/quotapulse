@@ -10,7 +10,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -582,13 +584,32 @@ func (s *sqlStore) RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, 
 			ProjectName:    row.ProjectName,
 			AlertType:      row.AlertType,
 			Status:         row.Status.String,
-			Message:        row.Message.String,
+			Message:        repairAlertMessage(row.Message.String),
 			BalanceValue:   floatPtrOf(row.BalanceValue),
 			ThresholdValue: floatPtrOf(row.ThresholdValue),
 			Timestamp:      isoUTC(row.Timestamp),
 		})
 	}
 	return out, nil
+}
+
+// legacyRenewalMessage matches the subscription reminders a build with a broken message
+// template recorded: "Subscription renewal reminder: Claude Max operation 2 operation",
+// possibly followed by the send error.
+var legacyRenewalMessage = regexp.MustCompile(`^Subscription renewal reminder: (.+) operation (-?\d+) operation((?: — send failed: .*)?)$`)
+
+// repairAlertMessage rewrites such a reminder as the current template words it, so the
+// history reads the same before and after the fix; other messages pass through.
+func repairAlertMessage(message string) string {
+	m := legacyRenewalMessage.FindStringSubmatch(message)
+	if m == nil {
+		return message
+	}
+	days, err := strconv.Atoi(m[2])
+	if err != nil {
+		return message
+	}
+	return "Subscription renewal reminder: " + m[1] + " renews " + model.RenewsIn(days) + m[3]
 }
 
 func (s *sqlStore) AlertStats(ctx context.Context, days int) (*Stats, error) {
