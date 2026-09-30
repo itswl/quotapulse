@@ -21,9 +21,25 @@ go build -o quotapulse ./cmd/quotapulse
 
 ## MCP
 
-设置 `ENABLE_MCP=true` 后，服务会在 `/mcp` 暴露只读 Streamable HTTP MCP
-端点，并复用 `WEB_API_KEY` 鉴权。它提供当前余额、健康/新鲜度、功能能力、服务商目录、脱敏配置、
-订阅、邮箱扫描、定时任务、告警统计和历史查询（余额状态工具支持按项目名或 provider 过滤），不提供配置写入、立即刷新、立即扫描或 provider 调用。
+设置 `ENABLE_MCP=true` 后，服务会在 `/mcp` 暴露只读的 Streamable HTTP MCP 端点。
+给每个 Agent 在 `MCP_API_KEYS` 里单独发一把 Key，不要共用 `WEB_API_KEY`：MCP Key 只能访问
+`/mcp`，只看得到自己权限范围内的工具，单独限速，还可以设过期时间。每项写成
+`名称:密钥[:权限[:过期]]`，多项用 `;` 分隔：
+
+```
+MCP_API_KEYS=claude:qp_7f3a91c2d4e5f6a7b8c9:balance,alerts;ops:qp_0123456789abcdef01:all:2026-12-31
+```
+
+权限有 `balance`（余额、可用天数、历史和趋势）、`alerts`（告警历史、事件时间线、告警统计）、
+`subscriptions`、`email`（邮箱扫描和邮件告警）和 `config`；`config` 为这把 Key 已有的其他权限
+追加对应的配置视图。不写默认 `all`。健康、能力、定时任务和服务商目录不需要权限。过期时间写日期
+（按 UTC 当天有效）或 RFC 3339 时间。`WEB_API_KEY` 在 `/mcp` 上仍然可用且拥有全部权限，设置
+`MCP_REQUIRE_SCOPED_KEY=true` 后停用。每把 Key 每分钟最多 `MCP_RATE_LIMIT_PER_MINUTE` 次请求，
+每次工具调用都会带着 Key 的名称记日志；`./quotapulse -show-config` 会列出所有 Key 并标出已过期的。
+
+所有工具都返回带 outputSchema 的结构化结果，每个结果都有 `meta`，说明数据何时更新、是否过期。
+失败以工具错误返回，带错误类别和重试是否有用。MCP 不写配置、不触发刷新或扫描、不调用服务商；
+结果里不含密钥：API Key、密码和 webhook 地址一律不返回，邮箱地址脱敏，服务商报错里的凭据会被屏蔽。
 
 **没有配置文件**：环境变量里有 `DEEPSEEK_API_KEY` 就会自动监控 DeepSeek，阈值取 `DEEPSEEK_THRESHOLD`。
 要一次管很多账户、想在页面上增删改，打开数据库动态配置。
@@ -88,7 +104,10 @@ go build -o quotapulse ./cmd/quotapulse
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `WEB_API_KEY` | 无 | `/api/*` 的访问密钥；未设置时接口一律 503 |
-| `ENABLE_MCP` | `false` | 是否在 `/mcp` 开启只读 MCP；复用 `WEB_API_KEY` 鉴权 |
+| `ENABLE_MCP` | `false` | 是否在 `/mcp` 开启只读 MCP |
+| `MCP_API_KEYS` | 无 | `/mcp` 专用的只读 Agent Key，每项 `名称:密钥[:权限[:过期]]`，`;` 分隔，见 [MCP](#mcp) |
+| `MCP_REQUIRE_SCOPED_KEY` | `false` | 不再接受用 `WEB_API_KEY` 访问 `/mcp` |
+| `MCP_RATE_LIMIT_PER_MINUTE` | `120` | 每把 MCP Key 每分钟的请求上限；`0` 不限 |
 | `WEBHOOK_URL` / `WEBHOOK_TYPE` / `WEBHOOK_SOURCE` | 无 / `custom` / `credit-monitor` | 告警机器人；类型 `feishu` `dingtalk` `wecom` `custom` |
 | `{PROVIDER}_API_KEY` | 无 | 各平台密钥，见上表 |
 | `BALANCE_REFRESH_INTERVAL_SECONDS` | `3600` | 看板刷新间隔 |

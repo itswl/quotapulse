@@ -24,7 +24,15 @@ By default, QuotaPulse discovers any provider configured with `{PROVIDER}_API_KE
 
 ## MCP
 
-Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. It reuses `WEB_API_KEY` for authentication and provides current status, health/freshness, capabilities, a provider catalog, redacted configuration views, subscription status/configuration, alert statistics, recent alerts, balance history, trend data, and a unified event timeline. balance_status accepts optional project/provider filters. The MCP server has no configuration writes, refresh, scan, provider call, or other write tools.
+Set `ENABLE_MCP=true` to expose a read-only Streamable HTTP MCP endpoint at `/mcp`. Give each agent its own key in `MCP_API_KEYS` instead of sharing `WEB_API_KEY`: an MCP key works only on `/mcp`, sees only the tools of its scopes, has its own rate limit, and can expire. Entries are `name:key[:scopes[:expires]]`, separated by `;`:
+
+```
+MCP_API_KEYS=claude:qp_7f3a91c2d4e5f6a7b8c9:balance,alerts;ops:qp_0123456789abcdef01:all:2026-12-31
+```
+
+The scopes are `balance` (balances, runways, history, and trends), `alerts` (alert history, the event timeline, and alert statistics), `subscriptions`, `email` (mailbox scans and email alerts), and `config`, which adds the configuration views of a key's other scopes; `all` is the default. Health, capabilities, jobs, and the provider catalog need no scope. An expiry is a date, valid through that day in UTC, or an RFC 3339 time. `WEB_API_KEY` keeps working on `/mcp` with every scope until `MCP_REQUIRE_SCOPED_KEY=true`. Each key gets `MCP_RATE_LIMIT_PER_MINUTE` requests a minute, and every tool call is logged with the key's name; `./quotapulse -show-config` lists the keys and flags expired ones.
+
+Every tool returns structured content with an output schema, and every result carries a `meta` block that says when its data was last updated and whether it is stale. Failures come back as tool errors with a category and whether retrying helps. The MCP interface never writes configuration, triggers a refresh or scan, or calls a provider, and results leave secrets out: no API keys, passwords, or webhook URLs, masked mailbox addresses, and provider errors with credentials redacted.
 
 ## Providers
 
@@ -56,6 +64,9 @@ The most important variables are:
 | --- | --- | --- |
 | `WEB_API_KEY` | unset | Authentication for `/api/*`; comma-separated keys enable rotation; requests return 503 when unset |
 | `ENABLE_MCP` | `false` | Enable the read-only `/mcp` endpoint |
+| `MCP_API_KEYS` | unset | Read-only agent keys for `/mcp`, as `name:key[:scopes[:expires]]` separated by `;`; see [MCP](#mcp) |
+| `MCP_REQUIRE_SCOPED_KEY` | `false` | Stop accepting `WEB_API_KEY` on `/mcp` |
+| `MCP_RATE_LIMIT_PER_MINUTE` | `120` | Requests a minute for each MCP key; `0` disables the limit |
 | `WEBHOOK_URL` / `WEBHOOK_TYPE` | unset / `custom` | Alert destination; supported types include `feishu`, `dingtalk`, `wecom`, and `custom` |
 | `BALANCE_REFRESH_INTERVAL_SECONDS` | `3600` | Dashboard refresh interval |
 | `ALERT_SCHEDULE` | `09:00,15:00` | Scheduled balance and subscription checks; `off` disables them |

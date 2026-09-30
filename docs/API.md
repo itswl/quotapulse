@@ -1,13 +1,13 @@
 # API
 
-All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bearer <key>`. `/health`, `/live`, and the MCP endpoint use their documented authentication rules. Responses are JSON. Errors use `{"status":"error","message":"..." }`; validation errors may also include an `errors` array.
+All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bearer <key>`. `/health` and `/live` need no key. `/mcp` also accepts the keys in `MCP_API_KEYS`, which work nowhere else; see the README's MCP section. Responses are JSON. Errors use `{"status":"error","message":"..." }`; validation errors may also include an `errors` array.
 
 | Status | Meaning |
 | --- | --- |
 | 400 | Invalid request parameters |
-| 401 | Missing or invalid API key |
+| 401 | Missing, invalid, or expired API key |
 | 404 | Resource not found or the corresponding capability is disabled |
-| 429 | The same refresh or scan is already running, or is cooling down |
+| 429 | The same refresh or scan is already running, or is cooling down; on `/mcp`, the key exceeded `MCP_RATE_LIMIT_PER_MINUTE` (see `Retry-After`) |
 | 503 | `WEB_API_KEY` is unset, a capability is disabled, or the service is not ready |
 
 ## Endpoints
@@ -53,7 +53,7 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /api/history/alerts` | Alert history; accepts `days` and `limit` | History API |
 | `GET /api/history/stats` | History statistics | History API |
 | `GET /api/history/email-alerts` | Email alert history; accepts `days`, `limit`, and `mailbox` | History API |
-| `POST /mcp` | Read-only Streamable HTTP MCP endpoint; includes status, capabilities, the provider catalog, redacted config views, history, trends, and alert statistics | `ENABLE_MCP` |
+| `POST /mcp` | Read-only, stateless Streamable HTTP MCP endpoint: balances and runways, subscriptions, mailbox scans, redacted configuration views, history, trends, events, alert statistics, jobs, health, and the provider catalog. A key sees only the tools of its scopes; results are structured and never cacheable by intermediaries | `ENABLE_MCP` |
 
 Subscriptions require `ENABLE_SUBSCRIPTIONS`. `/api/features` reports `email_scan` once a mailbox is configured (with a scan schedule), or always with `ENABLE_EMAIL_SCAN=true`. Dynamic writes require `ENABLE_DYNAMIC_CONFIG` and `ENABLE_DATABASE`. History endpoints require `ENABLE_HISTORY_API`. Dashboard-triggered refreshes and scans send real notifications only when `ENABLE_WEB_ALARM=true`.
 
