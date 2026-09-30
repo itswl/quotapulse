@@ -132,12 +132,12 @@ func toolNames(t *testing.T, session *sdkmcp.ClientSession) []string {
 
 func TestToolsFollowTheKeysScopes(t *testing.T) {
 	names := toolNames(t, connect(t, testDeps(config.ScopeBalance)))
-	for _, want := range []string{"health", "capabilities", "providers", "job_status", "balance_status", "balance_history", "balance_trend"} {
+	for _, want := range []string{"dashboard_summary", "health", "capabilities", "providers", "job_status", "balance_status", "balance_history", "balance_trend", "provider_status", "spend_summary"} {
 		if !slices.Contains(names, want) {
 			t.Errorf("a balance key should see %s; got %v", want, names)
 		}
 	}
-	for _, hidden := range []string{"recent_alerts", "events", "subscription_status", "email_scan_status", "project_config", "mailbox_config", "subscription_config"} {
+	for _, hidden := range []string{"recent_alerts", "events", "subscription_status", "upcoming_renewals", "email_scan_status", "project_config", "mailbox_config", "subscription_config"} {
 		if slices.Contains(names, hidden) {
 			t.Errorf("a balance key must not see %s", hidden)
 		}
@@ -148,8 +148,8 @@ func TestToolsFollowTheKeysScopes(t *testing.T) {
 		t.Errorf("config only opens the configuration views of the key's other scopes; got %v", names)
 	}
 
-	if got := len(toolNames(t, connect(t, testDeps(config.AllScopes...)))); got != 17 {
-		t.Errorf("a key with every scope should see all 17 tools, got %d", got)
+	if got := len(toolNames(t, connect(t, testDeps(config.AllScopes...)))); got != 20 {
+		t.Errorf("a key with every scope should see all 20 tools, got %d", got)
 	}
 }
 
@@ -222,7 +222,7 @@ func TestBalanceStatusIsStructured(t *testing.T) {
 
 func TestHistoryToolsExplainAMissingDatabase(t *testing.T) {
 	session := connect(t, testDeps(config.AllScopes...))
-	for _, tool := range []string{"balance_history", "recent_alerts", "recent_email_alerts", "events", "alert_stats"} {
+	for _, tool := range []string{"balance_history", "recent_alerts", "recent_email_alerts", "events", "alert_stats", "spend_summary"} {
 		res := call(t, session, tool, nil)
 		if !res.IsError || res.StructuredContent != nil {
 			t.Errorf("%s: expected an error result without structured content", tool)
@@ -522,5 +522,154 @@ func TestTrendBucketsFollowTheServerDay(t *testing.T) {
 	s := summarize(samples)
 	if s.First != 100 || s.Last != 140 || s.Min != 80 || s.Max != 150 || s.Change != 40 || s.Consumed != 30 || s.ToppedUp != 70 || s.TopUps != 1 || s.Average != 112 {
 		t.Errorf("summary = %+v", s)
+	}
+}
+
+func TestBalanceStatusFilters(t *testing.T) {
+	d := testDeps(config.ScopeBalance)
+	team := "team-a"
+	d.runtime.SetBalance([]model.CheckResult{
+		{Project: "deepseek-prod", Provider: "deepseek", Type: "balance", Success: true, Credits: model.Ptr(42.0), OwnerProject: &team},
+		{Project: "volc-1", Provider: "volc", Type: "balance", Success: true, Credits: model.Ptr(3.0), NeedAlarm: true, OwnerProject: &team},
+		{Project: "volc-2", Provider: "volc", Type: "balance", Error: model.Ptr("HTTP 500")},
+	})
+	session := connect(t, d)
+	names := func(args map[string]any) []string {
+		var out BalanceStatusOutput
+		structured(t, call(t, session, "balance_status", args), &out)
+		var got []string
+		for _, p := range out.Projects {
+			got = append(got, p.ProjectName)
+		}
+		return got
+	}
+	for _, tc := range []struct {
+		args map[string]any
+		want []string
+	}{
+		{map[string]any{"project_ids": []string{model.ProjectID("volc", "volc-2")}}, []string{"volc-2"}},
+		{map[string]any{"project_names": []string{"volc-1", "deepseek-prod"}}, []string{"deepseek-prod", "volc-1"}},
+		{map[string]any{"owner_project": "team-a", "provider": "volc"}, []string{"volc-1"}},
+		{map[string]any{"status": "check_failed"}, []string{"volc-2"}},
+		{map[string]any{"project": "VOLC", "status": "healthy"}, nil},
+	} {
+		if got := names(tc.args); !slices.Equal(got, tc.want) {
+			t.Errorf("%v: got %v, want %v", tc.args, got, tc.want)
+		}
+	}
+	if res := call(t, session, "balance_status", map[string]any{"status": "sleeping"}); !res.IsError {
+		t.Error("status is an enum")
+	}
+}
+
+func TestProviderStatusGroupsChecks(t *testing.T) {
+	d := testDeps(config.ScopeBalance)
+	d.runtime.SetBalance([]model.CheckResult{
+		{Project: "deepseek-prod", Provider: "deepseek", Type: "balance", Success: true, CheckedAt: model.Ptr("2026-09-30T02:00:00Z"), LatencyMs: model.Ptr(int64(100))},
+		{Project: "deepseek-dev", Provider: "deepseek", Type: "balance", Success: true, CheckedAt: model.Ptr("2026-09-30T02:00:05Z"), LatencyMs: model.Ptr(int64(300))},
+		{Project: "volc-1", Provider: "volc", Type: "balance", Success: true, Cached: true, CheckedAt: model.Ptr("2026-09-30T02:00:01Z")},
+		{Project: "volc-2", Provider: "volc", Type: "balance", Error: model.Ptr("dial tcp: i/o timeout"), CheckedAt: model.Ptr("2026-09-30T02:00:02Z")},
+	})
+	var out ProviderStatusOutput
+	structured(t, call(t, connect(t, d), "provider_status", nil), &out)
+	if out.Count != 2 || out.Providers[0].Provider != "volc" || out.Providers[0].Status != "degraded" || out.Providers[1].Status != "ok" {
+		t.Fatalf("failing providers come first: %+v", out.Providers)
+	}
+	volc, deepseek := out.Providers[0], out.Providers[1]
+	if volc.Failing != 1 || volc.Cached != 1 || len(volc.Errors) != 1 || volc.Errors[0].Error.Category != "network" || !volc.Errors[0].Error.Retryable {
+		t.Errorf("volc = %+v", volc)
+	}
+	if deepseek.AvgLatencyMs == nil || *deepseek.AvgLatencyMs != 200 || *deepseek.MaxLatencyMs != 300 || *deepseek.LastCheckedAt != "2026-09-30T02:00:05Z" {
+		t.Errorf("deepseek = %+v", deepseek)
+	}
+	if deepseek.Name == "" || deepseek.LastSuccessAt != nil {
+		t.Errorf("the name comes from the catalog, and last_success_at needs the database: %+v", deepseek)
+	}
+}
+
+func TestSpendViewFollowsTheRunwayRules(t *testing.T) {
+	shanghai := time.FixedZone("CST", 8*3600)
+	at := func(day, hour int) time.Time { return time.Date(2026, 9, day, hour, 0, 0, 0, shanghai) }
+	var samples []sample
+	balance := 100.0
+	for day := 25; day <= 29; day++ { // 10 a day for five days
+		samples = append(samples, sample{at: at(day, 1), balance: balance}, sample{at: at(day, 23), balance: balance - 10})
+		balance -= 10
+	}
+	samples = append(samples, sample{at: at(30, 8), balance: balance + 100}, sample{at: at(30, 10), balance: balance + 60}) // top-up, then 40 today
+	view := spendView(spendSeries{projectID: "p", projectName: "demo", provider: "volc", balanceType: "balance", samples: samples}, at(30, 12), shanghai)
+	if view.Consumed != 90 || view.ToppedUp != 100 || view.TopUps != 1 || view.Balance != 110 {
+		t.Errorf("flows = consumed %v, topped up %v (%d), balance %v", view.Consumed, view.ToppedUp, view.TopUps, view.Balance)
+	}
+	if len(view.Daily) != 6 || view.Daily[0].Date != "2026-09-25" || view.Daily[5].Consumed != 40 || view.Daily[5].ToppedUp != 100 {
+		t.Errorf("daily = %+v", view.Daily)
+	}
+	if view.Today == nil || *view.Today != 40 || view.SpikeRatio == nil || *view.SpikeRatio != 4 {
+		t.Errorf("today %v and spike ratio %v: 40 against a median day of 10", view.Today, view.SpikeRatio)
+	}
+	if view.PerDay == nil || *view.PerDay <= 0 {
+		t.Errorf("per_day = %v", view.PerDay)
+	}
+	totals := spendTotals([]SpendProjectView{view, {Provider: "volc", BalanceType: "balance", Consumed: 5}, {Provider: "deepseek", BalanceType: "balance", Consumed: 500}})
+	if len(totals) != 2 || totals[0].Provider != "deepseek" || totals[1].Projects != 2 || totals[1].Consumed != 95 {
+		t.Errorf("totals = %+v", totals)
+	}
+}
+
+func TestUpcomingRenewals(t *testing.T) {
+	d := testDeps(config.ScopeSubscriptions)
+	d.runtime.SetSubscriptions([]model.SubscriptionResult{
+		{Name: "later", DaysUntilRenewal: 40},
+		{Name: "paid", DaysUntilRenewal: 3, AlreadyRenewed: true},
+		{Name: "soon", DaysUntilRenewal: 3, NeedAlert: true},
+		{Name: "next week", DaysUntilRenewal: 8},
+	})
+	session := connect(t, d)
+	var out UpcomingRenewalsOutput
+	res := call(t, session, "upcoming_renewals", nil)
+	structured(t, res, &out)
+	if out.Count != 2 || out.Renewals[0].Name != "soon" || out.Renewals[1].Name != "next week" {
+		t.Errorf("unpaid renewals within 30 days, soonest first: %+v", out.Renewals)
+	}
+	if !strings.Contains(text(res, 0), "next: soon, in 3 days") {
+		t.Errorf("summary = %q", text(res, 0))
+	}
+	structured(t, call(t, session, "upcoming_renewals", map[string]any{"days": 60, "include_renewed": true}), &out)
+	if out.Count != 4 || out.Renewals[0].Name != "paid" {
+		t.Errorf("with include_renewed and 60 days every renewal is listed: %+v", out.Renewals)
+	}
+}
+
+func TestResourcesAreScoped(t *testing.T) {
+	ctx := context.Background()
+	d := testDeps(config.ScopeBalance)
+	d.runtime.SetBalance([]model.CheckResult{{Project: "demo", Provider: "deepseek", Type: "balance", Success: true, Credits: model.Ptr(5.0)}})
+	session := connect(t, d)
+	list, err := session.ListResources(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var uris []string
+	for _, r := range list.Resources {
+		uris = append(uris, r.URI)
+	}
+	if !slices.Equal(uris, []string{"quotapulse://dashboard/summary"}) {
+		t.Errorf("a balance key lists only the dashboard: %v", uris)
+	}
+	res, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "quotapulse://projects/" + model.ProjectID("deepseek", "demo") + "/status"})
+	if err != nil || !strings.Contains(res.Contents[0].Text, `"project_name":"demo"`) {
+		t.Fatalf("project resource: %v %+v", err, res)
+	}
+	if _, err := session.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "quotapulse://projects/unknown/status"}); err == nil {
+		t.Error("an unknown project is not found")
+	}
+
+	full := connect(t, testDeps(config.AllScopes...))
+	list, err = full.ListResources(ctx, nil)
+	if err != nil || len(list.Resources) != 3 {
+		t.Fatalf("a full key lists three resources: %v %+v", err, list)
+	}
+	if _, err := full.ReadResource(ctx, &sdkmcp.ReadResourceParams{URI: "quotapulse://alerts/recent"}); err == nil || !strings.Contains(err.Error(), "ENABLE_DATABASE") {
+		t.Errorf("recent alerts without a database should say what to enable: %v", err)
 	}
 }

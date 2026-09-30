@@ -30,8 +30,8 @@ go build -o quotapulse ./cmd/quotapulse
 MCP_API_KEYS=claude:qp_7f3a91c2d4e5f6a7b8c9:balance,alerts;ops:qp_0123456789abcdef01:all:2026-12-31
 ```
 
-权限有 `balance`（余额、可用天数、历史和趋势）、`alerts`（告警历史、事件时间线、告警统计）、
-`subscriptions`、`email`（邮箱扫描和邮件告警）和 `config`；`config` 为这把 Key 已有的其他权限
+权限有 `balance`（余额、可用天数、历史、趋势、消耗和服务商状态）、`alerts`（告警历史、事件时间线、
+告警统计）、`subscriptions`（续费状态和即将到期的续费）、`email`（邮箱扫描和邮件告警）和 `config`；`config` 为这把 Key 已有的其他权限
 追加对应的配置视图。不写默认 `all`。健康、能力、定时任务和服务商目录不需要权限。过期时间写日期
 （按 UTC 当天有效）或 RFC 3339 时间。`WEB_API_KEY` 在 `/mcp` 上仍然可用且拥有全部权限，设置
 `MCP_REQUIRE_SCOPED_KEY=true` 后停用。每把 Key 每分钟最多 `MCP_RATE_LIMIT_PER_MINUTE` 次请求，
@@ -41,6 +41,11 @@ Agent 应先调用 `dashboard_summary`：它按严重程度列出需要处理的
 即将续费、告警邮件和失败的任务。所有工具都返回带 outputSchema 的结构化结果，每个结果都有 `meta`，
 说明数据何时更新、是否过期。历史列表按时间倒序，支持 `since`/`until`（RFC 3339 或日期），用 `next_cursor`
 翻页；`balance_trend` 可以返回每个快照，或按小时、天、周聚合，并汇总这段时间的变化、消耗和充值。
+`spend_summary` 按项目和天拆分消耗与充值，只按服务商汇总，不跨服务商相加，因为各家的单位和币种不同；
+`provider_status` 列出哪些服务商检查失败、各自最后一次成功是什么时候；`upcoming_renewals` 列出近期要续费的订阅。
+`balance_status` 可按项目 ID 或名称、服务商、owner project 和状态过滤，`include_disabled` 会带上已停用的项目。
+资源与主要视图对应：`quotapulse://dashboard/summary`、`quotapulse://alerts/recent`、
+`quotapulse://subscriptions/upcoming`、`quotapulse://projects/{project_id}/status` 和 `quotapulse://state/{kind}`。
 失败以工具错误返回，带错误类别和重试是否有用。MCP 不写配置、不触发刷新或扫描、不调用服务商；
 结果里不含密钥：API Key、密码和 webhook 地址一律不返回，邮箱地址脱敏，服务商报错里的凭据会被屏蔽。
 

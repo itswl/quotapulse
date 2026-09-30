@@ -13,11 +13,13 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,7 +34,10 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const stateResourceTemplate = "quotapulse://state/{kind}"
+const (
+	stateResourceTemplate   = "quotapulse://state/{kind}"
+	projectResourceTemplate = "quotapulse://projects/{project_id}/status"
+)
 
 const instructions = "Read-only access to quotapulse: API balances and runways, subscription renewals, " +
 	"mailbox scans, alert history, jobs and health. Start with dashboard_summary, which lists what needs " +
@@ -44,8 +49,24 @@ const instructions = "Read-only access to quotapulse: API balances and runways, 
 type emptyInput struct{}
 
 type balanceStatusInput struct {
-	Project  string `json:"project,omitempty" jsonschema:"optional project name filter, case-insensitive substring"`
-	Provider string `json:"provider,omitempty" jsonschema:"optional provider filter"`
+	Project         string   `json:"project,omitempty" jsonschema:"optional project name filter, case-insensitive substring"`
+	ProjectIDs      []string `json:"project_ids,omitempty" jsonschema:"only these project IDs"`
+	ProjectNames    []string `json:"project_names,omitempty" jsonschema:"only these project names, exactly"`
+	Provider        string   `json:"provider,omitempty" jsonschema:"optional provider filter"`
+	OwnerProject    string   `json:"owner_project,omitempty" jsonschema:"only projects in this owner_project group"`
+	Status          string   `json:"status,omitempty" jsonschema:"only projects in this state"`
+	IncludeDisabled bool     `json:"include_disabled,omitempty" jsonschema:"also list configured projects that are disabled, and so not checked"`
+}
+
+type spendInput struct {
+	Days      int    `json:"days,omitempty" jsonschema:"how many days back, 1-90 (default BURN_RATE_WINDOW_DAYS, the runway window)"`
+	Provider  string `json:"provider,omitempty" jsonschema:"optional provider filter"`
+	ProjectID string `json:"project_id,omitempty" jsonschema:"optional stable project ID filter"`
+}
+
+type upcomingInput struct {
+	Days           int  `json:"days,omitempty" jsonschema:"how many days ahead, 1-366 (default 30)"`
+	IncludeRenewed bool `json:"include_renewed,omitempty" jsonschema:"also list renewals already marked as paid"`
 }
 
 type balanceHistoryInput struct {
@@ -90,6 +111,7 @@ type trendInput struct {
 var (
 	alertTypes = []string{"low_balance", "check_failed", "low_runway", "spend_spike", "subscription_renewal"}
 	eventTypes = append(slices.Clone(alertTypes), "email_alert")
+	statuses   = []string{"healthy", "below_threshold", "check_failed", "disabled"}
 )
 
 // deps is what one request's tools read. history and resolver may be nil: the history
@@ -387,18 +409,43 @@ func (d *deps) config(ctx context.Context) model.Config {
 
 // ==================== Live state ====================
 
-func (d *deps) balanceStatus(name, providerKey string) BalanceStatusOutput {
+// balanceStatus is every monitored project that passes the filter; the zero filter
+// keeps them all.
+func (d *deps) balanceStatus(ctx context.Context, f balanceStatusInput) BalanceStatusOutput {
 	snapshot := d.runtime.Balance()
-	name = strings.ToLower(strings.TrimSpace(name))
+	name := strings.ToLower(strings.TrimSpace(f.Project))
+	keep := func(p ProjectStatus) bool {
+		return (name == "" || strings.Contains(strings.ToLower(p.ProjectName), name)) &&
+			(len(f.ProjectIDs) == 0 || slices.Contains(f.ProjectIDs, p.ProjectID)) &&
+			(len(f.ProjectNames) == 0 || slices.Contains(f.ProjectNames, p.ProjectName)) &&
+			(f.Provider == "" || p.Provider == f.Provider) &&
+			(f.OwnerProject == "" || (p.OwnerProject != nil && *p.OwnerProject == f.OwnerProject)) &&
+			(f.Status == "" || p.Status == f.Status)
+	}
 	projects := make([]ProjectStatus, 0, len(snapshot.Projects))
+	seen := map[string]bool{}
 	for _, r := range snapshot.Projects {
-		if name != "" && !strings.Contains(strings.ToLower(r.Project), name) {
-			continue
+		p := d.projectStatus(r)
+		seen[p.ProjectID] = true
+		if keep(p) {
+			projects = append(projects, p)
 		}
-		if providerKey != "" && r.Provider != providerKey {
-			continue
+	}
+	if f.IncludeDisabled || f.Status == "disabled" {
+		for _, c := range d.config(ctx).Projects {
+			if c.Enabled || seen[c.ID()] {
+				continue
+			}
+			threshold := c.Threshold
+			p := ProjectStatus{
+				ProjectID: c.ID(), ProjectName: c.Name, Provider: c.Provider, OwnerProject: c.OwnerProject,
+				BalanceType: c.Type, Unit: unitOf(c.Type), Status: "disabled", Threshold: &threshold,
+				RunwayNote: "disabled projects are not checked", Check: CheckView{Status: "disabled"},
+			}
+			if keep(p) {
+				projects = append(projects, p)
+			}
 		}
-		projects = append(projects, d.projectStatus(r))
 	}
 	return BalanceStatusOutput{Meta: d.meta("live_state", snapshot.LastUpdate), Counts: countBalances(projects), Projects: projects}
 }
@@ -675,13 +722,41 @@ func (d *deps) addTools(server *sdkmcp.Server) {
 
 	addTool(d, server, toolSpec{
 		name: "balance_status", title: "Balances and runways", scopes: balance,
-		enums:       map[string][]string{"provider": providers},
-		description: "Current balance, threshold status, runway estimate and last check of every monitored project.",
-	}, func(_ context.Context, in balanceStatusInput) (BalanceStatusOutput, string, *ErrorInfo) {
-		out := d.balanceStatus(in.Project, in.Provider)
+		enums:       map[string][]string{"provider": providers, "status": statuses},
+		description: "Current balance, threshold status, runway estimate and last check of every monitored project, optionally filtered by project, provider, owner_project or status.",
+	}, func(ctx context.Context, in balanceStatusInput) (BalanceStatusOutput, string, *ErrorInfo) {
+		out := d.balanceStatus(ctx, in)
 		c := out.Counts
-		return out, fmt.Sprintf("%s: %d healthy, %d below threshold, %d failing their check",
-			model.Quantity(c.Total, "project", "projects"), c.Healthy, c.BelowThreshold, c.CheckFailed), nil
+		summary := fmt.Sprintf("%s: %d healthy, %d below threshold, %d failing their check",
+			model.Quantity(c.Total, "project", "projects"), c.Healthy, c.BelowThreshold, c.CheckFailed)
+		if c.Disabled > 0 {
+			summary += fmt.Sprintf(", %d disabled", c.Disabled)
+		}
+		return out, summary, nil
+	})
+
+	addTool(d, server, toolSpec{
+		name: "provider_status", title: "Provider health", scopes: balance,
+		description: "Per provider: how many of its projects fail their check and why, when it last answered, its latency, and its newest snapshot in the history.",
+	}, d.providerStatus)
+
+	addTool(d, server, toolSpec{
+		name: "spend_summary", title: "Spending", scopes: balance,
+		enums:       map[string][]string{"provider": providers},
+		description: "Spending and top-ups per project over a number of days, with a daily breakdown and today's spike ratio, plus totals per provider. Amounts of different providers are never added up.",
+	}, d.spendSummary)
+
+	addTool(d, server, toolSpec{
+		name: "upcoming_renewals", title: "Upcoming renewals", scopes: subscriptions,
+		description: "Subscriptions renewing in the next days, soonest first, with their reminder state; paid ones only on request.",
+	}, func(_ context.Context, in upcomingInput) (UpcomingRenewalsOutput, string, *ErrorInfo) {
+		out := d.upcomingRenewals(in)
+		summary := model.Quantity(out.Count, "renewal", "renewals") + " in the next " + model.Quantity(out.Days, "day", "days")
+		if out.Count > 0 {
+			next := out.Renewals[0]
+			summary += fmt.Sprintf("; next: %s, %s", next.Name, model.RenewsIn(next.DaysUntilRenewal))
+		}
+		return out, summary, nil
 	})
 
 	addTool(d, server, toolSpec{
@@ -808,13 +883,11 @@ func (d *deps) providerOf() func(projectID string) *string {
 	return func(projectID string) *string { return optional(providers[projectID]) }
 }
 
-func (d *deps) historyMeta(p interface{ isTruncated() bool }) Meta {
+func (d *deps) historyMeta(truncated bool) Meta {
 	m := d.meta("persisted_history", nil)
-	m.Truncated = p.isTruncated()
+	m.Truncated = truncated
 	return m
 }
-
-func (p page[T]) isTruncated() bool { return p.truncated }
 
 func (d *deps) balanceHistory(ctx context.Context, in balanceHistoryInput) (BalanceHistoryOutput, string, *ErrorInfo) {
 	if !d.historyAvailable() {
@@ -837,7 +910,7 @@ func (d *deps) balanceHistory(ctx context.Context, in balanceHistoryInput) (Bala
 		}))
 	}
 	p := paginate(entries, w, bounded(in.Limit, 100, 1, 100), len(rows) >= historyReadLimit)
-	out := BalanceHistoryOutput{Meta: d.historyMeta(p), Count: len(p.items), Snapshots: p.items, NextCursor: optional(p.next)}
+	out := BalanceHistoryOutput{Meta: d.historyMeta(p.truncated), Count: len(p.items), Snapshots: p.items, NextCursor: optional(p.next)}
 	return out, pageSummary(out.Count, "snapshot", "snapshots", p), nil
 }
 
@@ -940,7 +1013,7 @@ func (d *deps) recentAlerts(ctx context.Context, in alertHistoryInput) (AlertsOu
 		entries = append(entries, newEntry(row.Timestamp, rowID("alert", row.ID), alertView(row, providerOf)))
 	}
 	p := paginate(entries, w, bounded(in.Limit, 50, 1, 100), len(rows) >= historyReadLimit)
-	out := AlertsOutput{Meta: d.historyMeta(p), Count: len(p.items), Alerts: p.items, NextCursor: optional(p.next)}
+	out := AlertsOutput{Meta: d.historyMeta(p.truncated), Count: len(p.items), Alerts: p.items, NextCursor: optional(p.next)}
 	return out, pageSummary(out.Count, "alert", "alerts", p), nil
 }
 
@@ -973,7 +1046,7 @@ func (d *deps) recentEmailAlerts(ctx context.Context, in emailAlertHistoryInput)
 		}))
 	}
 	p := paginate(entries, w, bounded(in.Limit, 50, 1, 100), len(rows) >= historyReadLimit)
-	out := EmailAlertsOutput{Meta: d.historyMeta(p), Count: len(p.items), EmailAlerts: p.items, NextCursor: optional(p.next)}
+	out := EmailAlertsOutput{Meta: d.historyMeta(p.truncated), Count: len(p.items), EmailAlerts: p.items, NextCursor: optional(p.next)}
 	return out, pageSummary(out.Count, "email alert", "email alerts", p), nil
 }
 
@@ -1023,7 +1096,7 @@ func (d *deps) events(ctx context.Context, in eventsInput) (EventsOutput, string
 		}
 	}
 	p := paginate(entries, w, bounded(in.Limit, 100, 1, 500), capped)
-	out := EventsOutput{Meta: d.historyMeta(p), Count: len(p.items), Events: p.items, NextCursor: optional(p.next)}
+	out := EventsOutput{Meta: d.historyMeta(p.truncated), Count: len(p.items), Events: p.items, NextCursor: optional(p.next)}
 	return out, pageSummary(out.Count, "event", "events", p), nil
 }
 
@@ -1049,6 +1122,164 @@ func (d *deps) alertStats(ctx context.Context, in statsInput) (AlertStatsOutput,
 	return out, fmt.Sprintf("%s in %s", model.Quantity(out.TotalAlerts, "alert", "alerts"), model.Quantity(days, "day", "days")), nil
 }
 
+// ==================== Providers, spending and renewals ====================
+
+func (d *deps) providerStatus(ctx context.Context, _ emptyInput) (ProviderStatusOutput, string, *ErrorInfo) {
+	names := map[string]string{}
+	for _, p := range provider.All() {
+		names[p.Key] = p.Name
+	}
+	var views []*ProviderStatusView
+	byKey := map[string]*ProviderStatusView{}
+	latency := map[string][2]int64{} // sum, count
+	for _, r := range d.runtime.Balance().Projects {
+		v := byKey[r.Provider]
+		if v == nil {
+			v = &ProviderStatusView{Provider: r.Provider, Name: names[r.Provider], Errors: []ProviderErrorView{}}
+			byKey[r.Provider] = v
+			views = append(views, v)
+		}
+		v.Projects++
+		if r.CheckedAt != nil && (v.LastCheckedAt == nil || *r.CheckedAt > *v.LastCheckedAt) {
+			v.LastCheckedAt = r.CheckedAt
+		}
+		if r.Cached {
+			v.Cached++
+		}
+		if r.LatencyMs != nil {
+			l := latency[r.Provider]
+			latency[r.Provider] = [2]int64{l[0] + *r.LatencyMs, l[1] + 1}
+			if v.MaxLatencyMs == nil || *r.LatencyMs > *v.MaxLatencyMs {
+				v.MaxLatencyMs = r.LatencyMs
+			}
+		}
+		if !r.Success {
+			v.Failing++
+			id := model.ProjectID(r.Provider, r.Project)
+			v.Errors = append(v.Errors, ProviderErrorView{ProjectID: id, ProjectName: r.Project, Error: *d.checkError(r), LastSuccessAt: d.newestSnapshot(ctx, store.BalanceQuery{ProjectID: id})})
+		}
+	}
+	rank := map[string]int{"down": 0, "degraded": 1, "ok": 2}
+	out := ProviderStatusOutput{Meta: d.meta("live_state", d.runtime.Balance().LastUpdate), Providers: make([]ProviderStatusView, 0, len(views))}
+	for _, v := range views {
+		switch {
+		case v.Failing == v.Projects:
+			v.Status = "down"
+		case v.Failing > 0:
+			v.Status = "degraded"
+		default:
+			v.Status = "ok"
+		}
+		if l := latency[v.Provider]; l[1] > 0 {
+			avg := l[0] / l[1]
+			v.AvgLatencyMs = &avg
+		}
+		v.LastSuccessAt = d.newestSnapshot(ctx, store.BalanceQuery{Provider: v.Provider})
+		out.Providers = append(out.Providers, *v)
+	}
+	sort.SliceStable(out.Providers, func(i, j int) bool {
+		a, b := out.Providers[i], out.Providers[j]
+		if rank[a.Status] != rank[b.Status] {
+			return rank[a.Status] < rank[b.Status]
+		}
+		return a.Provider < b.Provider
+	})
+	out.Count = len(out.Providers)
+	failing := 0
+	for _, v := range out.Providers {
+		if v.Status != "ok" {
+			failing++
+		}
+	}
+	return out, fmt.Sprintf("%s, %d with failing checks", model.Quantity(out.Count, "provider", "providers"), failing), nil
+}
+
+// newestSnapshot is the timestamp of the newest balance snapshot matching q in the last
+// year, or nil without the database or a snapshot. Snapshots are only stored for checks
+// that read a balance, so this is the last success.
+func (d *deps) newestSnapshot(ctx context.Context, q store.BalanceQuery) *string {
+	if !d.historyAvailable() {
+		return nil
+	}
+	q.Days, q.Limit = 365, 1
+	rows, err := d.history.BalanceHistory(ctx, q)
+	if err != nil || len(rows) == 0 {
+		return nil
+	}
+	return &rows[0].Timestamp
+}
+
+func (d *deps) spendSummary(ctx context.Context, in spendInput) (SpendSummaryOutput, string, *ErrorInfo) {
+	if !d.historyAvailable() {
+		return SpendSummaryOutput{}, "", &errHistoryUnavailable
+	}
+	days := bounded(in.Days, max(1, d.settings.BurnRateWindowDays), 1, 90)
+	points, err := d.history.BalanceSeries(ctx, days)
+	if err != nil {
+		return SpendSummaryOutput{}, "", d.historyFailed("spend_summary", err)
+	}
+	var order []string
+	series := map[string]*spendSeries{}
+	excluded := map[string]bool{}
+	for _, p := range points {
+		if (in.Provider != "" && p.Provider != in.Provider) || (in.ProjectID != "" && p.ProjectID != in.ProjectID) || p.Timestamp == 0 {
+			continue
+		}
+		if p.BalanceType == model.TypeQuota {
+			excluded[p.ProjectName] = true
+			continue
+		}
+		s := series[p.ProjectID]
+		if s == nil {
+			s = &spendSeries{projectID: p.ProjectID}
+			series[p.ProjectID] = s
+			order = append(order, p.ProjectID)
+		}
+		// The newest snapshot names the project.
+		s.projectName, s.provider, s.balanceType = p.ProjectName, p.Provider, p.BalanceType
+		s.samples = append(s.samples, sample{at: time.Unix(p.Timestamp, 0), balance: p.Balance})
+	}
+	out := SpendSummaryOutput{Meta: d.meta("persisted_history", nil), Days: days, Projects: make([]SpendProjectView, 0, len(order)), Excluded: []string{}}
+	now := d.now()
+	for _, id := range order {
+		s := series[id]
+		sort.SliceStable(s.samples, func(i, j int) bool { return s.samples[i].at.Before(s.samples[j].at) })
+		out.Projects = append(out.Projects, spendView(*s, now, time.Local))
+	}
+	sort.SliceStable(out.Projects, func(i, j int) bool { return out.Projects[i].Consumed > out.Projects[j].Consumed })
+	out.Totals = spendTotals(out.Projects)
+	for name := range excluded {
+		out.Excluded = append(out.Excluded, name)
+	}
+	sort.Strings(out.Excluded)
+	summary := model.Quantity(len(out.Projects), "project", "projects") + " over " + model.Quantity(days, "day", "days")
+	if len(out.Projects) > 0 {
+		top := out.Projects[0]
+		summary += fmt.Sprintf("; most spent: %s, %s", top.ProjectName, strconv.FormatFloat(top.Consumed, 'f', -1, 64))
+	}
+	return out, summary, nil
+}
+
+func (d *deps) upcomingRenewals(in upcomingInput) UpcomingRenewalsOutput {
+	days := bounded(in.Days, 30, 1, 366)
+	status := d.subscriptionStatus()
+	out := UpcomingRenewalsOutput{Meta: status.Meta, Days: days, Renewals: []SubscriptionView{}}
+	for _, s := range status.Subscriptions {
+		if s.DaysUntilRenewal <= days && (in.IncludeRenewed || !s.AlreadyRenewed) {
+			out.Renewals = append(out.Renewals, s)
+		}
+	}
+	sort.SliceStable(out.Renewals, func(i, j int) bool {
+		a, b := out.Renewals[i], out.Renewals[j]
+		if a.DaysUntilRenewal != b.DaysUntilRenewal {
+			return a.DaysUntilRenewal < b.DaysUntilRenewal
+		}
+		return a.Name < b.Name
+	})
+	out.Count = len(out.Renewals)
+	return out
+}
+
 // ==================== Dashboard ====================
 
 // dashboard answers "does anything need me?" in one call: what needs attention, most
@@ -1071,7 +1302,7 @@ func (d *deps) dashboard(ctx context.Context) (DashboardSummaryOutput, string, *
 	}
 
 	if d.allows(config.ScopeBalance) {
-		balances := d.balanceStatus("", "")
+		balances := d.balanceStatus(ctx, balanceStatusInput{})
 		out.Balances = &BalanceOverview{Counts: balances.Counts}
 		for _, p := range balances.Projects {
 			id := optional(p.ProjectID)
@@ -1220,6 +1451,42 @@ func deref(text *string) string {
 // ==================== Resources ====================
 
 func (d *deps) addResources(server *sdkmcp.Server) {
+	d.addResource(server, "quotapulse://dashboard/summary", "dashboard-summary",
+		"What needs attention now, as dashboard_summary returns it.", nil,
+		func(ctx context.Context) (any, *ErrorInfo) { out, _, failure := d.dashboard(ctx); return out, failure })
+	d.addResource(server, "quotapulse://alerts/recent", "recent-alerts",
+		"The 50 newest alerts, as recent_alerts returns them.", []string{config.ScopeAlerts},
+		func(ctx context.Context) (any, *ErrorInfo) {
+			out, _, failure := d.recentAlerts(ctx, alertHistoryInput{})
+			return out, failure
+		})
+	d.addResource(server, "quotapulse://subscriptions/upcoming", "upcoming-renewals",
+		"Unpaid renewals in the next 30 days, as upcoming_renewals returns them.", []string{config.ScopeSubscriptions},
+		func(context.Context) (any, *ErrorInfo) { return d.upcomingRenewals(upcomingInput{}), nil })
+
+	if d.allows(config.ScopeBalance) {
+		server.AddResourceTemplate(&sdkmcp.ResourceTemplate{
+			Name:        "project-status",
+			URITemplate: projectResourceTemplate,
+			Description: "One project's current balance, runway and last check, by project_id.",
+			MIMEType:    "application/json",
+		}, func(ctx context.Context, req *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+			id, ok := strings.CutPrefix(req.Params.URI, "quotapulse://projects/")
+			id, ok2 := strings.CutSuffix(id, "/status")
+			if !ok || !ok2 || id == "" || strings.Contains(id, "/") {
+				return nil, sdkmcp.ResourceNotFoundError(req.Params.URI)
+			}
+			status := d.balanceStatus(ctx, balanceStatusInput{ProjectIDs: []string{id}})
+			if len(status.Projects) == 0 {
+				return nil, sdkmcp.ResourceNotFoundError(req.Params.URI)
+			}
+			return jsonResource(req.Params.URI, struct {
+				Meta    Meta          `json:"meta"`
+				Project ProjectStatus `json:"project"`
+			}{status.Meta, status.Projects[0]})
+		})
+	}
+
 	server.AddResourceTemplate(&sdkmcp.ResourceTemplate{
 		Name:        "quotapulse-state",
 		URITemplate: stateResourceTemplate,
@@ -1233,7 +1500,7 @@ func (d *deps) addResources(server *sdkmcp.Server) {
 		var value any
 		switch {
 		case kind == "balance" && d.allows(config.ScopeBalance):
-			value = d.balanceStatus("", "")
+			value = d.balanceStatus(ctx, balanceStatusInput{})
 		case kind == "subscriptions" && d.allows(config.ScopeSubscriptions):
 			value = d.subscriptionStatus()
 		case kind == "email" && d.allows(config.ScopeEmail):
@@ -1243,14 +1510,32 @@ func (d *deps) addResources(server *sdkmcp.Server) {
 		default:
 			return nil, sdkmcp.ResourceNotFoundError(req.Params.URI)
 		}
-		body, err := json.Marshal(value)
-		if err != nil {
-			return nil, err
-		}
-		return &sdkmcp.ReadResourceResult{Contents: []*sdkmcp.ResourceContents{{
-			URI: req.Params.URI, MIMEType: "application/json", Text: string(body),
-		}}}, nil
+		return jsonResource(req.Params.URI, value)
 	})
+}
+
+// addResource registers a fixed resource when the caller has its scopes. A read that
+// fails, such as history without a database, is a resource error with the message.
+func (d *deps) addResource(server *sdkmcp.Server, uri, name, description string, scopes []string, read func(context.Context) (any, *ErrorInfo)) {
+	if !d.allows(scopes...) {
+		return
+	}
+	server.AddResource(&sdkmcp.Resource{URI: uri, Name: name, Description: description, MIMEType: "application/json"},
+		func(ctx context.Context, req *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+			value, failure := read(ctx)
+			if failure != nil {
+				return nil, errors.New(failure.Message)
+			}
+			return jsonResource(req.Params.URI, value)
+		})
+}
+
+func jsonResource(uri string, value any) (*sdkmcp.ReadResourceResult, error) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return &sdkmcp.ReadResourceResult{Contents: []*sdkmcp.ResourceContents{{URI: uri, MIMEType: "application/json", Text: string(body)}}}, nil
 }
 
 func stateKind(raw string) (string, error) {

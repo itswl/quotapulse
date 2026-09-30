@@ -106,6 +106,76 @@ type BalanceStatusOutput struct {
 	Projects []ProjectStatus `json:"projects"`
 }
 
+type ProviderErrorView struct {
+	ProjectID     string    `json:"project_id"`
+	ProjectName   string    `json:"project_name"`
+	Error         ErrorInfo `json:"error"`
+	LastSuccessAt *string   `json:"last_success_at" jsonschema:"the project's newest snapshot in the history; null without one"`
+}
+
+type ProviderStatusView struct {
+	Provider      string              `json:"provider"`
+	Name          string              `json:"name"`
+	Status        string              `json:"status" jsonschema:"ok, degraded (some checks fail) or down (every check fails)"`
+	Projects      int                 `json:"projects"`
+	Failing       int                 `json:"failing"`
+	LastCheckedAt *string             `json:"last_checked_at"`
+	LastSuccessAt *string             `json:"last_success_at" jsonschema:"the provider's newest snapshot in the history; null without the database"`
+	AvgLatencyMs  *int64              `json:"avg_latency_ms" jsonschema:"over the checks that called the provider, not the cached ones"`
+	MaxLatencyMs  *int64              `json:"max_latency_ms"`
+	Cached        int                 `json:"cached" jsonschema:"checks answered from the response cache"`
+	Errors        []ProviderErrorView `json:"errors" jsonschema:"one per failing project"`
+}
+
+type ProviderStatusOutput struct {
+	Meta      Meta                 `json:"meta"`
+	Count     int                  `json:"count"`
+	Providers []ProviderStatusView `json:"providers" jsonschema:"providers with monitored projects, failing first"`
+}
+
+// ==================== Spending ====================
+
+type DailySpendView struct {
+	Date     string  `json:"date" jsonschema:"YYYY-MM-DD in the server timezone"`
+	Consumed float64 `json:"consumed"`
+	ToppedUp float64 `json:"topped_up"`
+}
+
+type SpendProjectView struct {
+	ProjectID   string           `json:"project_id"`
+	ProjectName string           `json:"project_name"`
+	Provider    string           `json:"provider"`
+	BalanceType string           `json:"balance_type"`
+	Unit        string           `json:"unit"`
+	Samples     int              `json:"samples"`
+	SpanDays    float64          `json:"span_days" jsonschema:"how many days the snapshots cover"`
+	Balance     float64          `json:"balance" jsonschema:"the newest snapshot"`
+	Consumed    float64          `json:"consumed" jsonschema:"spending: the sum of the decreases between consecutive snapshots"`
+	ToppedUp    float64          `json:"topped_up" jsonschema:"the sum of the increases"`
+	TopUps      int              `json:"top_ups"`
+	PerDay      *float64         `json:"per_day" jsonschema:"consumed per day of span; null with a single snapshot"`
+	Today       *float64         `json:"today" jsonschema:"spending so far today; null without a snapshot today"`
+	SpikeRatio  *float64         `json:"spike_ratio" jsonschema:"today's spending over the median earlier day; null with fewer than three earlier days"`
+	Daily       []DailySpendView `json:"daily" jsonschema:"oldest first"`
+}
+
+type SpendProviderView struct {
+	Provider    string  `json:"provider"`
+	BalanceType string  `json:"balance_type"`
+	Unit        string  `json:"unit"`
+	Projects    int     `json:"projects"`
+	Consumed    float64 `json:"consumed"`
+	ToppedUp    float64 `json:"topped_up"`
+}
+
+type SpendSummaryOutput struct {
+	Meta     Meta                `json:"meta"`
+	Days     int                 `json:"days"`
+	Totals   []SpendProviderView `json:"totals" jsonschema:"per provider and balance type; there is no grand total, because providers bill in different units and currencies"`
+	Projects []SpendProjectView  `json:"projects" jsonschema:"most spending first"`
+	Excluded []string            `json:"excluded" jsonschema:"quota projects, left out because their percentages reset rather than being spent"`
+}
+
 // ==================== Subscriptions ====================
 
 type ReminderView struct {
