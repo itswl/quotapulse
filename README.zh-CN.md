@@ -37,7 +37,10 @@ MCP_API_KEYS=claude:qp_7f3a91c2d4e5f6a7b8c9:balance,alerts;ops:qp_0123456789abcd
 `MCP_REQUIRE_SCOPED_KEY=true` 后停用。每把 Key 每分钟最多 `MCP_RATE_LIMIT_PER_MINUTE` 次请求，
 每次工具调用都会带着 Key 的名称记日志；`./quotapulse -show-config` 会列出所有 Key 并标出已过期的。
 
-所有工具都返回带 outputSchema 的结构化结果，每个结果都有 `meta`，说明数据何时更新、是否过期。
+Agent 应先调用 `dashboard_summary`：它按严重程度列出需要处理的事项，包括检查失败、余额低于阈值、可用天数不足、
+即将续费、告警邮件和失败的任务。所有工具都返回带 outputSchema 的结构化结果，每个结果都有 `meta`，
+说明数据何时更新、是否过期。历史列表按时间倒序，支持 `since`/`until`（RFC 3339 或日期），用 `next_cursor`
+翻页；`balance_trend` 可以返回每个快照，或按小时、天、周聚合，并汇总这段时间的变化、消耗和充值。
 失败以工具错误返回，带错误类别和重试是否有用。MCP 不写配置、不触发刷新或扫描、不调用服务商；
 结果里不含密钥：API Key、密码和 webhook 地址一律不返回，邮箱地址脱敏，服务商报错里的凭据会被屏蔽。
 

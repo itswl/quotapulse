@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,9 +35,11 @@ import (
 const stateResourceTemplate = "quotapulse://state/{kind}"
 
 const instructions = "Read-only access to quotapulse: API balances and runways, subscription renewals, " +
-	"mailbox scans, alert history, jobs and health. Identify projects by project_id. Every result has a " +
-	"meta block that says how fresh its data is. Amounts are in each provider's own unit and currency, " +
-	"so never add them up across providers; capabilities explains the units and conventions."
+	"mailbox scans, alert history, jobs and health. Start with dashboard_summary, which lists what needs " +
+	"attention. Identify projects by project_id. Every result has a meta block that says how fresh its " +
+	"data is. Amounts are in each provider's own unit and currency, so never add them up across " +
+	"providers; capabilities explains the units and conventions. History lists are newest first and " +
+	"page with next_cursor."
 
 type emptyInput struct{}
 
@@ -47,28 +49,28 @@ type balanceStatusInput struct {
 }
 
 type balanceHistoryInput struct {
-	Days      int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
-	Limit     int    `json:"limit,omitempty" jsonschema:"maximum number of rows, between 1 and 100"`
+	timeRange
+	Limit     int    `json:"limit,omitempty" jsonschema:"rows per page, 1-100 (default 100)"`
 	ProjectID string `json:"project_id,omitempty" jsonschema:"optional stable project ID filter"`
 	Provider  string `json:"provider,omitempty" jsonschema:"optional provider filter"`
 }
 
 type alertHistoryInput struct {
-	Days      int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
-	Limit     int    `json:"limit,omitempty" jsonschema:"maximum number of rows, between 1 and 100"`
+	timeRange
+	Limit     int    `json:"limit,omitempty" jsonschema:"rows per page, 1-100 (default 50)"`
 	ProjectID string `json:"project_id,omitempty" jsonschema:"optional stable project ID filter"`
 	AlertType string `json:"alert_type,omitempty" jsonschema:"optional alert type filter"`
 }
 
 type emailAlertHistoryInput struct {
-	Days    int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
-	Limit   int    `json:"limit,omitempty" jsonschema:"maximum number of rows, between 1 and 100"`
+	timeRange
+	Limit   int    `json:"limit,omitempty" jsonschema:"rows per page, 1-100 (default 50)"`
 	Mailbox string `json:"mailbox,omitempty" jsonschema:"optional mailbox name filter"`
 }
 
 type eventsInput struct {
-	Days  int    `json:"days,omitempty" jsonschema:"number of days to search, between 1 and 365"`
-	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of events, between 1 and 500"`
+	timeRange
+	Limit int    `json:"limit,omitempty" jsonschema:"events per page, 1-500 (default 100)"`
 	Type  string `json:"type,omitempty" jsonschema:"optional event type filter"`
 }
 
@@ -78,7 +80,10 @@ type statsInput struct {
 
 type trendInput struct {
 	ProjectID string `json:"project_id" jsonschema:"stable project ID from balance_status"`
-	Days      int    `json:"days,omitempty" jsonschema:"number of days to inspect, between 1 and 365"`
+	Days      int    `json:"days,omitempty" jsonschema:"how many days back, 1-365 (default 30)"`
+	Interval  string `json:"interval,omitempty" jsonschema:"raw for every snapshot, or one point per hour, day (the default) or week"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"points per page, 1-1000 (default 500)"`
+	Cursor    string `json:"cursor,omitempty" jsonschema:"next_cursor of the previous page, to continue there"`
 }
 
 // Alert and event types, for the enum filters.
@@ -622,6 +627,13 @@ func (d *deps) addTools(server *sdkmcp.Server) {
 	providers := provider.Keys()
 
 	addTool(d, server, toolSpec{
+		name: "dashboard_summary", title: "What needs attention",
+		description: "Start here: what needs attention now (failed checks, low balances, short runways, renewals due, alert emails, failing jobs), critical first, with an overview of balances, subscriptions, email and the last week's alerts, as far as this key's scopes allow.",
+	}, func(ctx context.Context, _ emptyInput) (DashboardSummaryOutput, string, *ErrorInfo) {
+		return d.dashboard(ctx)
+	})
+
+	addTool(d, server, toolSpec{
 		name: "health", title: "Service health",
 		description: "Readiness summary: data freshness, job health and version.",
 	}, func(ctx context.Context, _ emptyInput) (HealthOutput, string, *ErrorInfo) {
@@ -739,7 +751,8 @@ func (d *deps) addTools(server *sdkmcp.Server) {
 
 	addTool(d, server, toolSpec{
 		name: "balance_trend", title: "Balance trend", scopes: balance,
-		description: "Persisted balance trend of one project over a number of days.",
+		enums:       map[string][]string{"interval": trendIntervals},
+		description: "One project's balance over a number of days: every snapshot, or one point per hour, day or week, with a summary of the change, spending and top-ups.",
 	}, d.trend)
 
 	addTool(d, server, toolSpec{
@@ -776,27 +789,68 @@ func subscriptionConfigView(s model.Subscription) SubscriptionConfigView {
 
 // ==================== History tools ====================
 
+// window parses a history tool's time range; a bad one is an invalid argument.
+func (d *deps) window(r timeRange) (window, *ErrorInfo) {
+	w, err := r.parse(d.now(), time.Local)
+	if err != nil {
+		return w, invalidArgument(err.Error())
+	}
+	return w, nil
+}
+
+// providerOf maps the project IDs of the live state to their providers, so history rows
+// can name the provider their table doesn't store.
+func (d *deps) providerOf() func(projectID string) *string {
+	providers := map[string]string{}
+	for _, r := range d.runtime.Balance().Projects {
+		providers[model.ProjectID(r.Provider, r.Project)] = r.Provider
+	}
+	return func(projectID string) *string { return optional(providers[projectID]) }
+}
+
+func (d *deps) historyMeta(p interface{ isTruncated() bool }) Meta {
+	m := d.meta("persisted_history", nil)
+	m.Truncated = p.isTruncated()
+	return m
+}
+
+func (p page[T]) isTruncated() bool { return p.truncated }
+
 func (d *deps) balanceHistory(ctx context.Context, in balanceHistoryInput) (BalanceHistoryOutput, string, *ErrorInfo) {
 	if !d.historyAvailable() {
 		return BalanceHistoryOutput{}, "", &errHistoryUnavailable
 	}
-	rows, err := d.history.BalanceHistory(ctx, store.BalanceQuery{
-		ProjectID: in.ProjectID, Provider: in.Provider,
-		Days: bounded(in.Days, 30, 1, 365), Limit: bounded(in.Limit, 100, 1, 100),
-	})
+	w, failure := d.window(in.timeRange)
+	if failure != nil {
+		return BalanceHistoryOutput{}, "", failure
+	}
+	rows, err := d.history.BalanceHistory(ctx, store.BalanceQuery{ProjectID: in.ProjectID, Provider: in.Provider, Days: w.days, Limit: historyReadLimit})
 	if err != nil {
 		return BalanceHistoryOutput{}, "", d.historyFailed("balance_history", err)
 	}
-	out := BalanceHistoryOutput{Meta: d.meta("persisted_history", nil), Snapshots: make([]BalanceSnapshotView, 0, len(rows))}
+	entries := make([]entry[BalanceSnapshotView], 0, len(rows))
 	for _, row := range rows {
-		out.Snapshots = append(out.Snapshots, BalanceSnapshotView{
+		entries = append(entries, newEntry(row.Timestamp, rowID("balance", row.ID), BalanceSnapshotView{
 			ID: row.ID, ProjectID: row.ProjectID, ProjectName: row.ProjectName, Provider: row.Provider,
 			BalanceType: row.BalanceType, Unit: unitOf(row.BalanceType), Balance: row.Balance,
 			Threshold: row.Threshold, BelowThreshold: row.NeedAlarm, Timestamp: row.Timestamp,
-		})
+		}))
 	}
-	out.Count = len(out.Snapshots)
-	return out, model.Quantity(out.Count, "snapshot", "snapshots"), nil
+	p := paginate(entries, w, bounded(in.Limit, 100, 1, 100), len(rows) >= historyReadLimit)
+	out := BalanceHistoryOutput{Meta: d.historyMeta(p), Count: len(p.items), Snapshots: p.items, NextCursor: optional(p.next)}
+	return out, pageSummary(out.Count, "snapshot", "snapshots", p), nil
+}
+
+// pageSummary is "N rows", noting when more pages follow.
+func pageSummary[T any](n int, one, many string, p page[T]) string {
+	summary := model.Quantity(n, one, many)
+	switch {
+	case p.next != "":
+		summary += "; more with next_cursor"
+	case p.truncated:
+		summary += "; older rows may exist, narrow the range with since and until"
+	}
+	return summary
 }
 
 func (d *deps) trend(ctx context.Context, in trendInput) (TrendOutput, string, *ErrorInfo) {
@@ -806,6 +860,17 @@ func (d *deps) trend(ctx context.Context, in trendInput) (TrendOutput, string, *
 	if !d.historyAvailable() {
 		return TrendOutput{}, "", &errHistoryUnavailable
 	}
+	interval := in.Interval
+	if interval == "" {
+		interval = "day"
+	}
+	var after *position
+	if in.Cursor != "" {
+		var err error
+		if after, err = decodeCursor(in.Cursor); err != nil {
+			return TrendOutput{}, "", invalidArgument(err.Error())
+		}
+	}
 	days := bounded(in.Days, 30, 1, 365)
 	trend, err := d.history.BalanceTrend(ctx, in.ProjectID, days)
 	if err != nil {
@@ -814,104 +879,152 @@ func (d *deps) trend(ctx context.Context, in trendInput) (TrendOutput, string, *
 	if trend == nil {
 		return TrendOutput{}, "", &ErrorInfo{Category: "not_found", Message: fmt.Sprintf("No balance history for project %s in the last %s", in.ProjectID, model.Quantity(days, "day", "days"))}
 	}
+	samples := make([]sample, 0, len(trend.History))
+	for _, p := range trend.History {
+		at, _ := time.Parse(time.RFC3339Nano, p.Timestamp)
+		samples = append(samples, sample{at: at, balance: p.Balance, below: p.NeedAlarm})
+	}
 	out := TrendOutput{
 		Meta: d.meta("persisted_history", optional(trend.LastTimestamp)), ProjectID: in.ProjectID, ProjectName: trend.ProjectName,
-		Days: days, Threshold: nonZero(trend.Threshold), Points: make([]TrendPointView, 0, len(trend.History)),
+		Days: days, Interval: interval, Threshold: nonZero(trend.Threshold), Summary: summarize(samples), Points: []TrendPointView{},
 	}
-	for _, p := range trend.History {
-		out.Points = append(out.Points, TrendPointView{Timestamp: p.Timestamp, Balance: p.Balance, BelowThreshold: p.NeedAlarm})
+	for _, r := range d.runtime.Balance().Projects {
+		if model.ProjectID(r.Provider, r.Project) == in.ProjectID {
+			out.Provider, out.Unit = optional(r.Provider), optional(unitOf(r.Type))
+		}
 	}
-	return out, fmt.Sprintf("%s over %s", model.Quantity(len(out.Points), "snapshot", "snapshots"), model.Quantity(days, "day", "days")), nil
+	limit := bounded(in.Limit, 500, 1, 1000)
+	for _, point := range bucket(samples, interval, time.Local) {
+		at, _ := time.Parse(time.RFC3339Nano, point.Timestamp)
+		if after != nil && !at.After(after.at) {
+			continue
+		}
+		if len(out.Points) == limit {
+			last, _ := time.Parse(time.RFC3339Nano, out.Points[limit-1].Timestamp)
+			out.NextCursor = optional(encodeCursor(position{at: last}))
+			break
+		}
+		out.Points = append(out.Points, point)
+	}
+	summary := fmt.Sprintf("%s over %s, net change %s", model.Quantity(len(out.Points), "point", "points"),
+		model.Quantity(days, "day", "days"), signed(out.Summary.Change))
+	if out.NextCursor != nil {
+		summary += "; more with next_cursor"
+	}
+	return out, summary, nil
+}
+
+func signed(value float64) string {
+	text := strconv.FormatFloat(value, 'f', -1, 64)
+	if value > 0 {
+		text = "+" + text
+	}
+	return text
 }
 
 func (d *deps) recentAlerts(ctx context.Context, in alertHistoryInput) (AlertsOutput, string, *ErrorInfo) {
 	if !d.historyAvailable() {
 		return AlertsOutput{}, "", &errHistoryUnavailable
 	}
-	rows, err := d.history.RecentAlerts(ctx, store.AlertQuery{
-		ProjectID: in.ProjectID, AlertType: in.AlertType,
-		Days: bounded(in.Days, 30, 1, 365), Limit: bounded(in.Limit, 50, 1, 100),
-	})
+	w, failure := d.window(in.timeRange)
+	if failure != nil {
+		return AlertsOutput{}, "", failure
+	}
+	rows, err := d.history.RecentAlerts(ctx, store.AlertQuery{ProjectID: in.ProjectID, AlertType: in.AlertType, Days: w.days, Limit: historyReadLimit})
 	if err != nil {
 		return AlertsOutput{}, "", d.historyFailed("recent_alerts", err)
 	}
-	out := AlertsOutput{Meta: d.meta("persisted_history", nil), Alerts: make([]AlertView, 0, len(rows))}
+	providerOf := d.providerOf()
+	entries := make([]entry[AlertView], 0, len(rows))
 	for _, row := range rows {
-		out.Alerts = append(out.Alerts, AlertView{
-			ID: row.ID, Type: row.AlertType, Status: row.Status, ProjectID: row.ProjectID, ProjectName: row.ProjectName,
-			Message: row.Message, Value: row.BalanceValue, Threshold: row.ThresholdValue, Timestamp: row.Timestamp,
-		})
+		entries = append(entries, newEntry(row.Timestamp, rowID("alert", row.ID), alertView(row, providerOf)))
 	}
-	out.Count = len(out.Alerts)
-	return out, model.Quantity(out.Count, "alert", "alerts"), nil
+	p := paginate(entries, w, bounded(in.Limit, 50, 1, 100), len(rows) >= historyReadLimit)
+	out := AlertsOutput{Meta: d.historyMeta(p), Count: len(p.items), Alerts: p.items, NextCursor: optional(p.next)}
+	return out, pageSummary(out.Count, "alert", "alerts", p), nil
+}
+
+func alertView(row store.AlertRow, providerOf func(string) *string) AlertView {
+	return AlertView{
+		ID: row.ID, Type: row.AlertType, Status: row.Status, ProjectID: row.ProjectID, ProjectName: row.ProjectName,
+		Provider: providerOf(row.ProjectID), Message: row.Message, Value: row.BalanceValue, Threshold: row.ThresholdValue,
+		Timestamp: row.Timestamp,
+	}
 }
 
 func (d *deps) recentEmailAlerts(ctx context.Context, in emailAlertHistoryInput) (EmailAlertsOutput, string, *ErrorInfo) {
 	if !d.historyAvailable() {
 		return EmailAlertsOutput{}, "", &errHistoryUnavailable
 	}
-	rows, err := d.history.EmailAlerts(ctx, store.EmailAlertQuery{
-		Mailbox: in.Mailbox, Days: bounded(in.Days, 30, 1, 365), Limit: bounded(in.Limit, 50, 1, 100),
-	})
+	w, failure := d.window(in.timeRange)
+	if failure != nil {
+		return EmailAlertsOutput{}, "", failure
+	}
+	rows, err := d.history.EmailAlerts(ctx, store.EmailAlertQuery{Mailbox: in.Mailbox, Days: w.days, Limit: historyReadLimit})
 	if err != nil {
 		return EmailAlertsOutput{}, "", d.historyFailed("recent_email_alerts", err)
 	}
-	out := EmailAlertsOutput{Meta: d.meta("persisted_history", nil), EmailAlerts: make([]EmailAlertRecordView, 0, len(rows))}
+	entries := make([]entry[EmailAlertRecordView], 0, len(rows))
 	for _, row := range rows {
-		out.EmailAlerts = append(out.EmailAlerts, EmailAlertRecordView{
+		entries = append(entries, newEntry(row.Timestamp, rowID("email", row.ID), EmailAlertRecordView{
 			ID: row.ID, Mailbox: row.Mailbox, Sender: row.Sender, Subject: row.Subject, Date: row.Date,
 			ServiceName: row.ServiceName, Amount: row.Amount, Keywords: nonNil(row.MatchedKeywords),
 			AlertSent: row.AlertSent, Timestamp: row.Timestamp,
-		})
+		}))
 	}
-	out.Count = len(out.EmailAlerts)
-	return out, model.Quantity(out.Count, "email alert", "email alerts"), nil
+	p := paginate(entries, w, bounded(in.Limit, 50, 1, 100), len(rows) >= historyReadLimit)
+	out := EmailAlertsOutput{Meta: d.historyMeta(p), Count: len(p.items), EmailAlerts: p.items, NextCursor: optional(p.next)}
+	return out, pageSummary(out.Count, "email alert", "email alerts", p), nil
 }
 
 func (d *deps) events(ctx context.Context, in eventsInput) (EventsOutput, string, *ErrorInfo) {
 	if !d.historyAvailable() {
 		return EventsOutput{}, "", &errHistoryUnavailable
 	}
-	days, limit := bounded(in.Days, 30, 1, 365), bounded(in.Limit, 100, 1, 500)
-	events := []EventView{}
+	w, failure := d.window(in.timeRange)
+	if failure != nil {
+		return EventsOutput{}, "", failure
+	}
+	var entries []entry[EventView]
+	capped := false
 	if in.Type != "email_alert" {
-		rows, err := d.history.RecentAlerts(ctx, store.AlertQuery{AlertType: in.Type, Days: days, Limit: limit})
+		rows, err := d.history.RecentAlerts(ctx, store.AlertQuery{AlertType: in.Type, Days: w.days, Limit: historyReadLimit})
 		if err != nil {
 			return EventsOutput{}, "", d.historyFailed("events", err)
 		}
+		capped = len(rows) >= historyReadLimit
+		providerOf := d.providerOf()
 		for _, row := range rows {
 			source := row.ProjectName
 			if source == "" {
 				source = row.ProjectID
 			}
-			events = append(events, EventView{
+			entries = append(entries, newEntry(row.Timestamp, rowID("alert", row.ID), EventView{
 				ID: fmt.Sprintf("alert:%d", row.ID), Type: row.AlertType, Status: row.Status, ProjectID: optional(row.ProjectID),
-				Source: source, Message: row.Message, Timestamp: row.Timestamp,
-			})
+				Provider: providerOf(row.ProjectID), Source: source, Message: row.Message, Timestamp: row.Timestamp,
+			}))
 		}
 	}
 	if (in.Type == "" || in.Type == "email_alert") && d.caller.Allows(config.ScopeEmail) {
-		rows, err := d.history.EmailAlerts(ctx, store.EmailAlertQuery{Days: days, Limit: limit})
+		rows, err := d.history.EmailAlerts(ctx, store.EmailAlertQuery{Days: w.days, Limit: historyReadLimit})
 		if err != nil {
 			return EventsOutput{}, "", d.historyFailed("events", err)
 		}
+		capped = capped || len(rows) >= historyReadLimit
 		for _, row := range rows {
 			status := "sent"
 			if !row.AlertSent {
 				status = "not_sent"
 			}
-			events = append(events, EventView{
+			entries = append(entries, newEntry(row.Timestamp, rowID("email", row.ID), EventView{
 				ID: fmt.Sprintf("email:%d", row.ID), Type: "email_alert", Status: status,
 				Source: row.Mailbox, Message: row.Subject, Timestamp: row.Timestamp,
-			})
+			}))
 		}
 	}
-	sort.SliceStable(events, func(i, j int) bool { return events[i].Timestamp > events[j].Timestamp })
-	if len(events) > limit {
-		events = events[:limit]
-	}
-	out := EventsOutput{Meta: d.meta("persisted_history", nil), Count: len(events), Events: events}
-	return out, model.Quantity(out.Count, "event", "events"), nil
+	p := paginate(entries, w, bounded(in.Limit, 100, 1, 500), capped)
+	out := EventsOutput{Meta: d.historyMeta(p), Count: len(p.items), Events: p.items, NextCursor: optional(p.next)}
+	return out, pageSummary(out.Count, "event", "events", p), nil
 }
 
 func (d *deps) alertStats(ctx context.Context, in statsInput) (AlertStatsOutput, string, *ErrorInfo) {
@@ -934,6 +1047,174 @@ func (d *deps) alertStats(ctx context.Context, in statsInput) (AlertStatsOutput,
 		}
 	}
 	return out, fmt.Sprintf("%s in %s", model.Quantity(out.TotalAlerts, "alert", "alerts"), model.Quantity(days, "day", "days")), nil
+}
+
+// ==================== Dashboard ====================
+
+// dashboard answers "does anything need me?" in one call: what needs attention, most
+// urgent first, and a short overview of each area the key may see.
+func (d *deps) dashboard(ctx context.Context) (DashboardSummaryOutput, string, *ErrorInfo) {
+	health := d.health(ctx)
+	out := DashboardSummaryOutput{
+		Meta: health.Meta, Attention: []AttentionItem{},
+		Service: ServiceOverview{Status: health.Status, Version: health.Version, IsStale: health.IsStale, FailingJobs: health.FailedJobs},
+	}
+	var critical, warnings []AttentionItem
+	add := func(severe bool, kind, subject string, projectID *string, message string) {
+		item := AttentionItem{Severity: "warning", Kind: kind, Subject: subject, ProjectID: projectID, Message: message}
+		if severe {
+			item.Severity = "critical"
+			critical = append(critical, item)
+			return
+		}
+		warnings = append(warnings, item)
+	}
+
+	if d.allows(config.ScopeBalance) {
+		balances := d.balanceStatus("", "")
+		out.Balances = &BalanceOverview{Counts: balances.Counts}
+		for _, p := range balances.Projects {
+			id := optional(p.ProjectID)
+			switch p.Status {
+			case "check_failed":
+				add(true, "check_failed", p.ProjectName, id, "the balance can't be read: "+p.Check.Error.Message)
+			case "below_threshold":
+				add(true, "below_threshold", p.ProjectName, id, fmt.Sprintf("balance %s is below the threshold %s", amount(p.Balance), amount(p.Threshold)))
+			}
+			if p.Runway == nil || p.Runway.Days == nil {
+				continue
+			}
+			days := *p.Runway.Days
+			if s := out.Balances.ShortestRunway; s == nil || days < s.Days {
+				out.Balances.ShortestRunway = &RunwayBrief{ProjectID: p.ProjectID, ProjectName: p.ProjectName, Provider: p.Provider, Days: days, DepletionDate: p.Runway.DepletionDate}
+			}
+			if limit := d.settings.RunwayAlertDays; limit > 0 && days <= limit {
+				message := fmt.Sprintf("about %.1f days of balance left", days)
+				if p.Runway.DepletionDate != nil {
+					message += ", running out around " + *p.Runway.DepletionDate
+				}
+				add(days <= 1, "runway_short", p.ProjectName, id, message)
+			}
+		}
+	}
+
+	if d.allows(config.ScopeSubscriptions) {
+		subs := d.subscriptionStatus()
+		overview := &SubscriptionOverview{Total: subs.Counts.Total, Due: subs.Counts.Due}
+		for _, s := range subs.Subscriptions {
+			if s.Reminder.Due {
+				add(s.DaysUntilRenewal <= 1, "renewal_due", s.Name, nil,
+					fmt.Sprintf("renews %s (%s), %s", model.RenewsIn(s.DaysUntilRenewal), s.NextRenewalDate, strconv.FormatFloat(s.Amount, 'f', -1, 64)))
+			}
+			if s.AlreadyRenewed {
+				continue
+			}
+			if s.DaysUntilRenewal <= 7 {
+				overview.Within7Days++
+			}
+			if s.DaysUntilRenewal <= 30 {
+				overview.Within30Days++
+			}
+			if overview.Next == nil || s.DaysUntilRenewal < overview.Next.DaysUntilRenewal {
+				overview.Next = &RenewalBrief{SubscriptionID: s.SubscriptionID, Name: s.Name, NextRenewalDate: s.NextRenewalDate, DaysUntilRenewal: s.DaysUntilRenewal, Amount: s.Amount}
+			}
+		}
+		out.Subscriptions = overview
+	}
+
+	if d.allows(config.ScopeEmail) {
+		scan := d.emailScan(ctx)
+		overview := &EmailOverview{Status: scan.Status, LastScanAt: scan.LastScanAt, FailedMailboxes: scan.Summary.FailedMailboxes}
+		var latest string
+		for _, a := range scan.Alerts {
+			if !a.Duplicate {
+				overview.AlertEmails++
+				latest = a.Subject
+			}
+		}
+		if overview.AlertEmails > 0 {
+			add(false, "email_alerts", "email", nil, fmt.Sprintf("%s in the last scan, such as %q", model.Quantity(overview.AlertEmails, "new alert email", "new alert emails"), latest))
+		}
+		for _, m := range scan.Mailboxes {
+			if !m.Success {
+				message := "the last scan could not read it"
+				if m.Error != nil {
+					message += ": " + *m.Error
+				}
+				add(false, "mailbox_failed", m.Name, nil, message)
+			}
+		}
+		out.Email = overview
+	}
+
+	if d.allows(config.ScopeAlerts) && d.historyAvailable() {
+		overview := &AlertOverview{Days: 7, ByType: map[string]int{}, Latest: []AlertView{}}
+		if stats, err := d.history.AlertStats(ctx, 7); err == nil && stats != nil {
+			overview.Total = stats.TotalAlerts
+			for kind, n := range stats.ByType {
+				overview.ByType[kind] = n
+			}
+		}
+		if rows, err := d.history.RecentAlerts(ctx, store.AlertQuery{Days: 7, Limit: 5}); err == nil {
+			providerOf := d.providerOf()
+			for _, row := range rows {
+				overview.Latest = append(overview.Latest, alertView(row, providerOf))
+			}
+		}
+		out.Alerts = overview
+	}
+
+	for _, job := range health.Jobs {
+		if job.Status == "failing" {
+			add(false, "job_failing", job.Name, nil, "the last run failed: "+deref(job.LastError))
+		}
+	}
+	if !health.HasData {
+		add(false, "no_data", "balances", nil, "no balance has been checked yet; set a {PROVIDER}_API_KEY or add a project on the dashboard")
+	}
+	if health.IsStale && health.Meta.DataAgeSeconds != nil {
+		add(false, "stale_data", "balances", nil, fmt.Sprintf("the last successful refresh was %s ago", (time.Duration(*health.Meta.DataAgeSeconds)*time.Second).String()))
+	}
+
+	out.Attention = append(append(out.Attention, critical...), warnings...)
+	switch {
+	case health.Status == "degraded":
+		out.Status = "degraded"
+	case len(out.Attention) > 0:
+		out.Status = "attention"
+	default:
+		out.Status = "ok"
+	}
+	return out, dashboardSummary(out), nil
+}
+
+func dashboardSummary(out DashboardSummaryOutput) string {
+	if len(out.Attention) == 0 {
+		return out.Status + ": nothing needs attention"
+	}
+	parts := make([]string, 0, 3)
+	for _, item := range out.Attention[:min(3, len(out.Attention))] {
+		parts = append(parts, item.Subject+" "+strings.ReplaceAll(item.Kind, "_", " "))
+	}
+	summary := out.Status + ": " + strings.Join(parts, ", ")
+	if more := len(out.Attention) - len(parts); more > 0 {
+		summary += fmt.Sprintf(" and %d more", more)
+	}
+	return summary
+}
+
+func amount(value *float64) string {
+	if value == nil {
+		return "unknown"
+	}
+	return strconv.FormatFloat(*value, 'f', 2, 64)
+}
+
+func deref(text *string) string {
+	if text == nil {
+		return ""
+	}
+	return *text
 }
 
 // ==================== Resources ====================

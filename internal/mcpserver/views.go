@@ -247,24 +247,48 @@ type BalanceSnapshotView struct {
 }
 
 type BalanceHistoryOutput struct {
-	Meta      Meta                  `json:"meta"`
-	Count     int                   `json:"count"`
-	Snapshots []BalanceSnapshotView `json:"snapshots"`
+	Meta       Meta                  `json:"meta"`
+	Count      int                   `json:"count"`
+	Snapshots  []BalanceSnapshotView `json:"snapshots" jsonschema:"newest first"`
+	NextCursor *string               `json:"next_cursor" jsonschema:"pass as cursor for the next page; null on the last page"`
 }
 
 type TrendPointView struct {
-	Timestamp      string  `json:"timestamp"`
-	Balance        float64 `json:"balance"`
-	BelowThreshold bool    `json:"below_threshold"`
+	Timestamp      string  `json:"timestamp" jsonschema:"the snapshot's time, or the start of the hour, day or week (server timezone)"`
+	Balance        float64 `json:"balance" jsonschema:"the snapshot, or the interval's last snapshot"`
+	Min            float64 `json:"min"`
+	Max            float64 `json:"max"`
+	Samples        int     `json:"samples" jsonschema:"snapshots in the interval"`
+	BelowThreshold bool    `json:"below_threshold" jsonschema:"the (last) snapshot was below the threshold"`
+}
+
+type TrendSummary struct {
+	Samples  int     `json:"samples"`
+	First    float64 `json:"first"`
+	Last     float64 `json:"last"`
+	Min      float64 `json:"min"`
+	Max      float64 `json:"max"`
+	Average  float64 `json:"average"`
+	Change   float64 `json:"change" jsonschema:"last minus first"`
+	Consumed float64 `json:"consumed" jsonschema:"sum of the decreases between consecutive snapshots"`
+	ToppedUp float64 `json:"topped_up" jsonschema:"sum of the increases: top-ups, refunds, quota resets"`
+	TopUps   int     `json:"top_ups" jsonschema:"how many increases there were"`
+	FirstAt  string  `json:"first_at"`
+	LastAt   string  `json:"last_at"`
 }
 
 type TrendOutput struct {
 	Meta        Meta             `json:"meta"`
 	ProjectID   string           `json:"project_id"`
 	ProjectName string           `json:"project_name"`
+	Provider    *string          `json:"provider" jsonschema:"null when the project is no longer monitored"`
+	Unit        *string          `json:"unit"`
 	Days        int              `json:"days"`
+	Interval    string           `json:"interval"`
 	Threshold   *float64         `json:"threshold"`
-	Points      []TrendPointView `json:"points"`
+	Summary     TrendSummary     `json:"summary" jsonschema:"over every snapshot in the window, whatever the interval and page"`
+	Points      []TrendPointView `json:"points" jsonschema:"oldest first"`
+	NextCursor  *string          `json:"next_cursor" jsonschema:"pass as cursor for the next page; null on the last page"`
 }
 
 type AlertView struct {
@@ -273,6 +297,7 @@ type AlertView struct {
 	Status      string   `json:"status" jsonschema:"sent, or failed when the notification could not be delivered"`
 	ProjectID   string   `json:"project_id" jsonschema:"the project's ID; for subscription reminders the subscription_id"`
 	ProjectName string   `json:"project_name" jsonschema:"the project or subscription name"`
+	Provider    *string  `json:"provider" jsonschema:"null for subscriptions and projects no longer monitored"`
 	Message     string   `json:"message"`
 	Value       *float64 `json:"value" jsonschema:"the balance for balance alerts, the amount for subscription reminders"`
 	Threshold   *float64 `json:"threshold" jsonschema:"the alert threshold, or a reminder's alert_days_before"`
@@ -280,9 +305,10 @@ type AlertView struct {
 }
 
 type AlertsOutput struct {
-	Meta   Meta        `json:"meta"`
-	Count  int         `json:"count"`
-	Alerts []AlertView `json:"alerts"`
+	Meta       Meta        `json:"meta"`
+	Count      int         `json:"count"`
+	Alerts     []AlertView `json:"alerts" jsonschema:"newest first"`
+	NextCursor *string     `json:"next_cursor" jsonschema:"pass as cursor for the next page; null on the last page"`
 }
 
 type EmailAlertRecordView struct {
@@ -301,7 +327,8 @@ type EmailAlertRecordView struct {
 type EmailAlertsOutput struct {
 	Meta        Meta                   `json:"meta"`
 	Count       int                    `json:"count"`
-	EmailAlerts []EmailAlertRecordView `json:"email_alerts"`
+	EmailAlerts []EmailAlertRecordView `json:"email_alerts" jsonschema:"newest first"`
+	NextCursor  *string                `json:"next_cursor" jsonschema:"pass as cursor for the next page; null on the last page"`
 }
 
 type EventView struct {
@@ -309,15 +336,17 @@ type EventView struct {
 	Type      string  `json:"type"`
 	Status    string  `json:"status"`
 	ProjectID *string `json:"project_id" jsonschema:"null for email alerts"`
+	Provider  *string `json:"provider" jsonschema:"null unless a monitored project"`
 	Source    string  `json:"source" jsonschema:"the project, subscription or mailbox the event is about"`
 	Message   string  `json:"message"`
 	Timestamp string  `json:"timestamp"`
 }
 
 type EventsOutput struct {
-	Meta   Meta        `json:"meta"`
-	Count  int         `json:"count"`
-	Events []EventView `json:"events"`
+	Meta       Meta        `json:"meta"`
+	Count      int         `json:"count"`
+	Events     []EventView `json:"events" jsonschema:"newest first"`
+	NextCursor *string     `json:"next_cursor" jsonschema:"pass as cursor for the next page; null on the last page"`
 }
 
 type TopProjectView struct {
@@ -331,6 +360,77 @@ type AlertStatsOutput struct {
 	TotalAlerts int              `json:"total_alerts"`
 	ByType      map[string]int   `json:"by_type"`
 	TopProjects []TopProjectView `json:"top_projects"`
+}
+
+// ==================== Dashboard ====================
+
+type AttentionItem struct {
+	Severity  string  `json:"severity" jsonschema:"critical or warning"`
+	Kind      string  `json:"kind" jsonschema:"check_failed, below_threshold, runway_short, renewal_due, mailbox_failed, email_alerts, job_failing, stale_data or no_data"`
+	Subject   string  `json:"subject" jsonschema:"the project, subscription, mailbox or job concerned"`
+	ProjectID *string `json:"project_id"`
+	Message   string  `json:"message"`
+}
+
+type RunwayBrief struct {
+	ProjectID     string  `json:"project_id"`
+	ProjectName   string  `json:"project_name"`
+	Provider      string  `json:"provider"`
+	Days          float64 `json:"days"`
+	DepletionDate *string `json:"depletion_date"`
+}
+
+type BalanceOverview struct {
+	Counts         BalanceCounts `json:"counts"`
+	ShortestRunway *RunwayBrief  `json:"shortest_runway" jsonschema:"null when no project has an estimate"`
+}
+
+type RenewalBrief struct {
+	SubscriptionID   string  `json:"subscription_id"`
+	Name             string  `json:"name"`
+	NextRenewalDate  string  `json:"next_renewal_date"`
+	DaysUntilRenewal int     `json:"days_until_renewal"`
+	Amount           float64 `json:"amount"`
+}
+
+type SubscriptionOverview struct {
+	Total        int           `json:"total"`
+	Due          int           `json:"due" jsonschema:"inside their reminder window and not paid"`
+	Within7Days  int           `json:"within_7_days" jsonschema:"unpaid renewals in the next 7 days"`
+	Within30Days int           `json:"within_30_days" jsonschema:"unpaid renewals in the next 30 days"`
+	Next         *RenewalBrief `json:"next" jsonschema:"the next unpaid renewal; null if there is none"`
+}
+
+type EmailOverview struct {
+	Status          string  `json:"status" jsonschema:"as in email_scan_status"`
+	LastScanAt      *string `json:"last_scan_at"`
+	AlertEmails     int     `json:"alert_emails" jsonschema:"alert emails the last scan found, repeats excluded"`
+	FailedMailboxes int     `json:"failed_mailboxes"`
+}
+
+type AlertOverview struct {
+	Days   int            `json:"days"`
+	Total  int            `json:"total"`
+	ByType map[string]int `json:"by_type"`
+	Latest []AlertView    `json:"latest" jsonschema:"up to five, newest first"`
+}
+
+type ServiceOverview struct {
+	Status      string   `json:"status" jsonschema:"healthy or degraded"`
+	Version     string   `json:"version"`
+	IsStale     bool     `json:"is_stale"`
+	FailingJobs []string `json:"failing_jobs"`
+}
+
+type DashboardSummaryOutput struct {
+	Meta          Meta                  `json:"meta"`
+	Status        string                `json:"status" jsonschema:"ok, attention (something needs action) or degraded (the service itself has a problem)"`
+	Attention     []AttentionItem       `json:"attention" jsonschema:"what needs action, critical first"`
+	Balances      *BalanceOverview      `json:"balances" jsonschema:"null without the balance scope"`
+	Subscriptions *SubscriptionOverview `json:"subscriptions" jsonschema:"null without the subscriptions scope"`
+	Email         *EmailOverview        `json:"email" jsonschema:"null without the email scope"`
+	Alerts        *AlertOverview        `json:"alerts" jsonschema:"the last seven days; null without the alerts scope or the database"`
+	Service       ServiceOverview       `json:"service"`
 }
 
 // ==================== Catalog and configuration ====================
