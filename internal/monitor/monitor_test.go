@@ -326,3 +326,41 @@ func TestCooldownHoldsWithoutDatabase(t *testing.T) {
 		t.Fatalf("没有数据库时冷却也应生效: 3 次检查应只发 1 条，实际 %d 条", notifier.count())
 	}
 }
+
+// An upstream that echoes the key back must not put it on the dashboard, in the alert,
+// or in MCP results: the error is redacted where it is created.
+func TestFailedCheckErrorNeverCarriesTheKey(t *testing.T) {
+	secret := "tk-live-4f9a8b7c6d5e"
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("<html>invalid token " + secret + " for this account</html>"))
+	}))
+	t.Cleanup(upstream.Close)
+	provider.RegisterSpec(provider.Spec{
+		Key: "echoupstream", Name: "回显密钥平台", DefaultType: model.TypeBalance, URL: upstream.URL,
+		Extract: func(map[string]any) (float64, error) { return 0, errors.New("unreachable") },
+	})
+	m, st, notifier := newTestMonitor(t, nil, "0")
+	p := testProject(50)
+	p.Provider, p.APIKey = "echoupstream", secret
+
+	result := m.CheckProject(context.Background(), p, false)
+	if result.Success || result.Error == nil {
+		t.Fatalf("非 JSON 响应应当查询失败: %+v", result)
+	}
+	if strings.Contains(*result.Error, secret) {
+		t.Fatalf("错误信息里不能出现密钥: %q", *result.Error)
+	}
+	if result.CheckedAt == nil || result.LatencyMs == nil {
+		t.Error("失败的检查也应记录检查时间和耗时")
+	}
+	for _, msg := range notifier.messages {
+		for _, line := range msg.Lines {
+			if strings.Contains(line, secret) {
+				t.Fatalf("告警内容里不能出现密钥: %q", line)
+			}
+		}
+	}
+	if len(st.alerts) == 0 || strings.Contains(st.alerts[0].Message, secret) {
+		t.Fatalf("告警历史里不能出现密钥: %+v", st.alerts)
+	}
+}

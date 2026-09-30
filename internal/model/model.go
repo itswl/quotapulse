@@ -136,6 +136,10 @@ type CheckResult struct {
 	Error        *string  `json:"error"`
 	Cached       bool     `json:"cached"`
 	Runway       *Runway  `json:"runway,omitempty"`
+	// CheckedAt is when this check ran (RFC 3339, UTC); LatencyMs is how long the provider
+	// call took, absent when the result came from the response cache.
+	CheckedAt *string `json:"checked_at,omitempty"`
+	LatencyMs *int64  `json:"latency_ms,omitempty"`
 }
 
 // Implementation note.

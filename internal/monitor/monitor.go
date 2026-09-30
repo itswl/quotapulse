@@ -115,20 +115,25 @@ func (m *Monitor) checkAll(ctx context.Context, projects []model.Project, dryRun
 func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool) model.CheckResult {
 	m.log().Info("Checking project", "project", p.Name, "provider", p.Provider, "threshold", p.Threshold)
 
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
 	adapter, err := provider.New(p.Provider, p.APIKey, m.Client)
 	if err != nil {
-		return m.failure(ctx, p, err, dryRun)
+		return m.failure(ctx, p, err, dryRun, checkedAt, nil)
 	}
 
 	cacheKey := cacheKeyFor(p.Provider, p.APIKey)
 	ttl := time.Duration(m.Settings.ResponseCacheTTL) * time.Second
 	credits, cached := m.cache.get(cacheKey, ttl)
+	var latency *int64
 	if cached {
 		m.log().Info("Using cached result", "project", p.Name, "ttl_seconds", m.Settings.ResponseCacheTTL)
 	} else {
-		if credits, err = adapter.Fetch(ctx); err != nil {
+		started := time.Now()
+		credits, err = adapter.Fetch(ctx)
+		latency = model.Ptr(time.Since(started).Milliseconds())
+		if err != nil {
 			m.log().Error("Failed to fetch balance", "project", p.Name, "error", err)
-			return m.failure(ctx, p, err, dryRun)
+			return m.failure(ctx, p, err, dryRun, checkedAt, latency)
 		}
 		if ttl > 0 {
 			m.cache.set(cacheKey, credits)
@@ -146,6 +151,8 @@ func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool
 		Threshold:    model.Ptr(p.Threshold),
 		NeedAlarm:    credits < p.Threshold,
 		Cached:       cached,
+		CheckedAt:    &checkedAt,
+		LatencyMs:    latency,
 	}
 
 	projectID := p.ID()
@@ -264,11 +271,13 @@ func (m *Monitor) analyze(ctx context.Context, results []model.CheckResult, dryR
 // failure reports a check that could not read the balance. Outside dry runs it also
 // alerts, under the same cooldown as low balances: a revoked or expired key would
 // otherwise drop the account out of monitoring without a word.
-func (m *Monitor) failure(ctx context.Context, p model.Project, err error, dryRun bool) model.CheckResult {
-	message := err.Error()
+// The error text is redacted first: it reaches the dashboard, the alert and MCP clients.
+func (m *Monitor) failure(ctx context.Context, p model.Project, err error, dryRun bool, checkedAt string, latency *int64) model.CheckResult {
+	message := redactSecrets(err.Error(), p.APIKey)
 	result := model.CheckResult{
 		Project: p.Name, OwnerProject: p.OwnerProject, Provider: p.Provider,
 		Type: p.Type, Success: false, Error: &message,
+		CheckedAt: &checkedAt, LatencyMs: latency,
 	}
 	if dryRun {
 		return result
