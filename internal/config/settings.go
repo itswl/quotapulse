@@ -13,6 +13,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,13 @@ type Settings struct {
 	EnablePrometheus    bool
 	EnableWebAlarm      bool
 	EnableMCP           bool
+
+	// Read-only agent keys for /mcp (MCP_API_KEYS); see ParseMCPKeys.
+	MCPKeys []MCPKey
+	// MCPRequireScopedKey makes /mcp refuse WEB_API_KEY, so agents can only use MCP keys.
+	MCPRequireScopedKey bool
+	// MCPRateLimitPerMinute caps /mcp requests per key; 0 disables the limit.
+	MCPRateLimitPerMinute int
 
 	// Implementation note.
 	BalanceRefreshIntervalSeconds   *int
@@ -132,6 +140,9 @@ func Load() (*Settings, error) {
 		EnableWebAlarm:      e.boolean("ENABLE_WEB_ALARM", false),
 		EnableMCP:           e.boolean("ENABLE_MCP", false),
 
+		MCPRequireScopedKey:   e.boolean("MCP_REQUIRE_SCOPED_KEY", false),
+		MCPRateLimitPerMinute: e.integer("MCP_RATE_LIMIT_PER_MINUTE", 120),
+
 		BalanceRefreshIntervalSeconds:   e.optionalInt("BALANCE_REFRESH_INTERVAL_SECONDS"),
 		MaxConcurrentChecks:             e.optionalInt("MAX_CONCURRENT_CHECKS"),
 		AlertCooldownSeconds:            e.optionalInt("ALERT_COOLDOWN_SECONDS"),
@@ -180,11 +191,25 @@ func Load() (*Settings, error) {
 
 		ShutdownDelaySeconds: e.integer("SHUTDOWN_DELAY_SECONDS", 0),
 	}
+	mcpKeys := e.text("MCP_API_KEYS", "")
 	if err := e.err(); err != nil {
 		return nil, err
 	}
 	if err := s.parseSchedules(); err != nil {
 		return nil, err
+	}
+	var err error
+	if s.MCPKeys, err = ParseMCPKeys(mcpKeys); err != nil {
+		return nil, err
+	}
+	for _, key := range s.MCPKeys {
+		// A shared key would let an agent's read-only credential also reach the write API.
+		if slices.Contains(s.APIKeys(), key.Key) {
+			return nil, fmt.Errorf("MCP_API_KEYS: %q reuses WEB_API_KEY; give agents their own key", key.Name)
+		}
+	}
+	if s.MCPRateLimitPerMinute < 0 {
+		return nil, fmt.Errorf("MCP_RATE_LIMIT_PER_MINUTE cannot be negative; got %d", s.MCPRateLimitPerMinute)
 	}
 	if s.EmailScanDays < 1 || s.EmailScanDays > 30 {
 		return nil, fmt.Errorf("EMAIL_SCAN_DAYS must be between 1 and 30; got %d", s.EmailScanDays)

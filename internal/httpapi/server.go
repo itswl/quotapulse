@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
@@ -45,6 +48,9 @@ type Server struct {
 	refreshGuard cooldown
 	scanGuard    cooldown
 	Push         *push.Manager
+
+	mcpLimitOnce sync.Once
+	mcpLimit     *rateLimiter
 }
 
 // ValidateWiring asserts that every dependency the handlers rely on was wired by the
@@ -162,12 +168,16 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		token := extractAPIKey(r)
+		if r.URL.Path == "/mcp" {
+			s.serveMCP(w, r, token, next)
+			return
+		}
 		keys := s.Settings.APIKeys()
 		if len(keys) == 0 {
 			fail(w, http.StatusServiceUnavailable, "API key is not configured; set WEB_API_KEY")
 			return
 		}
-		token := extractAPIKey(r)
 		matched := false
 		for _, key := range keys {
 			if subtle.ConstantTimeCompare([]byte(token), []byte(key)) == 1 {
@@ -181,6 +191,58 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// serveMCP authenticates an /mcp request. MCP keys are read-only and scoped, and are
+// accepted here only, never on /api/*. WEB_API_KEY is accepted too, with every scope,
+// unless MCP_REQUIRE_SCOPED_KEY is set. The caller rides along in the request context,
+// so the MCP server lists and serves only what its scopes allow.
+func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request, token string, next http.Handler) {
+	if len(s.Settings.MCPKeys) == 0 && len(s.Settings.APIKeys()) == 0 {
+		fail(w, http.StatusServiceUnavailable, "API key is not configured; set WEB_API_KEY or MCP_API_KEYS")
+		return
+	}
+	caller, ok, expired := s.mcpCaller(token, time.Now())
+	if expired {
+		fail(w, http.StatusUnauthorized, "This MCP key has expired")
+		return
+	}
+	if !ok {
+		fail(w, http.StatusUnauthorized, "API key is invalid or missing")
+		return
+	}
+	s.mcpLimitOnce.Do(func() { s.mcpLimit = newRateLimiter(s.Settings.MCPRateLimitPerMinute) })
+	if wait := s.mcpLimit.take(caller.Name, time.Now()); wait > 0 {
+		seconds := int(math.Ceil(wait.Seconds()))
+		w.Header().Set("Retry-After", strconv.Itoa(seconds))
+		fail(w, http.StatusTooManyRequests, fmt.Sprintf("MCP rate limit reached; retry in %d seconds", seconds))
+		return
+	}
+	next.ServeHTTP(w, r.WithContext(config.WithMCPCaller(r.Context(), caller)))
+}
+
+// mcpCaller matches token against the MCP keys, then WEB_API_KEY. Every comparison is
+// constant-time, like the web key check.
+func (s *Server) mcpCaller(token string, now time.Time) (caller config.MCPCaller, ok, expired bool) {
+	if token == "" {
+		return caller, false, false
+	}
+	for _, key := range s.Settings.MCPKeys {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(key.Key)) == 1 {
+			if key.Expired(now) {
+				return caller, false, true
+			}
+			return config.MCPCaller{Name: key.Name, Scopes: key.Scopes}, true, false
+		}
+	}
+	if !s.Settings.MCPRequireScopedKey {
+		for _, key := range s.Settings.APIKeys() {
+			if subtle.ConstantTimeCompare([]byte(token), []byte(key)) == 1 {
+				return config.FullMCPCaller("web"), true, false
+			}
+		}
+	}
+	return caller, false, false
 }
 
 func extractAPIKey(r *http.Request) string {

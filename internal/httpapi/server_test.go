@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
 	"github.com/itswl/quotapulse/internal/mailscan"
@@ -712,5 +714,69 @@ func TestSubscriptionPatchRangeChecks(t *testing.T) {
 		if got := len(patch(monthly, body)) > 0; got != wantProblem {
 			t.Errorf("%s: 期望有问题=%v，实际 %v", body, wantProblem, patch(monthly, body))
 		}
+	}
+}
+
+// MCP keys are read-only agent credentials: accepted on /mcp with their scopes, never on
+// the REST API, and rate limited per key.
+func TestMCPKeyAuthentication(t *testing.T) {
+	agentKey := "qp_agent_key_0123456789"
+	expiredAt := time.Now().Add(-time.Hour)
+	build := func(tweak func(*config.Settings)) http.Handler {
+		s, _ := newServer(t, func(settings *config.Settings) {
+			settings.EnableMCP = true
+			settings.MCPKeys = []config.MCPKey{
+				{Name: "claude", Key: agentKey, Scopes: map[string]bool{config.ScopeBalance: true}},
+				{Name: "old", Key: "qp_expired_key_987654321", Scopes: map[string]bool{config.ScopeBalance: true}, Expires: &expiredAt},
+			}
+			if tweak != nil {
+				tweak(settings)
+			}
+		})
+		s.MCP = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			caller, _ := config.MCPCallerFrom(r.Context())
+			fmt.Fprintf(w, "%s balance=%v config=%v", caller.Name, caller.Allows(config.ScopeBalance), caller.Allows(config.ScopeConfig))
+		})
+		return s.Handler()
+	}
+	call := func(handler http.Handler, path, key string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+		req.Header.Set("X-API-Key", key)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	handler := build(nil)
+	if rec := call(handler, "/mcp", agentKey); rec.Code != http.StatusOK || rec.Body.String() != "claude balance=true config=false" {
+		t.Fatalf("MCP key 应能访问 /mcp 并带上自己的 scope: %d %q", rec.Code, rec.Body.String())
+	}
+	if rec := call(handler, "/api/credits", agentKey); rec.Code != http.StatusUnauthorized {
+		t.Errorf("MCP key 不能用于 REST 接口，否则只读凭证能调写接口: %d", rec.Code)
+	}
+	if rec := call(handler, "/mcp", testAPIKey); rec.Body.String() != "web balance=true config=true" {
+		t.Errorf("WEB_API_KEY 在 /mcp 上应有全部 scope: %q", rec.Body.String())
+	}
+	if rec := call(handler, "/mcp", "qp_expired_key_987654321"); rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "expired") {
+		t.Errorf("过期的 key 应被拒绝并说明原因: %d %s", rec.Code, rec.Body.String())
+	}
+
+	strict := build(func(s *config.Settings) { s.MCPRequireScopedKey = true })
+	if rec := call(strict, "/mcp", testAPIKey); rec.Code != http.StatusUnauthorized {
+		t.Errorf("MCP_REQUIRE_SCOPED_KEY 时 /mcp 不应接受 WEB_API_KEY: %d", rec.Code)
+	}
+
+	limited := build(func(s *config.Settings) { s.MCPRateLimitPerMinute = 2 })
+	for i := range 2 {
+		if rec := call(limited, "/mcp", agentKey); rec.Code != http.StatusOK {
+			t.Fatalf("第 %d 次请求不应被限速: %d", i+1, rec.Code)
+		}
+	}
+	rec := call(limited, "/mcp", agentKey)
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("超出限额应返回 429 并带 Retry-After: %d %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	if rec := call(limited, "/mcp", testAPIKey); rec.Code != http.StatusOK {
+		t.Errorf("限速按 key 计算，另一个 key 不受影响: %d", rec.Code)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/itswl/quotapulse/internal/app"
 	"github.com/itswl/quotapulse/internal/config"
@@ -38,6 +39,9 @@ func Run(ctx context.Context, instance *app.App, out io.Writer) int {
 	lines = append(lines, "  Config sources: "+sources(cfg, settings))
 	lines = append(lines, "  Optional features: "+features(settings))
 	lines = append(lines, "  Scheduled jobs: "+schedules(settings))
+	mcpLines, mcpProblems := checkMCP(settings, time.Now())
+	lines = append(lines, mcpLines...)
+	problems += mcpProblems
 	if !settings.EnableDatabase {
 		lines = append(lines, "  "+markWarn+" Spend analysis and runway estimates need ENABLE_DATABASE=true to build up history; it is off")
 	}
@@ -128,6 +132,7 @@ func features(settings *config.Settings) string {
 		{"History API", settings.EnableHistoryAPI},
 		{"Subscription reminders", settings.EnableSubscriptions},
 		{"Prometheus", settings.EnablePrometheus},
+		{"MCP", settings.EnableMCP},
 		{"Web alerts", settings.EnableWebAlarm},
 	}
 	parts := make([]string, 0, len(toggles))
@@ -139,6 +144,55 @@ func features(settings *config.Settings) string {
 		parts = append(parts, t.name+mark)
 	}
 	return strings.Join(parts, "  ")
+}
+
+// checkMCP lists the keys /mcp accepts, and flags keys that stopped working or an agent
+// left sharing the dashboard's key.
+func checkMCP(settings *config.Settings, now time.Time) ([]string, int) {
+	if !settings.EnableMCP {
+		if len(settings.MCPKeys) > 0 {
+			return []string{"  " + markWarn + " MCP_API_KEYS is set, but /mcp is off; set ENABLE_MCP=true"}, 1
+		}
+		return nil, 0
+	}
+	var lines []string
+	problems := 0
+	keys := make([]string, 0, len(settings.MCPKeys))
+	for _, key := range settings.MCPKeys {
+		var scopes []string
+		for _, scope := range config.AllScopes {
+			if key.Scopes[scope] {
+				scopes = append(scopes, scope)
+			}
+		}
+		label := strings.Join(scopes, ",")
+		if len(scopes) == len(config.AllScopes) {
+			label = "all"
+		}
+		if key.Expires != nil {
+			label += ", expires " + key.Expires.UTC().Format("2006-01-02 15:04 UTC")
+		}
+		keys = append(keys, key.Name+" ("+label+")")
+		if key.Expired(now) {
+			lines = append(lines, "  "+markBad+" MCP key "+key.Name+" has expired; renew or remove it in MCP_API_KEYS")
+			problems++
+		}
+	}
+	switch {
+	case len(keys) > 0:
+		web := "WEB_API_KEY is accepted as well"
+		if settings.MCPRequireScopedKey {
+			web = "WEB_API_KEY is not accepted"
+		}
+		lines = append([]string{"  MCP keys: " + strings.Join(keys, ", ") + "; " + web}, lines...)
+	case settings.MCPRequireScopedKey:
+		lines = append(lines, "  "+markBad+" MCP_REQUIRE_SCOPED_KEY is on but MCP_API_KEYS is empty, so /mcp accepts no key")
+		problems++
+	default:
+		lines = append(lines, "  MCP: accepts WEB_API_KEY only",
+			"  "+markWarn+" Agents share WEB_API_KEY, which can also change the configuration; give each its own read-only key in MCP_API_KEYS")
+	}
+	return lines, problems
 }
 
 func schedules(settings *config.Settings) string {
