@@ -10,6 +10,7 @@ import { ENDPOINTS, getJobs } from '../api/endpoints.js';
 import type { HealthResponse } from '../api/types.js';
 import { byId, inputById, onClick } from '../dom.js';
 import { restartAutoRefresh, startAutoRefresh, stopAutoRefresh } from '../data.js';
+import { t } from '../i18n/index.js';
 import { AppState, parseRefreshMinutes, writeStorage } from '../state.js';
 import { bindModalClose, openModal } from '../ui/modal.js';
 import { formatServerCadence } from '../format.js';
@@ -75,14 +76,16 @@ async function syncPushButton(): Promise<void> {
   if (!state.supported) {
     button.hidden = true;
     status.hidden = false;
-    status.textContent = 'Push notifications are not supported in this browser';
+    status.textContent = t('push.unsupported');
     return;
   }
   button.hidden = false;
-  button.textContent = state.enabled ? 'Disable browser push' : 'Enable browser push';
+  // The toggle's direction lives in data, not in its (translated) caption.
+  button.dataset['enabled'] = state.enabled ? 'true' : 'false';
+  button.textContent = state.enabled ? t('settings.push_disable') : t('settings.push_enable');
   if (state.permission === 'denied') {
     status.hidden = false;
-    status.textContent = 'Notifications are blocked for this site in the browser settings';
+    status.textContent = t('push.blocked');
   } else {
     status.hidden = true;
   }
@@ -98,11 +101,13 @@ async function sendTestPush(): Promise<void> {
     const result = await broadcastTestPush();
     if (status) {
       status.hidden = false;
-      status.textContent = `Test push delivered to ${result.sent} browser(s)` + (result.failed > 0 ? `, ${result.failed} failed` : '');
+      const browsers = t('count.browsers', { count: result.sent });
+      status.textContent =
+        t('push.test_delivered', { browsers }) + (result.failed > 0 ? t('push.test_failed_suffix', { count: result.failed }) : '');
     }
-    showToast(`Test push sent to ${result.sent} browser(s)`, 'success');
+    showToast(t('push.test_sent', { browsers: t('count.browsers', { count: result.sent }) }), 'success');
   } catch (error) {
-    const message = error instanceof Error && error.message ? error.message : 'Test push failed';
+    const message = error instanceof Error && error.message ? error.message : t('push.test_failed');
     if (status) {
       status.hidden = false;
       status.textContent = message;
@@ -116,13 +121,13 @@ async function sendTestPush(): Promise<void> {
 async function togglePush(): Promise<void> {
   const button = byId<HTMLButtonElement>('push-toggle-btn');
   if (!button) return;
-  const enabling = (button.textContent ?? '').startsWith('Enable');
+  const enabling = button.dataset['enabled'] !== 'true';
   button.disabled = true;
   try {
     const state = enabling ? await enablePush() : await disablePush();
-    showToast(state.enabled ? 'Browser push enabled' : 'Browser push disabled', 'success');
+    showToast(state.enabled ? t('push.enabled') : t('push.disabled'), 'success');
   } catch (error) {
-    showToast(error instanceof Error && error.message ? error.message : 'Push setup failed', 'error');
+    showToast(error instanceof Error && error.message ? error.message : t('push.setup_failed'), 'error');
   } finally {
     button.disabled = false;
     await syncPushButton();
@@ -135,7 +140,7 @@ async function sendTestNotification(): Promise<void> {
   if (!button) return;
   button.disabled = true;
   try {
-    await mutate(ENDPOINTS.testNotify, {}, { success: 'Test notification sent', fail: 'Test notification failed' });
+    await mutate(ENDPOINTS.testNotify, {}, { success: t('settings.test_notify_sent'), fail: t('settings.test_notify_failed') });
   } finally {
     button.disabled = false;
   }
@@ -174,10 +179,10 @@ export function bindSettingsManager(): void {
     if (minutesInput) minutesInput.disabled = !checked;
     if (checked) {
       startAutoRefresh();
-      showToast(`Auto-refresh every ${AppState.autoRefreshMinutes} min`, 'success');
+      showToast(t('settings.auto_refresh_every', { count: AppState.autoRefreshMinutes }), 'success');
     } else {
       stopAutoRefresh();
-      showToast('Auto-refresh disabled', 'info');
+      showToast(t('settings.auto_refresh_off'), 'info');
     }
   });
 
@@ -188,12 +193,12 @@ export function bindSettingsManager(): void {
     AppState.autoRefreshMinutes = minutes;
     writeStorage('autoRefreshMinutes', String(minutes));
     if (AppState.autoRefreshTimer) restartAutoRefresh();
-    showToast(`Auto-refresh every ${minutes} min`, 'success');
+    showToast(t('settings.auto_refresh_every', { count: minutes }), 'success');
   });
 
   byId('setting-api-key')?.addEventListener('change', (event) => {
     setApiKey((event.target as HTMLInputElement).value);
-    showToast(getApiKey() ? 'API key saved' : 'API key cleared', 'info');
+    showToast(getApiKey() ? t('settings.key_saved') : t('settings.key_cleared'), 'info');
   });
 
   // Implementation note.

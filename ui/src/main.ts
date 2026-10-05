@@ -25,7 +25,8 @@ import { AppState, isViewName, writeStorage, type ProjectViewStyle } from './sta
 import { updateNavFreshness } from './ui/stats.js';
 import { renderProjects } from './ui/projects.js';
 import { showToast } from './ui/toast.js';
-import { initTheme, setAlertsFilter, switchView, syncAlertsChip, toggleTheme } from './views.js';
+import { initLocale, initTheme, setAlertsFilter, switchView, syncAlertsChip, toggleLocale, toggleTheme } from './views.js';
+import { t } from './i18n/index.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const NAV_TICK_MS = 30_000;
@@ -88,13 +89,14 @@ function setProjectViewStyle(style: ProjectViewStyle): void {
 
 function bindEvents(): void {
   onClick('theme-toggle', toggleTheme);
+  onClick('locale-toggle', toggleLocale);
   onClick('refresh-btn', () => void refreshNow());
 
   onClick('view-all-btn', () => switchView('all'));
   onClick('filter-alerts-btn', () => setAlertsFilter(!AppState.alertsOnly));
   onClick('view-subscriptions-btn', () => {
     if (!AppState.features.subscriptions) {
-      showToast('Subscriptions are disabled', 'info');
+      showToast(t('views.subscriptions_disabled'), 'info');
       return;
     }
     switchView('subscriptions');
@@ -134,6 +136,7 @@ function bindEvents(): void {
 
 async function init(): Promise<void> {
   initTheme();
+  initLocale();
   bindEvents();
 
   await loadFeatures();

@@ -43,6 +43,11 @@
         padding-left: 12px;
     }
 
+    /* Four icon buttons share the bar with the brand and the time; they need no gaps. */
+    .nav-actions {
+        gap: 0;
+    }
+
     .nav-status-label {
         display: none;
     }
@@ -162,6 +167,18 @@
 
     .form-row {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Narrow phones also drop the wordmark: the brand tile, the time stamp and four icon
+   buttons have to share 360 px, and the time is the part that carries information. */
+@media (max-width: 480px) {
+    .brand-text {
+        display: none;
+    }
+
+    .nav-brand {
+        gap: 0;
     }
 }
 

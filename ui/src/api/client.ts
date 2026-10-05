@@ -6,6 +6,7 @@
  */
 
 import { byId } from '../dom.js';
+import { t } from '../i18n/index.js';
 import { readStorage, writeStorage } from '../state.js';
 import { setLoading } from '../ui/loading.js';
 import { showToast } from '../ui/toast.js';
@@ -40,7 +41,7 @@ function errorMessage(data: unknown, fallback: string): string {
   if (data && typeof data === 'object') {
     const payload = data as Partial<ErrorResponse> & { error?: string };
     if (typeof payload.message === 'string' && payload.message) return payload.message;
-    if (Array.isArray(payload.errors) && payload.errors.length) return payload.errors.join('；');
+    if (Array.isArray(payload.errors) && payload.errors.length) return payload.errors.join(t('common.separator'));
     if (typeof payload.error === 'string' && payload.error) return payload.error;
   }
   return fallback;
@@ -61,7 +62,7 @@ export function promptForApiKey(message = ''): Promise<string | null> {
 
     // Implementation note.
     if (!modal || !form || !input) {
-      const value = window.prompt(message || 'Enter API key', getApiKey());
+      const value = window.prompt(message || t('auth.title'), getApiKey());
       if (value !== null) setApiKey(value);
       resolve(getApiKey() || null);
       return;
@@ -80,7 +81,7 @@ export function promptForApiKey(message = ''): Promise<string | null> {
       const value = input.value.trim();
       if (!value) {
         if (error) {
-          error.textContent = 'Enter API key';
+          error.textContent = t('auth.title');
           error.style.display = 'block';
         }
         return;
@@ -136,7 +137,7 @@ export async function fetchJson<T>(
   }
 
   if (response.status === 401 && isApi && !retried) {
-    const key = await promptForApiKey(errorMessage(data, 'Invalid API key; update it to continue'));
+    const key = await promptForApiKey(errorMessage(data, t('auth.invalid')));
     if (key) return fetchJson<T>(endpoint, options, true);
   }
 
@@ -150,7 +151,7 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
     throw new Error(errorMessage(data, response.statusText || `HTTP ${response.status}`));
   }
   if (data === null) {
-    throw new Error('The server returned invalid JSON');
+    throw new Error(t('api.invalid_json'));
   }
   return data as T;
 }
@@ -167,7 +168,7 @@ export interface MutateOptions {
 export async function mutate(
   endpoint: string,
   body: unknown,
-  { success = '', fail = 'Operation failed' }: MutateOptions = {},
+  { success = '', fail = t('api.operation_failed') }: MutateOptions = {},
 ): Promise<MutationResponse | null> {
   setLoading(true);
   try {
@@ -183,7 +184,7 @@ export async function mutate(
     return null;
   } catch (error) {
     console.error(`${fail}:`, error);
-    showToast(`${fail}; please try again`, 'error');
+    showToast(t('api.failed_retry', { fail }), 'error');
     return null;
   } finally {
     setLoading(false);

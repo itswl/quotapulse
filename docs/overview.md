@@ -8,8 +8,9 @@ your mailbox — then tells you before things run dry, not after.
 This page walks through the project using screenshots. Everything shown is demo data on
 a fixed date, rendered from the real dashboard by `node ui/scripts/docs-screenshots.mjs`,
 so the pictures can be regenerated after a UI change. The interface ships in light and
-dark themes and follows your system preference until you toggle it. For installation and
-configuration, see the [README](../README.md); for the icon system, see
+dark themes and follows your system preference until you toggle it, and in English and
+Simplified Chinese, following the browser language until you switch. For installation
+and configuration, see the [README](../README.md); for the icon system, see
 [icons.md](icons.md).
 
 ## One dashboard for every account
@@ -120,9 +121,15 @@ set, rather than an empty grid. Filters that match nothing offer a one-click res
 
 ![Empty state](images/empty-state.png)
 
-## Light, dark, and pocket-sized
+## Light, dark, Chinese, and pocket-sized
 
 Dark mode is a first-class theme, applied before the first paint so it never flashes.
+Every label, card, dialog, and toast is also available in Simplified Chinese. The globe
+in the top bar switches the language in place, without a reload, and the choice sticks
+to the browser; a Chinese-language browser lands on Chinese by default.
+
+![Dashboard in Simplified Chinese](images/dashboard-zh-CN.png)
+
 On a phone the counters collapse into rows, the view switcher scrolls horizontally, and
 card actions stay visible.
 

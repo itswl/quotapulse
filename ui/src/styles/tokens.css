@@ -5,7 +5,7 @@
 :root {
     color-scheme: light;
 
-    --font: "Geist", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+    --font: "Geist", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", "Noto Sans", "Noto Sans CJK SC", "Helvetica Neue", Arial, sans-serif;
     --mono: "Geist Mono", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
     --bg: #f4f5f7;

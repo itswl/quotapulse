@@ -6,6 +6,7 @@
  */
 
 import type { BalanceType, CheckResult, Runway, SubscriptionResult } from './api/types.js';
+import { t, type MessageKey } from './i18n/index.js';
 
 /* Implementation note. */
 export type RunwayLevel = 'danger' | 'warning' | 'normal' | 'unknown';
@@ -26,9 +27,10 @@ function toNumber(value: unknown): number {
   return Number.parseFloat(String(value ?? ''));
 }
 
-/* A count with its noun, singular for exactly one: "1 day", "3 days". */
-export function pluralize(count: number, one: string, many = `${one}s`): string {
-  return `${count} ${count === 1 ? one : many}`;
+/* "7 days" in the active language; the dictionary decides the singular. Accepts a
+   preformatted number such as "6.9" so decimals survive. */
+export function formatDays(count: number | string): string {
+  return t('count.days', { count });
 }
 
 /* Two decimals with digit grouping, like balances: 1,420.00. Display only. */
@@ -45,8 +47,9 @@ export function formatNumber(num: number): string {
 
 /* Implementation note. */
 export function typeLabel(type: string | null | undefined): string {
-  const labels: Record<string, string> = { credits: 'Credits', balance: 'Balance', quota: 'Quota' };
-  return (type ? labels[type] : undefined) ?? (type || 'Balance');
+  const keys: Record<string, MessageKey> = { credits: 'type.credits', balance: 'type.balance', quota: 'type.quota' };
+  const key = type ? keys[type] : undefined;
+  return key ? t(key) : type || t('type.balance');
 }
 
 /**
@@ -76,28 +79,35 @@ export interface RunwayContext {
  */
 export function formatRunway(runway: Runway | null | undefined, context: RunwayContext = {}): RunwayDisplay {
   if (context.balanceType === 'quota') {
-    return { text: 'Not estimated', level: 'unknown', hint: 'Quota plans reset on their own schedule, so they only use the alert threshold' };
+    return { text: t('runway.not_estimated'), level: 'unknown', hint: t('runway.not_estimated_hint') };
   }
   if (!runway || runway.confidence === 'none') {
     if (context.database === false) {
-      return { text: 'Needs history', level: 'unknown', hint: 'Runway estimates need balance history; set ENABLE_DATABASE=true' };
+      return { text: t('runway.needs_history'), level: 'unknown', hint: t('runway.needs_history_hint') };
     }
-    return { text: 'Accumulating data', level: 'unknown', hint: 'Estimates appear after several hours of balance history' };
+    return { text: t('runway.accumulating'), level: 'unknown', hint: t('runway.accumulating_hint') };
   }
   if (!runway.burn_per_day) {
-    return { text: 'No spending', level: 'normal', hint: `Balance did not decrease in the last ${pluralize(runway.window_days, 'day')}` };
+    return { text: t('runway.no_spending'), level: 'normal', hint: t('runway.no_spending_hint', { period: formatDays(runway.window_days) }) };
   }
   const days = runway.runway_days;
   if (days === null || days === undefined) {
     return { text: '—', level: 'unknown', hint: '' };
   }
   const hint = runway.depletion_date
-    ? `At an average daily spend of ${formatCurrency(runway.burn_per_day)}${runway.monthly_projection != null ? ` (≈${formatNumber(Math.round(runway.monthly_projection))}/mo)` : ''}, estimated to deplete around ${runway.depletion_date}`
+    ? t('runway.depletion_hint', {
+        burn: formatCurrency(runway.burn_per_day),
+        monthly:
+          runway.monthly_projection != null
+            ? t('runway.monthly_projection', { amount: formatNumber(Math.round(runway.monthly_projection)) })
+            : '',
+        date: runway.depletion_date,
+      })
     : '';
   if (days > 365) {
-    return { text: 'More than 1 year', level: 'normal', hint };
+    return { text: t('runway.over_year'), level: 'normal', hint };
   }
-  const text = days < 1 ? 'Less than 1 day' : `${days < 10 ? days.toFixed(1) : Math.round(days)} days`;
+  const text = days < 1 ? t('runway.under_day') : formatDays(days < 10 ? days.toFixed(1) : Math.round(days));
   // Implementation note.
   const level: RunwayLevel = days <= 3 ? 'danger' : days <= 7 ? 'warning' : 'normal';
   return { text, level, hint };
@@ -131,17 +141,17 @@ export function formatDate(dateString: string | null | undefined): string {
 
 /* Implementation note. */
 export function getRelativeTime(dateString: string | null | undefined, now: Date = new Date()): string {
-  if (!dateString) return 'Unknown';
+  if (!dateString) return t('common.unknown');
   const date = new Date(dateString);
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  if (hours < 24) return `${hours} hr ago`;
-  if (days < 7) return `${pluralize(days, 'day')} ago`;
+  if (minutes < 1) return t('time.just_now');
+  if (minutes < 60) return t('time.min_ago', { count: minutes });
+  if (hours < 24) return t('time.hr_ago', { count: hours });
+  if (days < 7) return t('count.days_ago', { count: days });
   return formatDate(dateString);
 }
 
@@ -169,10 +179,10 @@ export function getBalanceStatus(balance: number, threshold: number): BalanceSta
 
 /* Implementation note. */
 export function cycleLabel(cycle: string | null | undefined): string {
-  if (cycle === 'monthly') return 'Monthly';
-  if (cycle === 'yearly') return 'Yearly';
-  if (cycle === 'lunar_yearly') return 'Yearly (lunar)';
-  return 'Weekly';
+  if (cycle === 'monthly') return t('cycle.monthly');
+  if (cycle === 'yearly') return t('cycle.yearly');
+  if (cycle === 'lunar_yearly') return t('cycle.lunar_yearly');
+  return t('cycle.weekly');
 }
 
 /* Red while the renewal is inside its reminder window and unpaid; amber under 14 days
@@ -200,20 +210,20 @@ export function formatServerCadence(
   const cadence = every
     ? (() => {
         const seconds = Number(every[1]);
-        if (seconds % 3600 === 0) return `every ${seconds / 3600} hr`;
-        if (seconds % 60 === 0) return `every ${seconds / 60} min`;
-        return `every ${seconds} s`;
+        if (seconds % 3600 === 0) return t('cadence.every_hr', { count: seconds / 3600 });
+        if (seconds % 60 === 0) return t('cadence.every_min', { count: seconds / 60 });
+        return t('cadence.every_s', { count: seconds });
       })()
     : job.schedule.toLowerCase();
-  const next = job.next_run ? ` · next in ${formatUntil(job.next_run)}` : '';
-  return `Server checks ${cadence}${next}`;
+  const next = job.next_run ? t('cadence.next_in', { until: formatUntil(job.next_run) }) : '';
+  return t('cadence.server_checks', { cadence, next });
 }
 
 export function formatUntil(isoDate: string): string {
   const ms = new Date(isoDate).getTime() - Date.now();
-  if (!Number.isFinite(ms) || ms <= 30_000) return 'less than a minute';
+  if (!Number.isFinite(ms) || ms <= 30_000) return t('time.under_minute');
   const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return t('time.min', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  return minutes % 60 === 0 ? `${hours} hr` : `${hours} hr ${minutes % 60} min`;
+  return minutes % 60 === 0 ? t('time.hr', { count: hours }) : t('time.hr_min', { hours, minutes: minutes % 60 });
 }

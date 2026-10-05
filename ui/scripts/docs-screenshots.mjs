@@ -95,6 +95,7 @@ const SHOTS = {
   'dashboard-light': { theme: 'light', full: true },
   'dashboard-dark': { theme: 'dark', full: true },
   'project-list': { theme: 'light', full: true, list: true },
+  'dashboard-zh-CN': { theme: 'light', full: true, locale: 'zh-CN' },
   subscriptions: { theme: 'dark', full: true, view: '#view-subscriptions-btn' },
   'email-scanning': { theme: 'light', full: true, view: '#view-email-btn' },
   'trend-modal': { theme: 'dark', run: openTrend },
@@ -128,7 +129,7 @@ async function shoot(browser, name, spec) {
     : { width: 1440, height: 960, deviceScaleFactor: 1 };
   await page.setViewport(viewport);
   await page.evaluateOnNewDocument(
-    (now, theme, list) => {
+    (now, theme, list, locale) => {
       // Pin the clock without freezing it: relative times and animations keep working.
       const offset = now - Date.now();
       const RealDate = Date;
@@ -145,10 +146,14 @@ async function shoot(browser, name, spec) {
       localStorage.setItem('apiKey', 'demo');
       localStorage.setItem('theme', theme);
       localStorage.setItem('projectViewStyle', list ? 'list' : 'grid');
+      // Pin the language too: headless Chrome inherits the machine's, which would turn
+      // the English shots Chinese on a Chinese system.
+      localStorage.setItem('locale', locale);
     },
     demo.NOW,
     spec.theme,
     Boolean(spec.list),
+    spec.locale || 'en',
   );
 
   await fetch(`${BASE}/__mode?m=${spec.mode || 'normal'}`);

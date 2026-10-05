@@ -5,6 +5,8 @@ import { ENDPOINTS, getSubscriptionsConfig } from '../api/endpoints.js';
 import type { CycleType, SubscriptionConfig, SubscriptionPayload, SubscriptionResult } from '../api/types.js';
 import { byId, inputById, inputValue, isChecked, onClick, selectById, setChecked, setInputValue } from '../dom.js';
 import { reloadSubscriptions } from '../data.js';
+import { formatDays } from '../format.js';
+import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
 import { confirmDialog } from '../ui/confirm.js';
 import { clearFieldErrors, requireFields } from '../ui/forms.js';
@@ -23,7 +25,7 @@ function populateProjectOptions(selectedProject = ''): void {
   select.innerHTML = '';
   const emptyOption = document.createElement('option');
   emptyOption.value = '';
-  emptyOption.textContent = 'No owner project';
+  emptyOption.textContent = t('common.no_owner');
   select.appendChild(emptyOption);
 
   for (const project of known) {
@@ -57,7 +59,7 @@ function updateRenewalDayInputForCycle(): void {
   } else if (cycle === 'yearly' || cycle === 'lunar_yearly') {
     input.min = '101';
     input.max = '1231';
-    input.placeholder = cycle === 'lunar_yearly' ? 'Lunar MMDD, for example 0503' : 'MMDD, for example 0315';
+    input.placeholder = cycle === 'lunar_yearly' ? t('sub.placeholder_lunar') : t('sub.placeholder_mmdd');
   } else {
     input.min = '1';
     input.max = '31';
@@ -74,7 +76,7 @@ export function openSubscriptionModal(subscription: EditableSubscription | null 
 
   const title = byId('modal-title');
   if (subscription) {
-    if (title) title.textContent = 'Edit subscription';
+    if (title) title.textContent = t('subs.edit');
     setInputValue('edit-mode', 'true');
     setInputValue('original-name', subscription.name);
     setInputValue('sub-name', subscription.name);
@@ -90,7 +92,7 @@ export function openSubscriptionModal(subscription: EditableSubscription | null 
     }
     setChecked('sub-enabled', 'enabled' in subscription ? subscription.enabled !== false : true);
   } else {
-    if (title) title.textContent = 'Add subscription';
+    if (title) title.textContent = t('subs.add');
     setInputValue('edit-mode', 'false');
     setChecked('sub-enabled', true);
   }
@@ -111,9 +113,9 @@ async function saveSubscription(event: Event): Promise<void> {
 
   clearFieldErrors('subscription-form');
   const valid = requireFields([
-    ['sub-name', 'Subscription name is required'],
-    ['sub-amount', 'Renewal amount is required'],
-    ['sub-renewal-day', 'Renewal day is required'],
+    ['sub-name', t('sub.name_required')],
+    ['sub-amount', t('sub.amount_required')],
+    ['sub-renewal-day', t('sub.day_required')],
   ]);
   if (!valid) return;
 
@@ -143,7 +145,7 @@ async function saveSubscription(event: Event): Promise<void> {
     }
   }
 
-  const result = await mutate(endpoint, data, { success: isEdit ? 'Subscription updated' : 'Subscription added', fail: 'Save failed' });
+  const result = await mutate(endpoint, data, { success: isEdit ? t('sub.updated') : t('sub.added'), fail: t('common.save_failed') });
   if (result) {
     const name = data.new_name ?? data.name;
     await syncSubscriptionSettings(name);
@@ -160,19 +162,20 @@ export async function editSubscription(name: string): Promise<void> {
     const full = (result.subscriptions || []).find((s) => s.name === name);
     const current = full ?? (AppState.subscriptionData?.subscriptions || []).find((s) => s.name === name);
     if (!current) {
-      showToast('Subscription not found', 'error');
+      showToast(t('sub.not_found'), 'error');
       return;
     }
     openSubscriptionModal(current);
   } catch (error) {
     console.error('Failed to load subscription:', error);
-    showToast('Load failed', 'error');
+    showToast(t('common.load_failed'), 'error');
   }
 }
 
 /** Snooze reminders for one subscription by N days (default 7). */
 export async function snoozeSubscription(name: string, days = 7): Promise<void> {
-  if (await mutate(ENDPOINTS.snoozeSubscription, { name, days }, { success: `Reminders snoozed until further notice`, fail: 'Snooze failed' })) {
+  const outcome = { success: t('sub.snoozed', { period: formatDays(days) }), fail: t('sub.snooze_failed') };
+  if (await mutate(ENDPOINTS.snoozeSubscription, { name, days }, outcome)) {
     await reloadSubscriptions();
   }
 }
@@ -187,30 +190,30 @@ async function syncSubscriptionSettings(name: string): Promise<void> {
       await request(ENDPOINTS.subscriptionWebhook, { method: 'POST', body: JSON.stringify({ name, url: webhookURL }) });
     }
   } catch (error) {
-    showToast(error instanceof Error && error.message ? error.message : 'Subscription settings sync failed', 'error');
+    showToast(error instanceof Error && error.message ? error.message : t('sub.sync_failed'), 'error');
   }
 }
 
 export async function deleteSubscription(name: string): Promise<void> {
   const confirmed = await confirmDialog({
-    title: `Delete subscription "${name}"?`,
-    message: 'This action cannot be undone.',
-    confirmLabel: 'Delete subscription',
+    title: t('sub.delete_title', { name }),
+    message: t('common.irreversible'),
+    confirmLabel: t('subs.delete'),
   });
   if (!confirmed) return;
-  if (await mutate(ENDPOINTS.deleteSubscription, { name }, { success: 'Subscription deleted', fail: 'Delete failed' })) {
+  if (await mutate(ENDPOINTS.deleteSubscription, { name }, { success: t('sub.deleted'), fail: t('common.delete_failed') })) {
     await reloadSubscriptions();
   }
 }
 
 export async function markSubscriptionRenewed(name: string): Promise<void> {
-  if (await mutate(ENDPOINTS.markRenewed, { name }, { success: 'Marked as renewed' })) {
+  if (await mutate(ENDPOINTS.markRenewed, { name }, { success: t('sub.marked_renewed') })) {
     await reloadSubscriptions();
   }
 }
 
 export async function clearSubscriptionRenewed(name: string): Promise<void> {
-  if (await mutate(ENDPOINTS.clearRenewed, { name }, { success: 'Renewal mark cleared' })) {
+  if (await mutate(ENDPOINTS.clearRenewed, { name }, { success: t('sub.renewal_cleared') })) {
     await reloadSubscriptions();
   }
 }

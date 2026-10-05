@@ -8,6 +8,7 @@ import { ENDPOINTS, getProviders } from '../api/endpoints.js';
 import type { BalanceType, ProjectConfig, ProjectPayload, ProjectsConfigResponse, ProviderOption } from '../api/types.js';
 import { byId, fillSelect, inputById, inputValue, isChecked, onClick, selectById, setChecked, setInputValue } from '../dom.js';
 import { reloadProjects } from '../data.js';
+import { t } from '../i18n/index.js';
 import { confirmDialog } from '../ui/confirm.js';
 import { clearFieldErrors, requireFields } from '../ui/forms.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
@@ -51,10 +52,7 @@ function syncTypeHint(): void {
     typeSelect.value = known.default_type;
   }
   if (hint) {
-    hint.textContent =
-      typeSelect?.value === 'quota'
-        ? 'Enter a remaining percentage for quota providers; for example, 10 alerts below 10%.'
-        : 'Alert when the balance is below this value; leave empty to disable alerts.';
+    hint.textContent = typeSelect?.value === 'quota' ? t('project.hint_quota') : t('project.hint_balance');
   }
 }
 
@@ -68,7 +66,7 @@ export async function openProjectModal(project: ProjectConfig | null = null): Pr
 
   const isEdit = Boolean(project);
   const title = byId('project-modal-title');
-  if (title) title.textContent = isEdit ? 'Edit project' : 'Add project';
+  if (title) title.textContent = isEdit ? t('projects.edit') : t('projects.add');
   setInputValue('project-edit-mode', String(isEdit));
 
   const nameInput = inputById('project-name');
@@ -83,7 +81,7 @@ export async function openProjectModal(project: ProjectConfig | null = null): Pr
   setInputValue('project-api-key', '');
 
   const keyHint = byId('project-api-key-hint');
-  if (keyHint) keyHint.textContent = isEdit ? 'Leave empty to keep the existing API key' : '';
+  if (keyHint) keyHint.textContent = isEdit ? t('project.keep_key') : '';
 
   // Implementation note.
   const envNote = byId('project-env-note');
@@ -103,8 +101,8 @@ async function saveProject(event: Event): Promise<void> {
   const isEdit = inputById('project-edit-mode').value === 'true';
 
   clearFieldErrors('project-form');
-  const required: Array<[string, string]> = [['project-name', 'Project name is required']];
-  if (!isEdit) required.push(['project-api-key', 'An API key is required for a new project']);
+  const required: Array<[string, string]> = [['project-name', t('project.name_required')]];
+  if (!isEdit) required.push(['project-api-key', t('project.key_required')]);
   if (!requireFields(required)) return;
 
   const threshold = inputById('project-threshold').value;
@@ -122,8 +120,8 @@ async function saveProject(event: Event): Promise<void> {
   if (apiKey) data.api_key = apiKey;
 
   const result = await mutate(ENDPOINTS.saveProject, data, {
-    success: isEdit ? 'Project updated' : 'Project added',
-    fail: 'Save failed',
+    success: isEdit ? t('project.updated') : t('project.added'),
+    fail: t('common.save_failed'),
   });
   if (result) {
     closeProjectModal();
@@ -133,12 +131,12 @@ async function saveProject(event: Event): Promise<void> {
 
 export async function deleteProject(name: string): Promise<void> {
   const confirmed = await confirmDialog({
-    title: `Delete project "${name}"?`,
-    message: 'History is retained, but the balance will no longer be checked.',
-    confirmLabel: 'Delete project',
+    title: t('project.delete_title', { name }),
+    message: t('project.delete_message'),
+    confirmLabel: t('projects.delete'),
   });
   if (!confirmed) return;
-  if (await mutate(ENDPOINTS.deleteProject, { name }, { success: 'Project deleted', fail: 'Delete failed' })) {
+  if (await mutate(ENDPOINTS.deleteProject, { name }, { success: t('project.deleted'), fail: t('common.delete_failed') })) {
     await reloadProjects();
   }
 }
@@ -149,13 +147,13 @@ export async function editProject(name: string): Promise<void> {
     const result = await request<ProjectsConfigResponse>('/api/config/projects');
     const project = (result.projects || []).find((p) => p.name === name);
     if (!project) {
-      showToast('Project configuration not found', 'error');
+      showToast(t('project.not_found'), 'error');
       return;
     }
     await openProjectModal(project);
   } catch (error) {
     console.error('Failed to load project configuration:', error);
-    showToast('Load failed', 'error');
+    showToast(t('common.load_failed'), 'error');
   }
 }
 

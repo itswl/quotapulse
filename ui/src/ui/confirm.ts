@@ -7,6 +7,7 @@
  */
 
 import { byId } from '../dom.js';
+import { t } from '../i18n/index.js';
 
 export interface ConfirmOptions {
   title: string;
@@ -37,8 +38,8 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
     title.textContent = options.title;
     message.textContent = options.message ?? '';
     message.style.display = options.message ? '' : 'none';
-    accept.textContent = options.confirmLabel ?? 'Confirm';
-    cancel.textContent = options.cancelLabel ?? 'Cancel';
+    accept.textContent = options.confirmLabel ?? t('common.confirm');
+    cancel.textContent = options.cancelLabel ?? t('common.cancel');
 
     const finish = (value: boolean): void => {
       settlePending = null;

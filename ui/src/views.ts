@@ -1,9 +1,10 @@
-/* Theme switching and top-level view routing. */
+/* Theme, interface language, and top-level view routing. */
 
 import { byId } from './dom.js';
+import { getLocale, setLocale, t, translateDocument, type Locale } from './i18n/index.js';
 import { AppState, writeStorage, type Theme, type ViewName } from './state.js';
 import { EmailManager } from './managers/email-manager.js';
-import { renderProjects } from './ui/projects.js';
+import { renderProjects, updateProviderFilter } from './ui/projects.js';
 import { renderSubscriptions, renderSubscriptionsError } from './ui/subscriptions.js';
 import { refreshOverview } from './ui/stats.js';
 
@@ -36,7 +37,7 @@ export function applyTheme(theme: Theme): void {
   syncThemeColor();
   // The toggle describes the action it offers, not the state you are in.
   const toggle = typeof document.getElementById === 'function' ? document.getElementById('theme-toggle') : null;
-  const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  const label = theme === 'dark' ? t('theme.to_light') : t('theme.to_dark');
   toggle?.setAttribute('title', label);
   toggle?.setAttribute('aria-label', label);
 }
@@ -58,6 +59,49 @@ export function toggleTheme(): void {
   AppState.currentTheme = AppState.currentTheme === 'light' ? 'dark' : 'light';
   writeStorage('theme', AppState.currentTheme);
   applyTheme(AppState.currentTheme);
+}
+
+/* ==================== Interface language ==================== */
+
+/**
+ * Put the whole page in `locale`: the static markup, the controls whose labels are set
+ * in code, and whatever rendered content is on screen, redrawn from the data already
+ * loaded. Dialogs fill their dynamic text when they open, so they need nothing here.
+ */
+export function applyLocale(locale: Locale): void {
+  setLocale(locale);
+  document.documentElement.lang = locale;
+  translateDocument();
+  syncLocaleToggle();
+  applyTheme(AppState.currentTheme); // its label is a sentence
+
+  if (AppState.balanceData) {
+    updateProviderFilter(AppState.balanceData);
+    renderProjects(AppState.balanceData);
+  }
+  if (AppState.subscriptionLoadError !== null) renderSubscriptionsError(AppState.subscriptionLoadError);
+  else if (AppState.subscriptionData) renderSubscriptions(AppState.subscriptionData);
+  if (EmailManager.state.loaded) EmailManager.renderAll();
+  // Before the first load the band is skeletons and dashes, which need no words.
+  if (AppState.balanceData || AppState.subscriptionData) refreshOverview();
+}
+
+/* Like the theme toggle, the control names what it offers: the other language, in that language. */
+function syncLocaleToggle(): void {
+  const toggle = byId('locale-toggle');
+  toggle?.setAttribute('title', t('locale.switch'));
+  toggle?.setAttribute('aria-label', t('locale.switch_aria'));
+}
+
+export function initLocale(): void {
+  applyLocale(getLocale());
+}
+
+/* An explicit choice is remembered; the start-up detection is not. */
+export function toggleLocale(): void {
+  const next: Locale = getLocale() === 'en' ? 'zh-CN' : 'en';
+  setLocale(next, { persist: true });
+  applyLocale(next);
 }
 
 export function switchView(view: ViewName): void {

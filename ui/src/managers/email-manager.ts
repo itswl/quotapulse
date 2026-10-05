@@ -17,7 +17,8 @@ import type {
   MailboxResult,
 } from '../api/types.js';
 import { byId, inputById, inputValue, isChecked, onClick, setChecked, setInputValue, toggleDisplay } from '../dom.js';
-import { escapeAttr, escapeHTML, formatCurrency, formatDate, getRelativeTime, pluralize } from '../format.js';
+import { escapeAttr, escapeHTML, formatCurrency, formatDate, formatDays, getRelativeTime } from '../format.js';
+import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
 import { confirmDialog } from '../ui/confirm.js';
 import { emptyState } from '../ui/empty.js';
@@ -69,7 +70,7 @@ export const EmailManager = {
       this.renderAll();
     } catch (error) {
       console.error('Failed to load mailbox scanning data:', error);
-      showToast(error instanceof Error && error.message ? error.message : 'Failed to load mailbox scanning data', 'error');
+      showToast(error instanceof Error && error.message ? error.message : t('email.load_failed'), 'error');
     } finally {
       setLoading(false);
     }
@@ -136,26 +137,26 @@ export const EmailManager = {
     const enabledCount = this.state.mailboxes.filter((m) => m.enabled !== false).length;
 
     const chips: Array<{ label: string; value: string | number; cls?: string }> = [
-      { label: 'Enabled mailboxes', value: enabledCount },
-      { label: 'Scanned emails', value: scanned ? summary.total_emails ?? 0 : '-' },
+      { label: t('email.chip_enabled'), value: enabledCount },
+      { label: t('email.chip_scanned'), value: scanned ? summary.total_emails ?? 0 : '-' },
       {
-        label: 'Alert emails',
+        label: t('email.chip_alerts'),
         value: scanned ? summary.total_alerts ?? 0 : '-',
         cls: (summary.total_alerts ?? 0) > 0 ? 'warning' : '',
       },
-      { label: 'Notifications sent', value: scanned ? summary.alerts_sent ?? 0 : '-' },
-      { label: 'Last scan', value: scanned ? getRelativeTime(scan?.last_update) : 'Not scanned yet' },
+      { label: t('email.chip_sent'), value: scanned ? summary.alerts_sent ?? 0 : '-' },
+      { label: t('email.chip_last_scan'), value: scanned ? getRelativeTime(scan?.last_update) : t('email.not_scanned') },
     ];
 
     if (scanned && scan) {
-      chips.push({ label: 'Scan range', value: scan.days != null ? `Last ${pluralize(scan.days, 'day')}` : '-' });
+      chips.push({ label: t('email.chip_range'), value: scan.days != null ? t('count.last_days', { count: scan.days }) : '-' });
       chips.push({
-        label: 'Alert mode',
-        value: scan.dry_run ? 'Dry run; no notifications' : 'Send real notifications',
+        label: t('email.chip_mode'),
+        value: scan.dry_run ? t('email.mode_dry_run') : t('email.mode_real'),
         cls: scan.dry_run ? '' : 'danger',
       });
       if ((summary.failed_mailboxes ?? 0) > 0) {
-        chips.push({ label: 'Connection failed', value: summary.failed_mailboxes ?? 0, cls: 'danger' });
+        chips.push({ label: t('email.chip_failed'), value: summary.failed_mailboxes ?? 0, cls: 'danger' });
       }
     }
 
@@ -178,10 +179,8 @@ export const EmailManager = {
     const mailboxes = this.state.mailboxes;
     if (mailboxes.length === 0) {
       container.innerHTML = emptyState(
-        'No mailboxes yet',
-        AppState.features.dynamic_config
-          ? 'Click "Add mailbox" to configure an IMAP mailbox'
-          : 'Set EMAIL_HOST / EMAIL_USERNAME / EMAIL_PASSWORD, or enable ENABLE_DYNAMIC_CONFIG to add one here',
+        t('email.no_mailboxes'),
+        AppState.features.dynamic_config ? t('email.no_mailboxes_dynamic') : t('email.no_mailboxes_env'),
         'mail',
         true,
       );
@@ -198,15 +197,15 @@ export const EmailManager = {
 
     const scan = this.state.scan;
     if (!scan?.last_update) {
-      container.innerHTML = emptyState('Not scanned yet', 'Choose a date range and click "Scan now" to see results here', 'mail', true);
+      container.innerHTML = emptyState(t('email.not_scanned'), t('email.not_scanned_text'), 'mail', true);
       return;
     }
 
     const alerts = scan.alerts || [];
     if (alerts.length === 0) {
       container.innerHTML = emptyState(
-        'No alert emails',
-        `No billing or renewal keywords matched in the last ${pluralize(scan.days ?? 0, 'day')}`,
+        t('email.no_alerts'),
+        t('email.no_alerts_text', { period: formatDays(scan.days ?? 0) }),
         'mail',
         true,
       );
@@ -232,7 +231,7 @@ export const EmailManager = {
     const history = this.state.history;
     container.innerHTML =
       history.length === 0
-        ? emptyState('No history yet', 'Emails alerted by scheduled or Web scans are stored in the database', 'mail', true)
+        ? emptyState(t('email.no_history'), t('email.no_history_text'), 'mail', true)
         : history.map((record) => renderAlertCard(record, this.cardOptions({ history: true }, record))).join('');
   },
 
@@ -254,13 +253,13 @@ export const EmailManager = {
     const days = Number.parseInt(byId<HTMLSelectElement>('email-scan-days')?.value ?? '', 10) || 1;
 
     if (!this.state.mailboxes.some((m) => m.enabled !== false)) {
-      showToast('No mailboxes available; configure one before scanning', 'warning');
+      showToast(t('email.no_mailbox_to_scan'), 'warning');
       return;
     }
 
     try {
       if (btn) btn.disabled = true;
-      showToast(`Scanning the last ${pluralize(days, 'day')}; connecting to mailboxes may take a few seconds...`, 'info');
+      showToast(t('email.scanning', { period: formatDays(days) }), 'info');
 
       const result = await runEmailScan(days);
       await this.fetchAll();
@@ -269,12 +268,16 @@ export const EmailManager = {
       const summary = result.summary ?? {};
       const alerts = summary.total_alerts ?? 0;
       showToast(
-        `Scan complete: ${summary.total_emails ?? 0} emails, ${alerts} alerts${result.dry_run ? ' (dry run; no notifications)' : ''}`,
+        t('email.scan_complete', {
+          emails: t('count.emails', { count: summary.total_emails ?? 0 }),
+          alerts: t('count.alerts', { count: alerts }),
+          dryRun: result.dry_run ? t('email.scan_dry_run_suffix') : '',
+        }),
         alerts > 0 ? 'warning' : 'success',
       );
     } catch (error) {
       console.error('Mailbox scan failed:', error);
-      showToast(error instanceof Error && error.message ? error.message : 'Scan failed; please try again', 'error');
+      showToast(error instanceof Error && error.message ? error.message : t('email.scan_failed'), 'error');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -284,38 +287,40 @@ export const EmailManager = {
 // Implementation note.
 
 export function renderMailboxCard(mailbox: MailboxConfig, stat: MailboxResult | undefined): string {
-  const name = mailbox.name || mailbox.username || 'Unnamed';
+  const name = mailbox.name || mailbox.username || t('email.unnamed');
   const nameAttr = escapeAttr(name);
   const port = mailbox.port || DEFAULT_PORT;
   const enabled = mailbox.enabled !== false;
 
   let statusHtml: string;
   if (!enabled) {
-    statusHtml = '<span class="status-badge muted">Disabled</span>';
+    statusHtml = `<span class="status-badge muted">${escapeHTML(t('status.disabled'))}</span>`;
   } else if (!stat) {
-    statusHtml = '<span class="status-badge muted">Not scanned</span>';
+    statusHtml = `<span class="status-badge muted">${escapeHTML(t('email.status_not_scanned'))}</span>`;
   } else if (stat.error) {
-    statusHtml = `<span class="status-badge danger" title="${escapeAttr(stat.error)}">Connection failed</span>`;
+    statusHtml = `<span class="status-badge danger" title="${escapeAttr(stat.error)}">${escapeHTML(t('email.status_connection_failed'))}</span>`;
   } else if (stat.alert_count > 0) {
-    statusHtml = `<span class="status-badge warning">${escapeHTML(stat.alert_count)}  alerts</span>`;
+    statusHtml = `<span class="status-badge warning">${escapeHTML(t('count.alerts', { count: stat.alert_count }))}</span>`;
   } else {
-    statusHtml = '<span class="status-badge success">Healthy</span>';
+    statusHtml = `<span class="status-badge success">${escapeHTML(t('status.healthy'))}</span>`;
   }
 
   const actions = AppState.features.dynamic_config
     ? `
             <div class="subscription-actions">
-                <button class="action-icon-btn js-edit-email" data-name="${nameAttr}" title="Edit">
+                <button class="action-icon-btn js-edit-email" data-name="${nameAttr}" title="${escapeAttr(t('common.edit'))}">
                     ${ICON_EDIT}
                 </button>
-                <button class="action-icon-btn danger js-delete-email" data-name="${nameAttr}" title="Delete">
+                <button class="action-icon-btn danger js-delete-email" data-name="${nameAttr}" title="${escapeAttr(t('common.delete'))}">
                     ${ICON_DELETE}
                 </button>
             </div>`
     : '';
 
   const scannedMeta =
-    stat && !stat.error ? `<span class="meta-item"><span class="k">Last scan</span>${escapeHTML(stat.total_emails)} emails</span>` : '';
+    stat && !stat.error
+      ? `<span class="meta-item"><span class="k">${t('email.chip_last_scan')}</span>${escapeHTML(t('count.emails', { count: stat.total_emails }))}</span>`
+      : '';
   const errorMeta = stat && stat.error ? `<span class="meta-item error-text">${escapeHTML(stat.error)}</span>` : '';
 
   return `
@@ -325,7 +330,7 @@ export function renderMailboxCard(mailbox: MailboxConfig, stat: MailboxResult | 
                     <div class="subscription-meta">
                         <span class="meta-item">${escapeHTML(mailbox.username || '-')}</span>
                         <span class="meta-item">${escapeHTML(mailbox.host || '-')}:${escapeHTML(port)}</span>
-                        <span class="meta-item">${mailbox.use_ssl === false ? 'Plaintext' : 'SSL'}</span>
+                        <span class="meta-item">${escapeHTML(mailbox.use_ssl === false ? t('email.plaintext') : t('email.ssl'))}</span>
                         ${scannedMeta}
                         ${errorMeta}
                     </div>
@@ -341,13 +346,13 @@ export function renderMailboxCard(mailbox: MailboxConfig, stat: MailboxResult | 
 export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {}): string {
   let badge: string;
   if ('duplicate' in alert && alert.duplicate) {
-    badge = '<span class="status-badge muted">Already notified; skipped</span>';
+    badge = `<span class="status-badge muted">${escapeHTML(t('email.badge_duplicate'))}</span>`;
   } else if (alert.alert_sent) {
-    badge = '<span class="status-badge success">Notification sent</span>';
+    badge = `<span class="status-badge success">${escapeHTML(t('email.badge_sent'))}</span>`;
   } else if (options.dryRun) {
-    badge = '<span class="status-badge info">Dry run</span>';
+    badge = `<span class="status-badge info">${escapeHTML(t('email.badge_dry_run'))}</span>`;
   } else {
-    badge = '<span class="status-badge danger">Notification not sent</span>';
+    badge = `<span class="status-badge danger">${escapeHTML(t('email.badge_not_sent'))}</span>`;
   }
 
   // Implementation note.
@@ -362,13 +367,13 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
   return `
             <div class="email-alert-card ${options.history ? 'history' : ''}">
                 <div class="email-alert-main">
-                    <div class="email-alert-subject">${escapeHTML(alert.subject || '(No subject)')}</div>
+                    <div class="email-alert-subject">${escapeHTML(alert.subject || t('email.no_subject'))}</div>
                     <div class="subscription-meta">
                         <span class="meta-item project-meta">${escapeHTML(alert.mailbox || '-')}</span>
-                        <span class="meta-item"><span class="k">Sender</span>${escapeHTML(alert.sender || '-')}</span>
+                        <span class="meta-item"><span class="k">${t('email.sender')}</span>${escapeHTML(alert.sender || '-')}</span>
                         <span class="meta-item">${escapeHTML(alert.date || '-')}</span>
-                        ${serviceName ? `<span class="meta-item"><span class="k">Service</span>${escapeHTML(serviceName)}</span>` : ''}
-                        ${hasAmount ? `<span class="meta-item"><span class="k">Amount</span>${formatCurrency(alert.amount)}</span>` : ''}
+                        ${serviceName ? `<span class="meta-item"><span class="k">${t('email.service')}</span>${escapeHTML(serviceName)}</span>` : ''}
+                        ${hasAmount ? `<span class="meta-item"><span class="k">${t('common.amount')}</span>${formatCurrency(alert.amount)}</span>` : ''}
                     </div>
                     ${keywordTags ? `<div class="keyword-tags">${keywordTags}</div>` : ''}
                 </div>
@@ -376,12 +381,12 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
                     ${badge}
                     ${
                       options.muted
-                        ? '<span class="status-badge muted" title="Emails from this sender no longer notify">Sender muted</span>'
+                        ? `<span class="status-badge muted" title="${escapeAttr(t('email.sender_muted_title'))}">${escapeHTML(t('email.sender_muted'))}</span>`
                         : options.canMute
-                          ? `<button type="button" class="btn-link js-email-suppress" data-mailbox="${escapeAttr(alert.mailbox || '')}" data-sender="${escapeAttr(alert.sender || '')}" title="Mute this sender for this mailbox (false positive)">False positive</button>`
+                          ? `<button type="button" class="btn-link js-email-suppress" data-mailbox="${escapeAttr(alert.mailbox || '')}" data-sender="${escapeAttr(alert.sender || '')}" title="${escapeAttr(t('email.false_positive_title'))}">${escapeHTML(t('email.false_positive'))}</button>`
                           : ''
                     }
-                    ${options.history && alert.timestamp ? `<span>Recorded ${escapeHTML(formatDate(alert.timestamp))}</span>` : ''}
+                    ${options.history && alert.timestamp ? `<span>${escapeHTML(t('email.recorded', { date: formatDate(alert.timestamp) }))}</span>` : ''}
                 </div>
             </div>
         `;
@@ -401,7 +406,7 @@ export function openEmailModal(mailbox: MailboxConfig | null = null): void {
   const passwordHint = byId('email-password-hint');
 
   if (mailbox) {
-    if (title) title.textContent = 'Edit mailbox';
+    if (title) title.textContent = t('email.edit_mailbox');
     setInputValue('email-edit-mode', 'true');
     nameInput.value = mailbox.name || '';
     nameInput.readOnly = true; // The name is the stable key; delete and recreate it to rename.
@@ -410,9 +415,9 @@ export function openEmailModal(mailbox: MailboxConfig | null = null): void {
     setInputValue('email-username', mailbox.username || '');
     setChecked('email-use-ssl', mailbox.use_ssl !== false);
     setChecked('email-enabled', mailbox.enabled !== false);
-    if (passwordHint) passwordHint.textContent = 'Leave empty to keep the existing password';
+    if (passwordHint) passwordHint.textContent = t('mailbox.keep_password');
   } else {
-    if (title) title.textContent = 'Add mailbox';
+    if (title) title.textContent = t('email.add_mailbox');
     setInputValue('email-edit-mode', 'false');
     nameInput.readOnly = false;
     if (passwordHint) passwordHint.textContent = '';
@@ -432,11 +437,11 @@ async function saveEmail(event: Event): Promise<void> {
 
   clearFieldErrors('email-form');
   const required: Array<[string, string]> = [
-    ['email-name', 'Display name is required'],
-    ['email-host', 'IMAP server is required'],
-    ['email-username', 'Email account is required'],
+    ['email-name', t('mailbox.name_required')],
+    ['email-host', t('mailbox.host_required')],
+    ['email-username', t('mailbox.username_required')],
   ];
-  if (!isEdit) required.push(['email-password', 'A password or app password is required for a new mailbox']);
+  if (!isEdit) required.push(['email-password', t('mailbox.password_required')]);
   if (!requireFields(required)) return;
 
   const data: MailboxPayload = {
@@ -451,7 +456,7 @@ async function saveEmail(event: Event): Promise<void> {
   const password = inputById('email-password').value;
   if (password) data.password = password;
 
-  const result = await mutate(ENDPOINTS.saveEmail, data, { success: isEdit ? 'Mailbox updated' : 'Mailbox added', fail: 'Save failed' });
+  const result = await mutate(ENDPOINTS.saveEmail, data, { success: isEdit ? t('mailbox.updated') : t('mailbox.added'), fail: t('common.save_failed') });
   if (result) {
     closeEmailModal();
     await EmailManager.load(true);
@@ -461,7 +466,7 @@ async function saveEmail(event: Event): Promise<void> {
 export function editEmail(name: string): void {
   const mailbox = EmailManager.state.mailboxes.find((m) => m.name === name);
   if (!mailbox) {
-    showToast('Mailbox not found', 'error');
+    showToast(t('mailbox.not_found'), 'error');
     return;
   }
   openEmailModal(mailbox);
@@ -469,12 +474,12 @@ export function editEmail(name: string): void {
 
 export async function deleteEmail(name: string): Promise<void> {
   const confirmed = await confirmDialog({
-    title: `Delete mailbox "${name}"?`,
-    message: 'This action cannot be undone.',
-    confirmLabel: 'Delete mailbox',
+    title: t('mailbox.delete_title', { name }),
+    message: t('common.irreversible'),
+    confirmLabel: t('email.delete_mailbox'),
   });
   if (!confirmed) return;
-  if (await mutate(ENDPOINTS.deleteEmail, { name }, { success: 'Mailbox deleted', fail: 'Delete failed' })) {
+  if (await mutate(ENDPOINTS.deleteEmail, { name }, { success: t('mailbox.deleted'), fail: t('common.delete_failed') })) {
     await EmailManager.load(true);
   }
 }
@@ -486,7 +491,7 @@ function renderSuppressionRow(item: EmailSuppression): string {
                     <h3>${escapeHTML(item.sender)}</h3>
                     <div class="subscription-meta"><span class="meta-item project-meta">${escapeHTML(item.mailbox)}</span></div>
                 </div>
-                <button type="button" class="btn-secondary js-email-unsuppress" data-mailbox="${escapeAttr(item.mailbox)}" data-sender="${escapeAttr(item.sender)}">Unmute</button>
+                <button type="button" class="btn-secondary js-email-unsuppress" data-mailbox="${escapeAttr(item.mailbox)}" data-sender="${escapeAttr(item.sender)}">${escapeHTML(t('email.unmute'))}</button>
             </div>
         `;
 }
@@ -497,12 +502,12 @@ export async function suppressEmail(mailbox: string, sender: string): Promise<vo
     return;
   }
   const confirmed = await confirmDialog({
-    title: `Mute ${sender}?`,
-    message: `Emails from this sender in ${mailbox} stay in the history but stop notifying. You can unmute it under Muted senders.`,
-    confirmLabel: 'Mute sender',
+    title: t('email.mute_title', { sender }),
+    message: t('email.mute_message', { mailbox }),
+    confirmLabel: t('email.mute_confirm'),
   });
   if (!confirmed) return;
-  if (await mutate(ENDPOINTS.emailSuppressionAdd, { mailbox, sender }, { success: 'Sender muted for this mailbox', fail: 'Mute failed' })) {
+  if (await mutate(ENDPOINTS.emailSuppressionAdd, { mailbox, sender }, { success: t('email.muted_toast'), fail: t('email.mute_failed') })) {
     await EmailManager.load(true);
   }
 }
@@ -512,7 +517,7 @@ export async function unsuppressEmail(mailbox: string, sender: string): Promise<
   if (!mailbox || !sender) {
     return;
   }
-  if (await mutate(ENDPOINTS.emailSuppressionDelete, { mailbox, sender }, { success: 'Sender unmuted', fail: 'Unmute failed' })) {
+  if (await mutate(ENDPOINTS.emailSuppressionDelete, { mailbox, sender }, { success: t('email.unmuted_toast'), fail: t('email.unmute_failed') })) {
     await EmailManager.load(true);
   }
 }

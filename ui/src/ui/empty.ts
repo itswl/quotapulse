@@ -1,6 +1,7 @@
 /* Composed empty, error and getting-started states. */
 
 import { escapeHTML } from '../format.js';
+import { t } from '../i18n/index.js';
 import { ICON_CALENDAR, ICON_CHECK_CIRCLE, ICON_CLOUD_OFF, ICON_INFO_CIRCLE, ICON_MAIL, ICON_SEARCH } from './icons.js';
 
 export type EmptyIcon = 'info' | 'calendar' | 'mail' | 'search' | 'check' | 'error';
@@ -33,7 +34,5 @@ export function emptyState(title: string, text: string, icon: EmptyIcon = 'info'
 /* What to say about a failed load: the server's own message, or a hint when nothing answered. */
 export function loadErrorDetail(error: unknown): string {
   const networkError = error instanceof TypeError || !(error instanceof Error) || !error.message;
-  return networkError
-    ? 'The server did not respond. Check that QuotaPulse is running and that your API key is valid.'
-    : error.message;
+  return networkError ? t('load.no_response') : error.message;
 }

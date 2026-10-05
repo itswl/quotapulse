@@ -1,7 +1,8 @@
 /* Implementation note. */
 
 import { byId, setText } from '../dom.js';
-import { formatCurrency, formatRunway, getRelativeTime, needsAttention, pluralize } from '../format.js';
+import { formatCurrency, formatDays, formatRunway, getRelativeTime, needsAttention } from '../format.js';
+import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, SubscriptionsResponse, SubscriptionResult } from '../api/types.js';
 import { sortSubscriptionsByNextDate } from './subscriptions.js';
@@ -35,22 +36,20 @@ export function updateFailedHint(projects: CheckResult[]): void {
 
   const failed = projects.filter((p) => !p.success);
   if (failed.length === 0) {
-    label.textContent = 'Alerting projects';
+    label.textContent = t('stats.alerting_projects');
     label.title = '';
     return;
   }
-  label.textContent = `Alerting projects · ${failed.length} unavailable`;
-  label.title = `Unavailable balances: ${failed.map((p) => p.project).join(', ')}`;
+  label.textContent = t('stats.alerting_unavailable', { count: failed.length });
+  label.title = t('stats.unavailable_list', { names: failed.map((p) => p.project).join(', ') });
 }
 
 /* Why the band has no shortest runway to show. */
 export function runwayUnavailableReason(projects: CheckResult[]): string {
-  if (projects.length === 0) return 'Add a project to see how long its balance will last';
-  if (AppState.features.database === false) return 'Runway estimates need balance history; set ENABLE_DATABASE=true';
-  if (!projects.some((p) => p.success && p.type !== 'quota')) {
-    return 'Quota plans only use their alert thresholds; runways are estimated for balances and credits';
-  }
-  return 'Collecting balance history; estimates appear after several hours';
+  if (projects.length === 0) return t('stats.runway_no_projects');
+  if (AppState.features.database === false) return t('stats.runway_no_database');
+  if (!projects.some((p) => p.success && p.type !== 'quota')) return t('stats.runway_quota_only');
+  return t('stats.runway_collecting');
 }
 
 export function updateRunwayStat(projects: CheckResult[]): void {
@@ -64,7 +63,7 @@ export function updateRunwayStat(projects: CheckResult[]): void {
     const reason = runwayUnavailableReason(projects);
     value.textContent = '—';
     value.className = 'stat-value';
-    label.textContent = 'Shortest runway';
+    label.textContent = t('stats.shortest_runway');
     label.title = reason;
     if (hint) hint.textContent = reason;
     return;
@@ -73,12 +72,12 @@ export function updateRunwayStat(projects: CheckResult[]): void {
   const runway = formatRunway(first.runway);
   value.textContent = runway.text;
   value.className = `stat-value runway-${runway.level}`;
-  label.textContent = `Shortest runway · ${first.project}`;
+  label.textContent = t('stats.shortest_runway_of', { project: first.project });
   label.title = runway.hint;
   // The hero card has room to say why, not just how many days.
   if (hint) {
     hint.textContent =
-      runway.hint || `Estimated from the last ${pluralize(first.runway?.window_days ?? 7, 'day')} of balance history`;
+      runway.hint || t('stats.estimated_from', { period: formatDays(first.runway?.window_days ?? 7) });
   }
 }
 
@@ -104,9 +103,7 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null, unav
   if (!data) {
     value.textContent = '—';
     value.className = 'stat-value';
-    hint.textContent = unavailable
-      ? 'Subscriptions could not be loaded; retrying on the next refresh'
-      : 'Subscription reminders are disabled (ENABLE_SUBSCRIPTIONS=false)';
+    hint.textContent = unavailable ? t('stats.subs_unavailable') : t('stats.subs_disabled');
     setText('sub-due-30', '—');
     setText('sub-renewed', '—');
     setText('sub-cost', '—');
@@ -124,12 +121,10 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null, unav
   value.className = `stat-value${due7.length > 0 ? ' runway-danger' : ''}`;
   const next = sortSubscriptionsByNextDate(active)[0];
   if (next) {
-    hint.textContent =
-      due7.length > 0
-        ? `Next: ${next.name} on ${next.next_renewal_date}`
-        : `Nothing due this week; next is ${next.name} on ${next.next_renewal_date}`;
+    const params = { name: next.name, date: next.next_renewal_date };
+    hint.textContent = due7.length > 0 ? t('stats.next_renewal', params) : t('stats.nothing_due', params);
   } else {
-    hint.textContent = 'No active subscriptions';
+    hint.textContent = t('stats.no_active_subs');
   }
 
   const due30Value = byId('sub-due-30');
@@ -201,7 +196,7 @@ export function updateNavFreshness(data: CreditsResponse | null, failed = AppSta
   if (!stamp && !dot) return;
 
   const last = data?.last_update ?? null;
-  const text = last ? getRelativeTime(last) : failed ? '—' : 'Unknown';
+  const text = last ? getRelativeTime(last) : failed ? '—' : t('common.unknown');
   const age = last ? Date.now() - new Date(last).getTime() : Number.POSITIVE_INFINITY;
   // Every account failing its check is an outage even when the server itself answers.
   const projects = data?.projects ?? [];

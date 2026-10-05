@@ -5,6 +5,7 @@ import type { TrendData, TrendPoint, TrendResponse } from '../api/types.js';
 import { LineChart, type ChartTheme } from '../chart/line-chart.js';
 import { byId, requireById } from '../dom.js';
 import { escapeHTML, formatCurrency } from '../format.js';
+import { t } from '../i18n/index.js';
 import { ICON_INFO_CIRCLE } from '../ui/icons.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
 import { setLoading } from '../ui/loading.js';
@@ -22,7 +23,7 @@ function destroyChart(): void {
 export async function showProjectTrend(projectName: string, provider: string): Promise<void> {
   const title = byId('trend-modal-title');
   const statsContainer = byId('trend-stats-container');
-  if (title) title.textContent = `Balance trend - ${projectName}`;
+  if (title) title.textContent = t('trend.title_of', { name: projectName });
 
   setLoading(true);
   openModal(MODAL_ID);
@@ -34,12 +35,12 @@ export async function showProjectTrend(projectName: string, provider: string): P
     if (!response.ok || !data || data.status !== 'success') {
       destroyChart();
       if (statsContainer) {
-        const message = data && 'message' in data && data.message ? data.message : 'No historical data yet';
+        const message = data && 'message' in data && data.message ? data.message : t('trend.no_data');
         statsContainer.innerHTML = `
             <div class="trend-empty">
                 ${ICON_INFO_CIRCLE}
                 <p>${escapeHTML(message)}</p>
-                <p class="hint">Trend charts need balance history. Set ENABLE_DATABASE=true and ENABLE_HISTORY_API=true, then restart the service.</p>
+                <p class="hint">${escapeHTML(t('trend.need_history'))}</p>
             </div>
         `;
       }
@@ -56,7 +57,7 @@ export async function showProjectTrend(projectName: string, provider: string): P
       const message = error instanceof Error ? error.message : String(error);
       statsContainer.innerHTML = `
             <div class="trend-empty error">
-                <p>Load failed: ${escapeHTML(message)}</p>
+                <p>${escapeHTML(t('trend.load_failed', { message }))}</p>
             </div>
         `;
     }
@@ -75,13 +76,13 @@ export function trendDirection(change: number | undefined): 'up' | 'down' | 'sta
 export function renderTrendStats(trendData: TrendData): string {
   const direction = trendDirection(trendData.change);
   const stats = [
-    { label: 'Current balance', value: formatCurrency(trendData.current_balance), cls: '' },
-    { label: 'Average balance', value: formatCurrency(trendData.avg_balance), cls: '' },
-    { label: 'Maximum balance', value: formatCurrency(trendData.max_balance), cls: '' },
-    { label: 'Minimum balance', value: formatCurrency(trendData.min_balance), cls: '' },
+    { label: t('trend.current'), value: formatCurrency(trendData.current_balance), cls: '' },
+    { label: t('trend.average'), value: formatCurrency(trendData.avg_balance), cls: '' },
+    { label: t('trend.maximum'), value: formatCurrency(trendData.max_balance), cls: '' },
+    { label: t('trend.minimum'), value: formatCurrency(trendData.min_balance), cls: '' },
     {
-      label: 'Trend',
-      value: direction === 'up' ? '↑ Up' : direction === 'down' ? '↓ Down' : '→ Stable',
+      label: t('trend.trend'),
+      value: direction === 'up' ? t('trend.up') : direction === 'down' ? t('trend.down') : t('trend.stable'),
       cls: direction === 'up' ? 'positive' : direction === 'down' ? 'negative' : '',
     },
   ];
@@ -152,13 +153,13 @@ function renderTrendChart(trendData: TrendData): void {
     formatValue: (value: number): string => formatCurrency(value),
     series: [
       {
-        label: 'Balance',
+        label: t('type.balance'),
         values: history.map((h) => h.balance),
         color: cssVar('--accent', '#3358d4'),
         fill: cssVar('--chart-fill', 'rgba(51, 88, 212, 0.14)'),
       },
       {
-        label: 'Alert threshold',
+        label: t('projects.threshold'),
         values: labels.map(() => trendData.threshold),
         color: cssVar('--danger', '#d64545'),
         dashed: true,

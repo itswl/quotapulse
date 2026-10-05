@@ -1,5 +1,7 @@
 /* Implementation note. */
 
+import './stub-dom.js';
+
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -10,10 +12,10 @@ import {
   formatBalance,
   formatCurrency,
   formatDate,
+  formatDays,
   formatRunway,
   getBalancePercentage,
   getBalanceStatus,
-  pluralize,
   getRelativeTime,
   renewalUrgency,
   typeLabel,
@@ -224,12 +226,12 @@ describe('Subscription展示', () => {
   });
 });
 
-describe('pluralize', () => {
-  it('恰好 1 时用单数，其余用复数，界面上不再出现「1 days」', () => {
-    assert.equal(pluralize(1, 'day'), '1 day');
-    assert.equal(pluralize(0, 'day'), '0 days');
-    assert.equal(pluralize(7, 'day'), '7 days');
-    assert.equal(pluralize(1, 'match', 'matches'), '1 match');
+describe('formatDays', () => {
+  it('恰好 1 时用单数，其余用复数，界面上不再出现「1 days」；小数原样保留', () => {
+    assert.equal(formatDays(1), '1 day');
+    assert.equal(formatDays(0), '0 days');
+    assert.equal(formatDays(7), '7 days');
+    assert.equal(formatDays('6.9'), '6.9 days');
     assert.equal(getRelativeTime(new Date(Date.now() - 26 * 3600_000).toISOString()), '1 day ago');
   });
 });

@@ -1,6 +1,7 @@
 /* Toast notifications: status dot, message, dismiss button. */
 
 import { byId } from '../dom.js';
+import { t } from '../i18n/index.js';
 import { ICON_CLOSE } from './icons.js';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
@@ -28,7 +29,7 @@ export function showToast(message: unknown, type: ToastType = 'info'): void {
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'toast-close';
-  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.setAttribute('aria-label', t('common.dismiss'));
   closeBtn.innerHTML = ICON_CLOSE;
 
   let dismissed = false;

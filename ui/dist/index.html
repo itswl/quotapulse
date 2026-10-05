@@ -7,7 +7,9 @@
     <meta name="description" content="API balance monitoring, runway estimates, subscription reminders, and billing email scanning in one dashboard.">
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#f4f5f7">
-    <!-- Apply the saved (or system) theme before the first paint so dark mode never flashes light. -->
+    <!-- Apply the saved (or system) theme and language before the first paint so dark mode
+         never flashes light and Chinese text gets Chinese glyphs from the first frame. The
+         language rule mirrors detectLocale() in ui/src/i18n/index.ts. -->
     <script>
         (function () {
             try {
@@ -16,6 +18,11 @@
                     theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                 }
                 document.documentElement.setAttribute('data-theme', theme);
+                var locale = localStorage.getItem('locale');
+                if (locale !== 'en' && locale !== 'zh-CN') {
+                    locale = /^zh(?:[-_]|$)/i.test(navigator.language || '') ? 'zh-CN' : 'en';
+                }
+                document.documentElement.lang = locale;
             } catch (error) { /* storage unavailable: fall back to the stylesheet default */ }
         })();
     </script>
@@ -27,7 +34,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=1f10e28492a0">
+    <link rel="stylesheet" href="/static/app.css?v=e697d557041d">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><linearGradient id='c' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a3b8fc'/><stop offset='1' stop-color='%235878ef'/></linearGradient></defs><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g transform='translate(2.4 2.4) scale(.8)'><circle cx='12' cy='12' r='8.8' fill='url(%23c)'/><path d='M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5' fill='none' stroke='%2315171b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>">
 </head>
 <body>
@@ -49,6 +56,12 @@
             <symbol id="i-theme" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="8"/>
                 <path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
+            </symbol>
+            <!-- Language: a globe -->
+            <symbol id="i-language" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8.5"/>
+                <path d="M3.5 12h17"/>
+                <ellipse cx="12" cy="12" rx="3.75" ry="8.5"/>
             </symbol>
             <symbol id="i-refresh" viewBox="0 0 24 24">
                 <path d="M19.05 14.57A7.5 7.5 0 1 1 17.3 6.7"/>
@@ -136,28 +149,31 @@
             </symbol>
         </defs>
     </svg>
-    <a class="skip-link" href="#main-content">Skip to content</a>
+    <a class="skip-link" href="#main-content" data-i18n="a11y.skip">Skip to content</a>
 
     <!-- Top navigation -->
-    <nav class="navbar" aria-label="Primary">
+    <nav class="navbar" aria-label="Primary" data-i18n-aria-label="a11y.nav">
         <div class="nav-container">
             <div class="nav-brand">
                 <span class="brand-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-logo"></use></svg></span>
                 <span class="brand-text">QuotaPulse</span>
             </div>
-            <div class="nav-status" title="Time of the last successful balance update">
+            <div class="nav-status" title="Time of the last successful balance update" data-i18n-title="nav.updated_title">
                 <span class="live-dot" id="nav-live-dot" aria-hidden="true"></span>
-                <span class="nav-status-label">Updated</span>
+                <span class="nav-status-label" data-i18n="nav.updated">Updated</span>
                 <strong id="last-update">—</strong>
             </div>
             <div class="nav-actions">
                 <button class="btn-icon" id="theme-toggle" title="Toggle theme" aria-label="Toggle light and dark theme">
                     <svg class="icon icon-theme" aria-hidden="true" focusable="false"><use href="#i-theme"></use></svg>
                 </button>
-                <button class="btn-icon" id="refresh-btn" title="Refresh data" aria-label="Refresh data">
+                <button class="btn-icon" id="locale-toggle" title="中文" aria-label="切换到简体中文">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-language"></use></svg>
+                </button>
+                <button class="btn-icon" id="refresh-btn" title="Refresh data" aria-label="Refresh data" data-i18n-title="nav.refresh" data-i18n-aria-label="nav.refresh">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"></use></svg>
                 </button>
-                <button class="btn-icon" id="settings-btn" title="Settings" aria-label="Open settings">
+                <button class="btn-icon" id="settings-btn" title="Settings" aria-label="Open settings" data-i18n-title="nav.settings" data-i18n-aria-label="nav.settings_aria">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sliders"></use></svg>
                 </button>
             </div>
@@ -168,15 +184,15 @@
         <!-- Overview band: hero figure plus three counters. The band follows the active view:
              the projects blocks show runway and counters, the subscription blocks show renewal
              stats, and on the email view the band yields to the scan summary chips. -->
-        <section class="stats-grid" id="stats-grid" data-view="projects" aria-label="Overview">
+        <section class="stats-grid" id="stats-grid" data-view="projects" aria-label="Overview" data-i18n-aria-label="a11y.overview">
             <div class="stat-card hero">
                 <div class="stat-block stat-project">
-                    <div class="stat-label" id="shortest-runway-label">Shortest runway</div>
+                    <div class="stat-label" id="shortest-runway-label" data-i18n="stats.shortest_runway">Shortest runway</div>
                     <div class="stat-value" id="shortest-runway"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
                     <p class="stat-hint" id="shortest-runway-hint"></p>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label" id="sub-due-soon-label">Due in 7 days</div>
+                    <div class="stat-label" id="sub-due-soon-label" data-i18n="stats.due_7">Due in 7 days</div>
                     <div class="stat-value" id="sub-due-soon">&mdash;</div>
                     <p class="stat-hint" id="sub-due-hint"></p>
                 </div>
@@ -184,51 +200,51 @@
 
             <div class="stat-card">
                 <div class="stat-block stat-project">
-                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Total projects</span></div>
+                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span data-i18n="stats.total_projects">Total projects</span></div>
                     <div class="stat-value" id="total-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label"><span class="stat-dot warning" aria-hidden="true"></span><span>Due in 30 days</span></div>
+                    <div class="stat-label"><span class="stat-dot warning" aria-hidden="true"></span><span data-i18n="stats.due_30">Due in 30 days</span></div>
                     <div class="stat-value" id="sub-due-30">&mdash;</div>
                 </div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-block stat-project">
-                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Healthy projects</span></div>
+                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span data-i18n="stats.healthy_projects">Healthy projects</span></div>
                     <div class="stat-value" id="normal-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span>Renewed this cycle</span></div>
+                    <div class="stat-label"><span class="stat-dot success" aria-hidden="true"></span><span data-i18n="stats.renewed">Renewed this cycle</span></div>
                     <div class="stat-value" id="sub-renewed">&mdash;</div>
                 </div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-block stat-project">
-                    <div class="stat-label"><span class="stat-dot danger" aria-hidden="true"></span><span id="alert-projects-label">Alerting projects</span></div>
+                    <div class="stat-label"><span class="stat-dot danger" aria-hidden="true"></span><span id="alert-projects-label" data-i18n="stats.alerting_projects">Alerting projects</span></div>
                     <div class="stat-value" id="alert-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span>Monthly cost (est.)</span></div>
+                    <div class="stat-label"><span class="stat-dot" aria-hidden="true"></span><span data-i18n="stats.monthly_cost">Monthly cost (est.)</span></div>
                     <div class="stat-value" id="sub-cost">&mdash;</div>
                 </div>
             </div>
         </section>
 
         <!-- View switcher -->
-        <section class="quick-actions" aria-label="Views">
+        <section class="quick-actions" aria-label="Views" data-i18n-aria-label="a11y.views">
             <button class="action-btn active" id="view-all-btn" aria-pressed="true">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-card"></use></svg>
-                <span>All projects</span>
+                <span data-i18n="views.all">All projects</span>
             </button>
             <button class="action-btn" id="view-subscriptions-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-cycle"></use></svg>
-                <span>Subscriptions</span><span class="btn-badge" id="subs-badge" hidden></span>
+                <span data-i18n="views.subscriptions">Subscriptions</span><span class="btn-badge" id="subs-badge" hidden></span>
             </button>
             <button class="action-btn" id="view-email-btn" aria-pressed="false">
                 <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-at"></use></svg>
-                <span>Email scanning</span>
+                <span data-i18n="views.email">Email scanning</span>
             </button>
         </section>
 
@@ -236,33 +252,33 @@
         <section class="content-section" id="projects-section">
             <div class="section-header">
                 <div class="section-heading">
-                    <h2 class="section-title">Project balances</h2>
-                    <p class="section-subtitle">Current balance, alert threshold, and estimated runway for every monitored account.</p>
+                    <h2 class="section-title" data-i18n="projects.title">Project balances</h2>
+                    <p class="section-subtitle" data-i18n="projects.subtitle">Current balance, alert threshold, and estimated runway for every monitored account.</p>
                 </div>
                 <div class="section-actions">
-                    <div class="view-toggle" role="group" aria-label="Layout">
-                        <button class="view-btn active" id="view-grid-btn" title="Grid view" aria-label="Grid view">
+                    <div class="view-toggle" role="group" aria-label="Layout" data-i18n-aria-label="a11y.layout">
+                        <button class="view-btn active" id="view-grid-btn" title="Grid view" aria-label="Grid view" data-i18n-title="projects.grid_view" data-i18n-aria-label="projects.grid_view">
                             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-grid"></use></svg>
                         </button>
-                        <button class="view-btn" id="view-list-btn" title="List view" aria-label="List view">
+                        <button class="view-btn" id="view-list-btn" title="List view" aria-label="List view" data-i18n-title="projects.list_view" data-i18n-aria-label="projects.list_view">
                             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-rows"></use></svg>
                         </button>
                     </div>
-                    <button class="toggle-chip" id="filter-alerts-btn" type="button" aria-pressed="false" title="Show only projects below their alert threshold">
+                    <button class="toggle-chip" id="filter-alerts-btn" type="button" aria-pressed="false" title="Show only projects below their alert threshold" data-i18n-title="projects.alerts_only_title">
                         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-flag"></use></svg>
-                        <span>Alerts only</span>
+                        <span data-i18n="projects.alerts_only">Alerts only</span>
                         <span class="btn-badge" id="alerts-badge" hidden></span>
                     </button>
                     <div class="search-box">
                         <svg class="icon search-icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
-                        <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" autocomplete="off" />
+                        <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" data-i18n-placeholder="projects.search" data-i18n-aria-label="projects.search" autocomplete="off" />
                     </div>
-                    <select class="filter-select" id="provider-filter" aria-label="Filter by provider">
-                        <option value="all">All providers</option>
+                    <select class="filter-select" id="provider-filter" aria-label="Filter by provider" data-i18n-aria-label="projects.filter_provider">
+                        <option value="all" data-i18n="projects.all_providers">All providers</option>
                     </select>
                     <button class="btn-primary" id="add-project-btn" style="display: none;">
                         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
-                        Add project
+                        <span data-i18n="projects.add">Add project</span>
                     </button>
                 </div>
             </div>
@@ -297,12 +313,12 @@
         <section class="content-section" id="subscriptions-section" style="display: none;">
             <div class="section-header">
                 <div class="section-heading">
-                    <h2 class="section-title">Subscription reminders</h2>
-                    <p class="section-subtitle">Upcoming renewals sorted by date, with the reminder window you configured.</p>
+                    <h2 class="section-title" data-i18n="subs.title">Subscription reminders</h2>
+                    <p class="section-subtitle" data-i18n="subs.subtitle">Upcoming renewals sorted by date, with the reminder window you configured.</p>
                 </div>
                 <button class="btn-primary" id="add-subscription-btn">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
-                    Add subscription
+                    <span data-i18n="subs.add">Add subscription</span>
                 </button>
             </div>
 
@@ -315,22 +331,22 @@
         <section class="content-section" id="email-section" style="display: none;">
             <div class="section-header">
                 <div class="section-heading">
-                    <h2 class="section-title">Email scanning</h2>
-                    <p class="section-subtitle">Billing and renewal emails found in your IMAP mailboxes.</p>
+                    <h2 class="section-title" data-i18n="email.title">Email scanning</h2>
+                    <p class="section-subtitle" data-i18n="email.subtitle">Billing and renewal emails found in your IMAP mailboxes.</p>
                 </div>
                 <div class="section-actions">
-                    <select class="filter-select" id="email-scan-days" title="Scan recent email" aria-label="Scan window">
-                        <option value="1">Last 1 day</option>
-                        <option value="3">Last 3 days</option>
-                        <option value="7">Last 7 days</option>
-                        <option value="14">Last 14 days</option>
-                        <option value="30">Last 30 days</option>
+                    <select class="filter-select" id="email-scan-days" title="Scan recent email" aria-label="Scan window" data-i18n-title="email.scan_window_title" data-i18n-aria-label="email.scan_window">
+                        <option value="1" data-i18n="count.last_days" data-i18n-count="1">Last 1 day</option>
+                        <option value="3" data-i18n="count.last_days" data-i18n-count="3">Last 3 days</option>
+                        <option value="7" data-i18n="count.last_days" data-i18n-count="7">Last 7 days</option>
+                        <option value="14" data-i18n="count.last_days" data-i18n-count="14">Last 14 days</option>
+                        <option value="30" data-i18n="count.last_days" data-i18n-count="30">Last 30 days</option>
                     </select>
                     <button class="btn-primary" id="email-scan-btn">
                         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
-                        Scan now
+                        <span data-i18n="email.scan_now">Scan now</span>
                     </button>
-                    <button class="btn-secondary" id="add-email-btn" style="display: none;">
+                    <button class="btn-secondary" id="add-email-btn" style="display: none;" data-i18n="email.add_mailbox">
                         Add mailbox
                     </button>
                 </div>
@@ -340,25 +356,25 @@
                 <!-- Scan summary is rendered by JavaScript -->
             </div>
 
-            <h3 class="subsection-title">Mailboxes</h3>
+            <h3 class="subsection-title" data-i18n="email.mailboxes">Mailboxes</h3>
             <div id="mailboxes-container" class="subscriptions-list">
                 <!-- Mailbox cards are rendered by JavaScript -->
             </div>
 
-            <h3 class="subsection-title">Alert emails found in this scan</h3>
+            <h3 class="subsection-title" data-i18n="email.alerts_found">Alert emails found in this scan</h3>
             <div id="email-alerts-container" class="email-alerts-list">
                 <!-- Alert emails are rendered by JavaScript -->
             </div>
 
             <div id="email-history-block" style="display: none;">
-                <h3 class="subsection-title">Historical alert emails <span class="subsection-hint">Last 30 days, from the database</span></h3>
+                <h3 class="subsection-title"><span data-i18n="email.history">Historical alert emails</span> <span class="subsection-hint" data-i18n="email.history_hint">Last 30 days, from the database</span></h3>
                 <div id="email-history-container" class="email-alerts-list">
                     <!-- History is rendered by JavaScript -->
                 </div>
             </div>
 
             <div id="email-suppressions-block" style="display: none;">
-                <h3 class="subsection-title">Muted senders <span class="subsection-hint">Their emails are kept but no longer notify</span></h3>
+                <h3 class="subsection-title"><span data-i18n="email.muted">Muted senders</span> <span class="subsection-hint" data-i18n="email.muted_hint">Their emails are kept but no longer notify</span></h3>
                 <div id="email-suppressions-container" class="email-alerts-list">
                     <!-- Muted senders are rendered by JavaScript -->
                 </div>
@@ -367,7 +383,7 @@
     </main>
 
     <!-- Loading indicator: a thin bar at the top of the viewport -->
-    <div id="loading-overlay" class="loading-overlay" role="progressbar" aria-label="Loading" aria-hidden="true">
+    <div id="loading-overlay" class="loading-overlay" role="progressbar" aria-label="Loading" data-i18n-aria-label="a11y.loading" aria-hidden="true">
         <div class="loading-bar"></div>
     </div>
 
@@ -378,8 +394,8 @@
     <div id="trend-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="trend-modal-title">
         <div class="modal-content modal-wide">
             <div class="modal-header">
-                <h2 id="trend-modal-title">Balance trend</h2>
-                <button class="modal-close js-close-trend-modal" aria-label="Close">
+                <h2 id="trend-modal-title" data-i18n="trend.title">Balance trend</h2>
+                <button class="modal-close js-close-trend-modal" aria-label="Close" data-i18n-aria-label="common.close">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
@@ -388,11 +404,11 @@
                     <!-- Statistics are rendered by JavaScript -->
                 </div>
                 <div class="chart-container">
-                    <canvas id="trend-chart" role="img" aria-label="Balance history chart"></canvas>
+                    <canvas id="trend-chart" role="img" aria-label="Balance history chart" data-i18n-aria-label="trend.chart_aria"></canvas>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-ghost js-close-trend-modal">Close</button>
+                <button type="button" class="btn-ghost js-close-trend-modal" data-i18n="common.close">Close</button>
             </div>
         </div>
     </div>
@@ -401,61 +417,61 @@
     <div id="settings-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="settings-modal-title">Settings</h2>
-                <button class="modal-close js-close-settings-modal" aria-label="Close">
+                <h2 id="settings-modal-title" data-i18n="settings.title">Settings</h2>
+                <button class="modal-close js-close-settings-modal" aria-label="Close" data-i18n-aria-label="common.close">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="settings-section">
-                    <h3>Data updates</h3>
+                    <h3 data-i18n="settings.data_updates">Data updates</h3>
                     <div class="form-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="setting-auto-refresh" checked>
-                            <span>Refresh automatically</span>
+                            <span data-i18n="settings.auto_refresh">Refresh automatically</span>
                         </label>
                         <div class="interval-row">
-                            <span>Every</span>
-                            <input type="number" id="setting-refresh-minutes" min="1" max="1440" step="1" inputmode="numeric" aria-label="Auto-refresh interval in minutes">
-                            <span>minutes</span>
+                            <span data-i18n="settings.every">Every</span>
+                            <input type="number" id="setting-refresh-minutes" min="1" max="1440" step="1" inputmode="numeric" aria-label="Auto-refresh interval in minutes" data-i18n-aria-label="settings.interval_aria">
+                            <span data-i18n="settings.minutes">minutes</span>
                         </div>
                         <p class="settings-note" id="setting-server-cadence" hidden></p>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3>Notifications</h3>
+                    <h3 data-i18n="settings.notifications">Notifications</h3>
                     <div class="form-group">
-                        <p class="settings-note">Sends a canary message through the configured webhook (WEBHOOK_URL) so you can verify the channel.</p>
-                        <button type="button" class="btn-secondary" id="test-notify-btn">Send test notification</button>
+                        <p class="settings-note" data-i18n="settings.test_notify_note">Sends a canary message through the configured webhook (WEBHOOK_URL) so you can verify the channel.</p>
+                        <button type="button" class="btn-secondary" id="test-notify-btn" data-i18n="settings.test_notify">Send test notification</button>
                     </div>
                     <div class="form-group">
-                        <label>Browser push</label>
-                        <p class="settings-note">Get system notifications for balance and subscription alerts even when the app runs in the background. Uses the Web Push protocol.</p>
-                        <button type="button" class="btn-secondary" id="push-toggle-btn" hidden>Enable browser push</button>
-                        <button type="button" class="btn-secondary" id="push-test-btn" hidden>Send test push</button>
+                        <label data-i18n="settings.push">Browser push</label>
+                        <p class="settings-note" data-i18n="settings.push_note">Get system notifications for balance and subscription alerts even when the app runs in the background. Uses the Web Push protocol.</p>
+                        <button type="button" class="btn-secondary" id="push-toggle-btn" hidden data-i18n="settings.push_enable">Enable browser push</button>
+                        <button type="button" class="btn-secondary" id="push-test-btn" hidden data-i18n="settings.push_test">Send test push</button>
                         <p class="settings-note" id="push-status" hidden></p>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3>Authentication</h3>
+                    <h3 data-i18n="settings.auth">Authentication</h3>
                     <div class="form-group">
-                        <label for="setting-api-key">API key</label>
+                        <label for="setting-api-key" data-i18n="auth.api_key">API key</label>
                         <input type="password" id="setting-api-key" autocomplete="current-password">
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <h3>About</h3>
+                    <h3 data-i18n="settings.about">About</h3>
                     <p class="about-text">
                         <strong>QuotaPulse</strong><span class="about-version" id="about-version" hidden></span><br>
-                        API balance monitoring, subscription reminders, and email scanning
+                        <span data-i18n="settings.about_text">API balance monitoring, subscription reminders, and email scanning</span>
                     </p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary js-close-settings-modal">Done</button>
+                <button type="button" class="btn-primary js-close-settings-modal" data-i18n="common.done">Done</button>
             </div>
         </div>
     </div>
@@ -464,18 +480,18 @@
     <div id="auth-modal" class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
         <div class="modal-content auth-modal-content">
             <div class="modal-header">
-                <h2 id="auth-modal-title">Enter API key</h2>
+                <h2 id="auth-modal-title" data-i18n="auth.title">Enter API key</h2>
             </div>
             <form id="auth-form">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="auth-api-key">API key</label>
+                        <label for="auth-api-key" data-i18n="auth.api_key">API key</label>
                         <input type="password" id="auth-api-key" autocomplete="current-password" required>
                     </div>
                     <p id="auth-error" class="form-error" role="alert" style="display: none;"></p>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn-primary">Save and continue</button>
+                    <button type="submit" class="btn-primary" data-i18n="auth.submit">Save and continue</button>
                 </div>
             </form>
         </div>
@@ -488,12 +504,12 @@
                 <div class="confirm-icon" aria-hidden="true">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
                 </div>
-                <h2 id="confirm-title">Are you sure?</h2>
+                <h2 id="confirm-title" data-i18n="confirm.title">Are you sure?</h2>
                 <p id="confirm-message"></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-ghost" id="confirm-cancel">Cancel</button>
-                <button type="button" class="btn-danger" id="confirm-accept">Delete</button>
+                <button type="button" class="btn-ghost" id="confirm-cancel" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn-danger" id="confirm-accept" data-i18n="common.delete">Delete</button>
             </div>
         </div>
     </div>
@@ -502,67 +518,67 @@
     <div id="project-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="project-modal-title">Add project</h2>
-                <button class="modal-close js-close-project-modal" aria-label="Close">
+                <h2 id="project-modal-title" data-i18n="projects.add">Add project</h2>
+                <button class="modal-close js-close-project-modal" aria-label="Close" data-i18n-aria-label="common.close">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
             <form id="project-form" class="modal-body" novalidate>
                 <input type="hidden" id="project-edit-mode" value="false">
 
-                <p id="project-env-note" class="form-note" style="display: none;">
+                <p id="project-env-note" class="form-note" style="display: none;" data-i18n="project.env_note">
                     This project was discovered from environment variables. Saving it here persists it to the database.
                 </p>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="project-name">Project name *</label>
-                        <input type="text" id="project-name" required placeholder="e.g. volc-main">
+                        <label for="project-name" data-i18n="project.name">Project name *</label>
+                        <input type="text" id="project-name" required placeholder="e.g. volc-main" data-i18n-placeholder="project.name_placeholder">
                     </div>
                     <div class="form-group">
-                        <label for="project-provider">Provider *</label>
+                        <label for="project-provider" data-i18n="project.provider">Provider *</label>
                         <select id="project-provider" required></select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="project-api-key">API key <span id="project-api-key-hint" class="subsection-hint"></span></label>
+                    <label for="project-api-key"><span data-i18n="project.api_key">API key</span> <span id="project-api-key-hint" class="subsection-hint"></span></label>
                     <input type="password" id="project-api-key" autocomplete="new-password"
-                           placeholder="Use AccessKey:Secret for Volcengine and Alibaba Cloud">
+                           placeholder="Use AccessKey:Secret for Volcengine and Alibaba Cloud" data-i18n-placeholder="project.api_key_placeholder">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="project-threshold">Alert threshold</label>
-                        <input type="number" id="project-threshold" step="0.01" min="0" placeholder="Leave empty to disable alerts">
+                        <label for="project-threshold" data-i18n="project.threshold">Alert threshold</label>
+                        <input type="number" id="project-threshold" step="0.01" min="0" placeholder="Leave empty to disable alerts" data-i18n-placeholder="project.threshold_placeholder">
                         <p id="project-threshold-hint"></p>
                     </div>
                     <div class="form-group">
-                        <label for="project-type">Balance type</label>
+                        <label for="project-type" data-i18n="project.type">Balance type</label>
                         <select id="project-type">
-                            <option value="">Auto-detect from provider</option>
-                            <option value="balance">Balance</option>
-                            <option value="credits">Credits</option>
-                            <option value="quota">Quota percentage</option>
+                            <option value="" data-i18n="project.type_auto">Auto-detect from provider</option>
+                            <option value="balance" data-i18n="type.balance">Balance</option>
+                            <option value="credits" data-i18n="type.credits">Credits</option>
+                            <option value="quota" data-i18n="project.type_quota_pct">Quota percentage</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="project-owner">Owner project</label>
-                    <input type="text" id="project-owner" placeholder="Optional group label">
+                    <label for="project-owner" data-i18n="project.owner">Owner project</label>
+                    <input type="text" id="project-owner" placeholder="Optional group label" data-i18n-placeholder="project.owner_placeholder">
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="project-enabled" checked>
-                        <span>Enable this project</span>
+                        <span data-i18n="project.enabled">Enable this project</span>
                     </label>
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-ghost js-close-project-modal">Cancel</button>
-                <button type="button" class="btn-primary js-save-project">Save</button>
+                <button type="button" class="btn-ghost js-close-project-modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn-primary js-save-project" data-i18n="common.save">Save</button>
             </div>
         </div>
     </div>
@@ -571,8 +587,8 @@
     <div id="subscription-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modal-title">Add subscription</h2>
-                <button class="modal-close js-close-subscription-modal" aria-label="Close">
+                <h2 id="modal-title" data-i18n="subs.add">Add subscription</h2>
+                <button class="modal-close js-close-subscription-modal" aria-label="Close" data-i18n-aria-label="common.close">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
@@ -581,70 +597,70 @@
                 <input type="hidden" id="original-name" value="">
 
                 <div class="form-group">
-                    <label for="sub-name">Subscription name *</label>
-                    <input type="text" id="sub-name" required placeholder="e.g. Streaming or cloud server">
+                    <label for="sub-name" data-i18n="sub.name">Subscription name *</label>
+                    <input type="text" id="sub-name" required placeholder="e.g. Streaming or cloud server" data-i18n-placeholder="sub.name_placeholder">
                 </div>
 
                 <div class="form-group">
-                    <label for="sub-owner-project">Owner project</label>
+                    <label for="sub-owner-project" data-i18n="sub.owner">Owner project</label>
                     <select id="sub-owner-project">
-                        <option value="">No owner project</option>
+                        <option value="" data-i18n="common.no_owner">No owner project</option>
                     </select>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="sub-amount">Renewal amount *</label>
+                        <label for="sub-amount" data-i18n="sub.amount">Renewal amount *</label>
                         <input type="number" id="sub-amount" step="0.01" min="0" required placeholder="0.00">
                     </div>
                     <div class="form-group">
-                        <label for="sub-alert-days">Alert days before *</label>
+                        <label for="sub-alert-days" data-i18n="sub.alert_days">Alert days before *</label>
                         <input type="number" id="sub-alert-days" min="1" max="90" value="7" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="sub-cycle">Billing cycle *</label>
+                        <label for="sub-cycle" data-i18n="sub.cycle">Billing cycle *</label>
                         <select id="sub-cycle" required>
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly (Gregorian)</option>
-                            <option value="lunar_yearly">Yearly (lunar)</option>
-                            <option value="weekly">Weekly</option>
+                            <option value="monthly" data-i18n="cycle.monthly">Monthly</option>
+                            <option value="yearly" data-i18n="cycle.yearly_gregorian">Yearly (Gregorian)</option>
+                            <option value="lunar_yearly" data-i18n="cycle.lunar_yearly">Yearly (lunar)</option>
+                            <option value="weekly" data-i18n="cycle.weekly">Weekly</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="sub-renewal-day">Renewal day *</label>
+                        <label for="sub-renewal-day" data-i18n="sub.renewal_day">Renewal day *</label>
                         <input type="text" id="sub-renewal-day" required placeholder="1-31" inputmode="numeric">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="sub-timezone">Timezone (optional)</label>
-                        <input type="text" id="sub-timezone" placeholder="e.g. Asia/Shanghai">
+                        <label for="sub-timezone" data-i18n="sub.timezone">Timezone (optional)</label>
+                        <input type="text" id="sub-timezone" placeholder="e.g. Asia/Shanghai" data-i18n-placeholder="sub.timezone_placeholder">
                     </div>
                     <div class="form-group">
-                        <label for="sub-webhook-url">Webhook override (optional)</label>
-                        <input type="text" id="sub-webhook-url" placeholder="Leave empty to use the global webhook">
+                        <label for="sub-webhook-url" data-i18n="sub.webhook">Webhook override (optional)</label>
+                        <input type="text" id="sub-webhook-url" placeholder="Leave empty to use the global webhook" data-i18n-placeholder="sub.webhook_placeholder">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="sub-last-renewed">Last renewal date (optional)</label>
+                    <label for="sub-last-renewed" data-i18n="sub.last_renewed">Last renewal date (optional)</label>
                     <input type="date" id="sub-last-renewed">
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="sub-enabled" checked>
-                        <span>Enable subscription reminders</span>
+                        <span data-i18n="sub.enabled">Enable subscription reminders</span>
                     </label>
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-ghost js-close-subscription-modal">Cancel</button>
-                <button type="button" class="btn-primary js-save-subscription">Save</button>
+                <button type="button" class="btn-ghost js-close-subscription-modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn-primary js-save-subscription" data-i18n="common.save">Save</button>
             </div>
         </div>
     </div>
@@ -653,8 +669,8 @@
     <div id="email-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="email-modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="email-modal-title">Add mailbox</h2>
-                <button class="modal-close js-close-email-modal" aria-label="Close">
+                <h2 id="email-modal-title" data-i18n="email.add_mailbox">Add mailbox</h2>
+                <button class="modal-close js-close-email-modal" aria-label="Close" data-i18n-aria-label="common.close">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
                 </button>
             </div>
@@ -662,53 +678,53 @@
                 <input type="hidden" id="email-edit-mode" value="false">
 
                 <div class="form-group">
-                    <label for="email-name">Display name *</label>
-                    <input type="text" id="email-name" required placeholder="e.g. Work mailbox">
+                    <label for="email-name" data-i18n="mailbox.name">Display name *</label>
+                    <input type="text" id="email-name" required placeholder="e.g. Work mailbox" data-i18n-placeholder="mailbox.name_placeholder">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="email-host">IMAP server *</label>
+                        <label for="email-host" data-i18n="mailbox.host">IMAP server *</label>
                         <input type="text" id="email-host" required placeholder="imap.example.com">
                     </div>
                     <div class="form-group">
-                        <label for="email-port">Port</label>
+                        <label for="email-port" data-i18n="mailbox.port">Port</label>
                         <input type="number" id="email-port" min="1" max="65535" value="993">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="email-username">Email account *</label>
+                    <label for="email-username" data-i18n="mailbox.username">Email account *</label>
                     <input type="text" id="email-username" required placeholder="me@example.com" autocomplete="username">
                 </div>
 
                 <div class="form-group">
-                    <label for="email-password">Password / app password <span id="email-password-hint" class="subsection-hint"></span></label>
-                    <input type="password" id="email-password" autocomplete="new-password" placeholder="IMAP app password">
+                    <label for="email-password"><span data-i18n="mailbox.password">Password / app password</span> <span id="email-password-hint" class="subsection-hint"></span></label>
+                    <input type="password" id="email-password" autocomplete="new-password" placeholder="IMAP app password" data-i18n-placeholder="mailbox.password_placeholder">
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="email-use-ssl" checked>
-                        <span>Use SSL (usually port 993)</span>
+                        <span data-i18n="mailbox.ssl">Use SSL (usually port 993)</span>
                     </label>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="email-enabled" checked>
-                        <span>Enable this mailbox</span>
+                        <span data-i18n="mailbox.enabled">Enable this mailbox</span>
                     </label>
                 </div>
             </form>
             <div class="modal-footer">
-                <button type="button" class="btn-ghost js-close-email-modal">Cancel</button>
-                <button type="button" class="btn-primary js-save-email">Save</button>
+                <button type="button" class="btn-ghost js-close-email-modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn-primary js-save-email" data-i18n="common.save">Save</button>
             </div>
         </div>
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=1f10e28492a0"></script>
+    <script defer src="/static/app.js?v=e697d557041d"></script>
 </body>
 </html>

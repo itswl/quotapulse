@@ -15,6 +15,7 @@ import {
   refresh as refreshApi,
 } from './api/endpoints.js';
 import type { SubscriptionsResponse } from './api/types.js';
+import { t } from './i18n/index.js';
 import { AppState } from './state.js';
 import { emptyState, loadErrorDetail } from './ui/empty.js';
 import { setLoading } from './ui/loading.js';
@@ -121,7 +122,7 @@ export async function loadData(): Promise<void> {
     await fetchAndRender(true);
   } catch (error) {
     console.error('Failed to load data:', error);
-    showToast('Failed to load data; please try again', 'error');
+    showToast(t('load.failed_toast'), 'error');
     renderLoadError(error);
   } finally {
     setLoading(false);
@@ -134,11 +135,11 @@ function renderLoadError(error: unknown): void {
   if (AppState.balanceLoadFailed && container && !container.innerHTML.includes('project-card')) {
     container.removeAttribute?.('aria-busy');
     container.innerHTML = emptyState(
-      'Balances could not be loaded',
+      t('load.balances_failed'),
       loadErrorDetail(error),
       'error',
       false,
-      '<button type="button" class="btn-primary js-retry-load">Try again</button>',
+      `<button type="button" class="btn-primary js-retry-load">${t('common.try_again')}</button>`,
     );
   }
   for (const id of ['total-projects', 'normal-projects', 'alert-projects', 'shortest-runway']) {
@@ -153,13 +154,13 @@ export async function refreshNow(): Promise<void> {
   const btn = byId('refresh-btn');
   try {
     btn?.classList.add('rotating');
-    showToast('Refreshing data...', 'info');
+    showToast(t('refresh.running'), 'info');
     await refreshApi();
     await loadData();
-    showToast('Data refreshed', 'success');
+    showToast(t('refresh.done'), 'success');
   } catch (error) {
     console.error('Refresh failed:', error);
-    showToast(error instanceof Error && error.message ? error.message : 'Refresh failed; please try again', 'error');
+    showToast(error instanceof Error && error.message ? error.message : t('refresh.failed'), 'error');
   } finally {
     btn?.classList.remove('rotating');
   }
@@ -174,7 +175,7 @@ export function startAutoRefresh(): void {
       console.error('Auto-refresh failed:', error);
       // The nav dot turns red on its own; say it in words once per failure streak.
       if (AppState.balanceLoadFailed && !wasFailing) {
-        showToast('Background refresh failed; the balances shown may be out of date', 'error');
+        showToast(t('refresh.background_failed'), 'error');
       }
     });
   }, AppState.autoRefreshMinutes * 60_000);

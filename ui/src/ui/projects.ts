@@ -11,6 +11,7 @@ import {
   needsAttention,
   typeLabel,
 } from '../format.js';
+import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, Features, ProjectConfig } from '../api/types.js';
 import { emptyState } from './empty.js';
@@ -33,8 +34,8 @@ export function renderProjectCard(project: CheckResult, features: Features): str
   const status = getBalanceStatus(balance, threshold);
   const percentage = getBalancePercentage(balance, threshold);
   const projectStatus = project.need_alarm ? 'alert' : 'normal';
-  const ownerProject = project.owner_project || 'No owner project';
-  const projectName = project.project || 'Unknown project';
+  const ownerProject = project.owner_project || t('common.no_owner');
+  const projectName = project.project || t('projects.unknown');
   const provider = project.provider || 'unknown';
   const type = project.type || 'balance';
   const label = typeLabel(type);
@@ -49,7 +50,7 @@ export function renderProjectCard(project: CheckResult, features: Features): str
   const trendAction = features.history
     ? `<div class="project-actions">
                     <button class="btn-link js-show-trend" data-project="${projectNameAttr}" data-provider="${providerAttr}">
-                        View trend
+                        ${t('projects.view_trend')}
                         ${ICON_ARROW_RIGHT}
                     </button>
                 </div>`
@@ -72,7 +73,7 @@ export function renderProjectCard(project: CheckResult, features: Features): str
                     </div>
                 </div>
                 <div class="project-balance">
-                    <div class="balance-label">${type === 'quota' ? 'Remaining quota' : `Current ${label}`}</div>
+                    <div class="balance-label">${type === 'quota' ? t('projects.remaining_quota') : t('projects.current', { type: label })}</div>
                     <div class="balance-value">${formatBalance(balance, type)}</div>
                     <div class="balance-progress">
                         <div class="balance-progress-bar ${status}" style="width: ${Math.min(100, percentage)}%"></div>
@@ -80,20 +81,20 @@ export function renderProjectCard(project: CheckResult, features: Features): str
                 </div>
                 <div class="project-details">
                     <div class="detail-item">
-                        <span class="detail-label">Alert threshold</span>
+                        <span class="detail-label">${t('projects.threshold')}</span>
                         <span class="detail-value">${formatBalance(threshold, type)}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Daily spend</span>
+                        <span class="detail-label">${t('projects.daily_spend')}</span>
                         <span class="detail-value">${burn === null || burn === undefined ? '—' : formatBalance(burn, type)}</span>
                     </div>
                     <div class="detail-item" title="${escapeAttr(runway.hint)}">
-                        <span class="detail-label">Remaining</span>
+                        <span class="detail-label">${t('projects.remaining')}</span>
                         <span class="detail-value runway-${runway.level}">${escapeHTML(runway.text)}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Status</span>
-                        <span class="detail-value status-text ${projectStatus}">${projectStatus === 'normal' ? 'Healthy' : 'Alert'}</span>
+                        <span class="detail-label">${t('common.status')}</span>
+                        <span class="detail-value status-text ${projectStatus}">${projectStatus === 'normal' ? t('status.healthy') : t('status.alert')}</span>
                     </div>
                 </div>
                 ${trendAction}
@@ -105,10 +106,10 @@ export function renderProjectCard(project: CheckResult, features: Features): str
 function projectActions(nameAttr: string, features: Features): string {
   if (!features.dynamic_config) return '';
   return `
-                        <button class="action-icon-btn js-edit-project" data-project="${nameAttr}" title="Edit project">
+                        <button class="action-icon-btn js-edit-project" data-project="${nameAttr}" title="${t('projects.edit')}">
                             ${ICON_EDIT}
                         </button>
-                        <button class="action-icon-btn danger js-delete-project" data-project="${nameAttr}" title="Delete project">
+                        <button class="action-icon-btn danger js-delete-project" data-project="${nameAttr}" title="${t('projects.delete')}">
                             ${ICON_DELETE}
                         </button>`;
 }
@@ -116,9 +117,9 @@ function projectActions(nameAttr: string, features: Features): string {
 /* A disabled project isn't checked, so the balance list leaves it out. Its card comes
    from the configuration instead, or it could never be edited and turned back on. */
 export function renderDisabledProjectCard(project: ProjectConfig, features: Features): string {
-  const projectName = project.name || 'Unknown project';
+  const projectName = project.name || t('projects.unknown');
   const provider = project.provider || 'unknown';
-  const ownerProject = project.owner_project || 'No owner project';
+  const ownerProject = project.owner_project || t('common.no_owner');
 
   return `
             <div class="project-card disabled" data-provider="${escapeAttr(provider)}" data-status="disabled">
@@ -136,13 +137,13 @@ export function renderDisabledProjectCard(project: ProjectConfig, features: Feat
                     </div>
                 </div>
                 <div class="project-balance">
-                    <div class="balance-label">Current balance</div>
-                    <div class="balance-value unavailable">Disabled</div>
+                    <div class="balance-label">${t('projects.current_balance')}</div>
+                    <div class="balance-value unavailable">${t('status.disabled')}</div>
                 </div>
                 <div class="project-details">
                     <div class="detail-item full-width">
-                        <span class="detail-label">Status</span>
-                        <span class="detail-value">Not checked. Edit the project and enable it to resume monitoring.</span>
+                        <span class="detail-label">${t('common.status')}</span>
+                        <span class="detail-value">${t('projects.disabled_note')}</span>
                     </div>
                 </div>
             </div>
@@ -151,10 +152,10 @@ export function renderDisabledProjectCard(project: ProjectConfig, features: Feat
 
 /* Implementation note. */
 function renderFailedCard(project: CheckResult, features: Features): string {
-  const projectName = project.project || 'Unknown project';
+  const projectName = project.project || t('projects.unknown');
   const provider = project.provider || 'unknown';
-  const ownerProject = project.owner_project || 'No owner project';
-  const reason = project.error || 'Unknown reason';
+  const ownerProject = project.owner_project || t('common.no_owner');
+  const reason = project.error || t('projects.unknown_reason');
 
   const projectNameAttr = escapeAttr(projectName);
   const providerAttr = escapeAttr(provider);
@@ -177,12 +178,12 @@ function renderFailedCard(project: CheckResult, features: Features): string {
                     </div>
                 </div>
                 <div class="project-balance">
-                    <div class="balance-label">Current balance</div>
-                    <div class="balance-value unavailable">Unavailable</div>
+                    <div class="balance-label">${t('projects.current_balance')}</div>
+                    <div class="balance-value unavailable">${t('status.unavailable')}</div>
                 </div>
                 <div class="project-details">
                     <div class="detail-item full-width">
-                        <span class="detail-label">Failure reason</span>
+                        <span class="detail-label">${t('projects.failure_reason')}</span>
                         <span class="detail-value failure-reason" title="${escapeAttr(reason)}">${escapeHTML(reason)}</span>
                     </div>
                 </div>
@@ -215,24 +216,22 @@ export function filterProjects(
 function renderProjectsEmpty(total: number, features: Features): string {
   if (total === 0) {
     const action = features.dynamic_config
-      ? `<button type="button" class="btn-primary js-open-add-project">${ICON_PLUS}Add project</button>`
+      ? `<button type="button" class="btn-primary js-open-add-project">${ICON_PLUS}${t('projects.add')}</button>`
       : '';
-    const text = features.dynamic_config
-      ? 'Add a provider account here, or set its key in the environment (DEEPSEEK_API_KEY, OPENROUTER_API_KEY, …) and restart the service.'
-      : 'Set a provider key in the environment (DEEPSEEK_API_KEY, OPENROUTER_API_KEY, …) and restart the service, or enable ENABLE_DYNAMIC_CONFIG to add projects from the dashboard.';
-    return emptyState('No projects yet', text, 'info', false, action);
+    const text = features.dynamic_config ? t('projects.empty_dynamic') : t('projects.empty_env');
+    return emptyState(t('projects.empty_title'), text, 'info', false, action);
   }
 
   const filtering = Boolean(AppState.searchQuery) || AppState.currentFilter !== 'all';
   if (AppState.alertsOnly && !filtering) {
-    return emptyState('No alerts', 'Every account was checked and is above its alert threshold.', 'check');
+    return emptyState(t('projects.no_alerts'), t('projects.no_alerts_text'), 'check');
   }
   return emptyState(
-    'No matching projects',
-    'No projects match the filters',
+    t('projects.no_match'),
+    t('projects.no_match_text'),
     'search',
     false,
-    '<button type="button" class="btn-secondary js-clear-filters">Clear filters</button>',
+    `<button type="button" class="btn-secondary js-clear-filters">${t('projects.clear_filters')}</button>`,
   );
 }
 
@@ -287,7 +286,7 @@ export function updateProviderFilter(data: CreditsResponse): void {
   select.innerHTML = '';
   const allOption = document.createElement('option');
   allOption.value = 'all';
-  allOption.textContent = 'All providers';
+  allOption.textContent = t('projects.all_providers');
   select.appendChild(allOption);
 
   for (const provider of providers) {
