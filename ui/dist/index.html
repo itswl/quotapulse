@@ -34,7 +34,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=e697d557041d">
+    <link rel="stylesheet" href="/static/app.css?v=ab448217d097">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><linearGradient id='c' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a3b8fc'/><stop offset='1' stop-color='%235878ef'/></linearGradient></defs><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g transform='translate(2.4 2.4) scale(.8)'><circle cx='12' cy='12' r='8.8' fill='url(%23c)'/><path d='M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5' fill='none' stroke='%2315171b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>">
 </head>
 <body>
@@ -56,12 +56,6 @@
             <symbol id="i-theme" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="8"/>
                 <path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
-            </symbol>
-            <!-- Language: a globe -->
-            <symbol id="i-language" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="8.5"/>
-                <path d="M3.5 12h17"/>
-                <ellipse cx="12" cy="12" rx="3.75" ry="8.5"/>
             </symbol>
             <symbol id="i-refresh" viewBox="0 0 24 24">
                 <path d="M19.05 14.57A7.5 7.5 0 1 1 17.3 6.7"/>
@@ -167,8 +161,10 @@
                 <button class="btn-icon" id="theme-toggle" title="Toggle theme" aria-label="Toggle light and dark theme">
                     <svg class="icon icon-theme" aria-hidden="true" focusable="false"><use href="#i-theme"></use></svg>
                 </button>
+                <!-- The language toggle is a glyph, not an icon: the other language's own short
+                     name, 中 on the English page and EN on the Chinese one, set by applyLocale(). -->
                 <button class="btn-icon" id="locale-toggle" title="中文" aria-label="切换到简体中文">
-                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-language"></use></svg>
+                    <span class="locale-glyph" aria-hidden="true">中</span>
                 </button>
                 <button class="btn-icon" id="refresh-btn" title="Refresh data" aria-label="Refresh data" data-i18n-title="nav.refresh" data-i18n-aria-label="nav.refresh">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"></use></svg>
@@ -725,6 +721,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=e697d557041d"></script>
+    <script defer src="/static/app.js?v=ab448217d097"></script>
 </body>
 </html>

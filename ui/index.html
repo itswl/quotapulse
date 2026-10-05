@@ -57,12 +57,6 @@
                 <circle cx="12" cy="12" r="8"/>
                 <path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
             </symbol>
-            <!-- Language: a globe -->
-            <symbol id="i-language" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="8.5"/>
-                <path d="M3.5 12h17"/>
-                <ellipse cx="12" cy="12" rx="3.75" ry="8.5"/>
-            </symbol>
             <symbol id="i-refresh" viewBox="0 0 24 24">
                 <path d="M19.05 14.57A7.5 7.5 0 1 1 17.3 6.7"/>
                 <path d="M17.3 2.7v4h-4"/>
@@ -167,8 +161,10 @@
                 <button class="btn-icon" id="theme-toggle" title="Toggle theme" aria-label="Toggle light and dark theme">
                     <svg class="icon icon-theme" aria-hidden="true" focusable="false"><use href="#i-theme"></use></svg>
                 </button>
+                <!-- The language toggle is a glyph, not an icon: the other language's own short
+                     name, 中 on the English page and EN on the Chinese one, set by applyLocale(). -->
                 <button class="btn-icon" id="locale-toggle" title="中文" aria-label="切换到简体中文">
-                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-language"></use></svg>
+                    <span class="locale-glyph" aria-hidden="true">中</span>
                 </button>
                 <button class="btn-icon" id="refresh-btn" title="Refresh data" aria-label="Refresh data" data-i18n-title="nav.refresh" data-i18n-aria-label="nav.refresh">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"></use></svg>

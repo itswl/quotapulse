@@ -138,6 +138,21 @@
     to { transform: rotate(360deg); }
 }
 
+/* The language toggle is a glyph rather than a line icon, so it stands apart from its
+   neighbours and names what it switches to: 中 on the English page, EN on the Chinese one.
+   The Latin pair is set a little smaller so the two read at the same optical size. */
+.locale-glyph {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+html[lang="zh-CN"] .locale-glyph {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+}
+
 /* The theme toggle is a half-filled disc; the filled half swaps sides with the theme. */
 .icon-theme {
     transition: transform 0.45s var(--ease-out);

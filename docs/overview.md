@@ -124,9 +124,10 @@ set, rather than an empty grid. Filters that match nothing offer a one-click res
 ## Light, dark, Chinese, and pocket-sized
 
 Dark mode is a first-class theme, applied before the first paint so it never flashes.
-Every label, card, dialog, and toast is also available in Simplified Chinese. The globe
-in the top bar switches the language in place, without a reload, and the choice sticks
-to the browser; a Chinese-language browser lands on Chinese by default.
+Every label, card, dialog, and toast is also available in Simplified Chinese. The 中 / EN
+button in the top bar names the language it switches to and swaps the page in place,
+without a reload; the choice sticks to the browser, and a Chinese-language browser lands
+on Chinese by default.
 
 ![Dashboard in Simplified Chinese](images/dashboard-zh-CN.png)
 

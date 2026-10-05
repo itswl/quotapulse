@@ -1,6 +1,6 @@
 # Icon system
 
-QuotaPulse ships its own icon set: 22 hand-drawn symbols that share one grid, one stroke
+QuotaPulse ships its own icon set: 21 hand-drawn symbols that share one grid, one stroke
 weight, and one color rule. They replace the generic stock-icon look with shapes picked
 to match what each control actually does — the theme toggle is a half-filled disc rather
 than a sun, settings are sliders rather than a gear, subscriptions are a renewal cycle
@@ -50,7 +50,6 @@ maskable variant to a circle, so its glyph sits inside the central safe zone.
 | --- | --- | --- |
 | ![logo](images/icons/logo.svg) | `i-logo` | Brand mark — a coin (the balance) with a heartbeat (the monitoring) cut through it; navigation tile, favicon, and home-screen icon |
 | ![theme](images/icons/theme.svg) | `i-theme` | Theme toggle; the filled half swaps sides by rotating 180° in dark mode |
-| ![language](images/icons/language.svg) | `i-language` | Language toggle between English and Simplified Chinese — a globe |
 | ![refresh](images/icons/refresh.svg) | `i-refresh` | Refresh balances now |
 | ![sliders](images/icons/sliders.svg) | `i-sliders` | Settings dialog |
 | ![card](images/icons/card.svg) | `i-card` | All-projects view |

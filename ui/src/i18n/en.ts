@@ -78,6 +78,8 @@ export const en = {
      who landed on the wrong one can still find the way out. */
   'locale.switch': '中文',
   'locale.switch_aria': '切换到简体中文',
+  /* The glyph on the toggle itself: the other language's short name. */
+  'locale.glyph': '中',
 
   // ==================== Overview band ====================
   'stats.shortest_runway': 'Shortest runway',

@@ -64,6 +64,7 @@ export const zhCN: Record<MessageKey, Message> = {
   'theme.to_dark': '切换到深色主题',
   'locale.switch': 'English',
   'locale.switch_aria': 'Switch to English',
+  'locale.glyph': 'EN',
 
   // ==================== 概览 ====================
   'stats.shortest_runway': '最短可用天数',

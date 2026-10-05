@@ -86,11 +86,16 @@ export function applyLocale(locale: Locale): void {
   if (AppState.balanceData || AppState.subscriptionData) refreshOverview();
 }
 
-/* Like the theme toggle, the control names what it offers: the other language, in that language. */
+/* Like the theme toggle, the control names what it offers: the other language, in that
+   language, as the tooltip and as the glyph on the button (中 on the English page, EN on
+   the Chinese one), so the two states tell apart at a glance. */
 function syncLocaleToggle(): void {
   const toggle = byId('locale-toggle');
-  toggle?.setAttribute('title', t('locale.switch'));
-  toggle?.setAttribute('aria-label', t('locale.switch_aria'));
+  if (!toggle) return;
+  toggle.setAttribute('title', t('locale.switch'));
+  toggle.setAttribute('aria-label', t('locale.switch_aria'));
+  const glyph = typeof toggle.querySelector === 'function' ? toggle.querySelector<HTMLElement>('.locale-glyph') : null;
+  if (glyph) glyph.textContent = t('locale.glyph');
 }
 
 export function initLocale(): void {
