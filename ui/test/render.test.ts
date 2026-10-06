@@ -255,8 +255,13 @@ describe('renderSubscriptionCard', () => {
     assert.match(html, /<h3>Netflix<\/h3>/);
     assert.match(html, />99\.00</);
     assert.match(html, />Monthly</);
-    assert.match(html, />2026-10-15</);
+    assert.match(html, /<span class="k">Next reminder<\/span>2026-10-15/);
     assert.match(html, /days-remaining ">20<span class="unit"> days<\/span>/);
+  });
+
+  it('农历订阅显示配置的农历月日', () => {
+    const html = renderSubscriptionCard(subscription({ renewal_day: 920, cycle_type: 'lunar_yearly' }));
+    assert.match(html, />Yearly \(lunar\) · Lunar 09\/20</);
   });
 
   it('提醒窗口内标红，14 天内标黄，已续费不标色', () => {
@@ -462,7 +467,7 @@ describe('概览带上的订阅统计', () => {
     const value = stubElement('sub-due-soon');
     assert.equal(value.textContent, '2');
     assert.equal(value.className, 'stat-value runway-danger');
-    assert.match(stubElement('sub-due-hint').textContent, /Next: Server on 2026-09-30/);
+    assert.match(stubElement('sub-due-hint').textContent, /Next reminder: Server on 2026-09-30/);
     assert.equal(stubElement('sub-due-30').textContent, '3');
     assert.equal(stubElement('sub-due-30').className, 'stat-value runway-warning');
   });
@@ -498,7 +503,7 @@ describe('概览带上的订阅统计', () => {
     const value = stubElement('sub-due-soon');
     assert.equal(value.textContent, '0');
     assert.equal(value.className, 'stat-value');
-    assert.match(stubElement('sub-due-hint').textContent, /Nothing due this week; next is Copilot on 2026-10-18/);
+    assert.match(stubElement('sub-due-hint').textContent, /No reminders this week; next reminder is Copilot on 2026-10-18/);
   });
 
   it('订阅功能关闭时给说明而不是 0', () => {

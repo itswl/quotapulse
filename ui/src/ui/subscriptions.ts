@@ -1,7 +1,7 @@
 /* Implementation note. */
 
 import { requireById } from '../dom.js';
-import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, renewalUrgency } from '../format.js';
+import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, lunarDateLabel, renewalUrgency } from '../format.js';
 import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
 import type { SubscriptionConfig, SubscriptionResult, SubscriptionsResponse } from '../api/types.js';
@@ -65,8 +65,8 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
                     <div class="subscription-meta">
                         <span class="meta-item project-meta">${escapeHTML(ownerProject)}</span>
                         <span class="meta-item"><span class="k">${t('common.amount')}</span>${formatCurrency(amount)}</span>
-                        <span class="meta-item">${cycleLabel(sub.cycle_type)}</span>
-                        ${sub.next_renewal_date ? `<span class="meta-item"><span class="k">${t('subs.next_renewal')}</span>${escapeHTML(sub.next_renewal_date)}</span>` : ''}
+                        <span class="meta-item">${cycleLabel(sub.cycle_type)}${sub.cycle_type === 'lunar_yearly' ? ` · ${escapeHTML(lunarDateLabel(sub.renewal_day))}` : ''}</span>
+                        ${sub.next_renewal_date ? `<span class="meta-item"><span class="k">${t('subs.next_reminder')}</span>${escapeHTML(sub.next_renewal_date)}</span>` : ''}
                         ${sub.already_renewed ? `<span class="meta-item"><span class="status-badge success">${escapeHTML(t('subs.renewed'))}</span></span>` : ''}
                     </div>
                 </div>

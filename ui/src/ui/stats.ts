@@ -122,7 +122,7 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null, unav
   const next = sortSubscriptionsByNextDate(active)[0];
   if (next) {
     const params = { name: next.name, date: next.next_renewal_date };
-    hint.textContent = due7.length > 0 ? t('stats.next_renewal', params) : t('stats.nothing_due', params);
+    hint.textContent = due7.length > 0 ? t('stats.next_reminder', params) : t('stats.nothing_due', params);
   } else {
     hint.textContent = t('stats.no_active_subs');
   }

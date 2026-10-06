@@ -291,9 +291,9 @@ func subscriptionLines(subs []model.SubscriptionResult) []string {
 	var out []string
 	for _, sub := range subs {
 		amount := sub.Amount
-		due := "renewal today"
+		due := "reminder today"
 		if sub.DaysUntilRenewal > 0 {
-			due = "renewal in " + model.Quantity(sub.DaysUntilRenewal, "day", "days")
+			due = "reminder in " + model.Quantity(sub.DaysUntilRenewal, "day", "days")
 		}
 		out = append(out, fmt.Sprintf("- %s: %s, %s", sub.Name, due, fmtNum(&amount)))
 	}

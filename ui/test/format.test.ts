@@ -17,6 +17,7 @@ import {
   getBalancePercentage,
   getBalanceStatus,
   getRelativeTime,
+  lunarDateLabel,
   renewalUrgency,
   typeLabel,
 } from '../src/format.js';
@@ -207,6 +208,11 @@ describe('Subscription展示', () => {
     assert.equal(cycleLabel('monthly'), 'Monthly');
     assert.equal(cycleLabel('yearly'), 'Yearly');
     assert.equal(cycleLabel('weekly'), 'Weekly');
+  });
+
+  it('按 MMDD 显示农历月日', () => {
+    assert.equal(lunarDateLabel(920), 'Lunar 09/20');
+    assert.equal(lunarDateLabel(101), 'Lunar 01/01');
   });
 
   it('续费紧迫度：提醒窗口内红，14 天内黄，已续费和周付不标黄', () => {

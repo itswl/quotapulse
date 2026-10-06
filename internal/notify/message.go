@@ -105,12 +105,12 @@ func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 	}
 
 	return Message{
-		Title: "Subscription renewal reminder",
+		Title: "Subscription reminder",
 		Lines: lines,
 		Kind:  KindSubscription,
 		envelope: &envelope{
 			Type:     "SubscriptionReminder",
-			RuleName: name + " renewal reminder",
+			RuleName: name + " subscription reminder",
 			Level:    level,
 			Resources: []any{subscriptionResource{
 				SubscriptionName: name,
@@ -119,7 +119,7 @@ func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 				CycleType:        cycleType,
 				DaysUntilRenewal: daysUntilRenewal,
 				Amount:           amount,
-				Message: fmt.Sprintf("Subscription [%s] renews %s (%s), amount: %s",
+				Message: fmt.Sprintf("Subscription reminder for [%s]: due %s (%s), amount: %s",
 					name, model.RenewsIn(daysUntilRenewal), cycle, formatFloat(amount)),
 			}},
 		},

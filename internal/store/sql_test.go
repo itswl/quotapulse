@@ -811,7 +811,7 @@ func TestRecentAlertsRepairsLegacyRenewalMessages(t *testing.T) {
 		for _, message := range []string{
 			"Subscription renewal reminder: Claude Max operation 2 operation",
 			"Subscription renewal reminder: GitHub Copilot operation 0 operation — send failed: HTTP 500",
-			"Subscription renewal reminder: Cursor renews in 3 days",
+			"Subscription reminder: Cursor due in 3 days",
 		} {
 			if err := s.SaveAlert(t.Context(), AlertRecord{AlertID: "sub", Name: "sub", AlertType: "subscription_renewal", Message: message}); err != nil {
 				t.Fatal(err)
@@ -826,9 +826,9 @@ func TestRecentAlertsRepairsLegacyRenewalMessages(t *testing.T) {
 			got[row.Message] = true
 		}
 		for _, want := range []string{
-			"Subscription renewal reminder: Claude Max renews in 2 days",
-			"Subscription renewal reminder: GitHub Copilot renews today — send failed: HTTP 500",
-			"Subscription renewal reminder: Cursor renews in 3 days",
+			"Subscription reminder: Claude Max due in 2 days",
+			"Subscription reminder: GitHub Copilot due today — send failed: HTTP 500",
+			"Subscription reminder: Cursor due in 3 days",
 		} {
 			if !got[want] {
 				t.Errorf("缺少修复后的文案 %q，实际 %v", want, got)

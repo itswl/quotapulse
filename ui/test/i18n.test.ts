@@ -72,7 +72,7 @@ describe('t()', () => {
     assert.equal(t('count.days', { count: 0 }), '0 days');
     assert.equal(t('count.days', { count: 7 }), '7 days');
     assert.equal(t('count.days', { count: '6.9' }), '6.9 days');
-    assert.equal(t('stats.next_renewal', { name: 'Netflix', date: '2026-10-15' }), 'Next: Netflix on 2026-10-15');
+    assert.equal(t('stats.next_reminder', { name: 'Netflix', date: '2026-10-15' }), 'Next reminder: Netflix on 2026-10-15');
     inChinese(() => {
       assert.equal(t('count.days', { count: 1 }), '1 天');
       assert.equal(t('count.days', { count: '6.9' }), '6.9 天');
@@ -144,9 +144,10 @@ describe('渲染模块跟随语言', () => {
       assert.match(card, /title="编辑项目"/);
       assert.ok(!/Alert threshold|Healthy|View trend/.test(card), card);
 
-      const sub = renderSubscriptionCard(subscription);
+      const sub = renderSubscriptionCard({ ...subscription, renewal_day: 920, cycle_type: 'lunar_yearly' });
       assert.match(sub, />已通知</);
-      assert.match(sub, /每月/);
+      assert.match(sub, /每年（农历） · 农历09月20日/);
+      assert.match(sub, /<span class="k">下次提醒<\/span>2026-10-15/);
       assert.match(sub, /<span class="unit"> 天<\/span>/);
 
       const mail = renderAlertCard(

@@ -34,7 +34,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=ab448217d097">
+    <link rel="stylesheet" href="/static/app.css?v=72343cacf603">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><linearGradient id='c' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a3b8fc'/><stop offset='1' stop-color='%235878ef'/></linearGradient></defs><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g transform='translate(2.4 2.4) scale(.8)'><circle cx='12' cy='12' r='8.8' fill='url(%23c)'/><path d='M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5' fill='none' stroke='%2315171b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>">
 </head>
 <body>
@@ -188,7 +188,7 @@
                     <p class="stat-hint" id="shortest-runway-hint"></p>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label" id="sub-due-soon-label" data-i18n="stats.due_7">Due in 7 days</div>
+                    <div class="stat-label" id="sub-due-soon-label" data-i18n="stats.due_7">Reminders due within 7 days</div>
                     <div class="stat-value" id="sub-due-soon">&mdash;</div>
                     <p class="stat-hint" id="sub-due-hint"></p>
                 </div>
@@ -200,7 +200,7 @@
                     <div class="stat-value" id="total-projects"><span class="skeleton skeleton-text" aria-hidden="true"></span></div>
                 </div>
                 <div class="stat-block stat-sub">
-                    <div class="stat-label"><span class="stat-dot warning" aria-hidden="true"></span><span data-i18n="stats.due_30">Due in 30 days</span></div>
+                    <div class="stat-label"><span class="stat-dot warning" aria-hidden="true"></span><span data-i18n="stats.due_30">Reminders due within 30 days</span></div>
                     <div class="stat-value" id="sub-due-30">&mdash;</div>
                 </div>
             </div>
@@ -310,7 +310,7 @@
             <div class="section-header">
                 <div class="section-heading">
                     <h2 class="section-title" data-i18n="subs.title">Subscription reminders</h2>
-                    <p class="section-subtitle" data-i18n="subs.subtitle">Upcoming renewals sorted by date, with the reminder window you configured.</p>
+                    <p class="section-subtitle" data-i18n="subs.subtitle">Subscription reminders sorted by date, with the reminder window you configured.</p>
                 </div>
                 <button class="btn-primary" id="add-subscription-btn">
                     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
@@ -721,6 +721,6 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=ab448217d097"></script>
+    <script defer src="/static/app.js?v=72343cacf603"></script>
 </body>
 </html>

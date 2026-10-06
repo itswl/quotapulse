@@ -185,6 +185,12 @@ export function cycleLabel(cycle: string | null | undefined): string {
   return t('cycle.weekly');
 }
 
+export function lunarDateLabel(renewalDay: number): string {
+  const month = Math.floor(renewalDay / 100).toString().padStart(2, '0');
+  const day = (renewalDay % 100).toString().padStart(2, '0');
+  return t('subs.lunar_date', { month, day });
+}
+
 /* Red while the renewal is inside its reminder window and unpaid; amber under 14 days
    out. A renewed item is settled, and a weekly cycle is always under 14 days, so
    neither gets the amber warning. */

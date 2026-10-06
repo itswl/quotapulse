@@ -65,7 +65,7 @@ func TestMessageTemplates(t *testing.T) {
 		{
 			name:      "订阅提醒_月付",
 			msg:       SubscriptionAlert("Netflix", &owner, "monthly", 15, 3, 15.99),
-			wantTitle: "Subscription renewal reminder",
+			wantTitle: "Subscription reminder",
 			wantKind:  KindSubscription,
 			wantLines: []string{
 				"Subscription: Netflix",
@@ -78,7 +78,7 @@ func TestMessageTemplates(t *testing.T) {
 		{
 			name:      "订阅提醒_年付Today到期",
 			msg:       SubscriptionAlert("ChatGPT", nil, "yearly", 315, 0, 20.0),
-			wantTitle: "Subscription renewal reminder",
+			wantTitle: "Subscription reminder",
 			wantKind:  KindSubscription,
 			wantLines: []string{
 				"Subscription: ChatGPT",
