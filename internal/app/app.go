@@ -1,6 +1,4 @@
-// Package app provides the package implementation.
-//
-// Implementation note.
+// Package app wires the modules together into a runnable service.
 package app
 
 import (
@@ -33,7 +31,7 @@ import (
 	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
-// Implementation note.
+// App holds every assembled component.
 type App struct {
 	Settings *config.Settings
 	Log      *slog.Logger
@@ -55,7 +53,7 @@ type App struct {
 	jobFailMu    sync.Mutex
 }
 
-// Implementation note.
+// New assembles the service from settings. assets is the bundled frontend and may be nil.
 func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error) {
 	st, err := openStore(settings, log)
 	if err != nil {
@@ -132,7 +130,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	return app, nil
 }
 
-// Implementation note.
+// keywords combines the final alert keyword list: override replaces the defaults wholesale, extras append.
 func keywords(settings *config.Settings) []string {
 	base := settings.AlertKeywordOverride()
 	if len(base) == 0 {
@@ -141,7 +139,7 @@ func keywords(settings *config.Settings) []string {
 	return append(append([]string(nil), base...), settings.AlertKeywordExtras()...)
 }
 
-// Implementation note.
+// openStore opens the database; when disabled it returns the Null implementation so callers need no branching.
 func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error) {
 	if !settings.EnableDatabase {
 		// Nothing is persisted, but alert cooldowns and email de-duplication still need
@@ -154,7 +152,7 @@ func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error)
 		AutoEncryptOnRead: settings.AutoEncryptOnRead,
 	})
 	if err != nil {
-		// Implementation note.
+		// a dead database must not stall balance alerts, unless strict mode is explicitly requested
 		if settings.StrictDatabaseErrors {
 			return nil, fmt.Errorf("Database initialization failed: %w", err)
 		}
@@ -165,12 +163,12 @@ func openStore(settings *config.Settings, log *slog.Logger) (store.Store, error)
 	return st, nil
 }
 
-// Implementation note.
+// Close releases resources.
 func (a *App) Close() error { return a.Store.Close() }
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
-// Implementation note.
+// BuildTasks defines the four scheduled jobs, matching the legacy version one to one.
 func (a *App) BuildTasks() []*scheduler.Task {
 	settings := a.Settings
 
@@ -236,7 +234,7 @@ func (a *App) BuildTasks() []*scheduler.Task {
 	return tasks
 }
 
-// Implementation note.
+// refreshAll checks balances and subscriptions once and writes the results into dashboard state and metrics.
 func (a *App) refreshAll(ctx context.Context, dryRun bool) (any, error) {
 	outcome, err := a.Monitor.Run(ctx, "", dryRun)
 	if err != nil {
@@ -268,7 +266,7 @@ func (a *App) refreshAll(ctx context.Context, dryRun bool) (any, error) {
 	return detail, nil
 }
 
-// Implementation note.
+// refreshSubscriptions is an optional capability; when disabled it returns an empty result.
 func (a *App) refreshSubscriptions(ctx context.Context, dryRun bool) []model.SubscriptionResult {
 	if !a.Settings.EnableSubscriptions {
 		return nil
@@ -280,7 +278,7 @@ func (a *App) refreshSubscriptions(ctx context.Context, dryRun bool) []model.Sub
 	return results
 }
 
-// Implementation note.
+// ScanMailboxes scans every enabled mailbox.
 func (a *App) ScanMailboxes(ctx context.Context, days int, dryRun bool) (any, error) {
 	cfg := a.Resolver.Load(ctx)
 	mailboxes := cfg.EnabledMailboxes()
@@ -300,7 +298,7 @@ func (a *App) ScanMailboxes(ctx context.Context, days int, dryRun bool) (any, er
 	}, nil
 }
 
-// Implementation note.
+// SendWeeklyReport summarizes the week and pushes a card.
 func (a *App) SendWeeklyReport(ctx context.Context) (any, error) {
 	balance := a.State.Balance()
 	subs := a.State.Subscriptions()
@@ -335,7 +333,7 @@ func (a *App) SendWeeklyReport(ctx context.Context) (any, error) {
 	}, nil
 }
 
-// Implementation note.
+// StartScheduler registers the tasks and starts the scheduling loop.
 func (a *App) StartScheduler(ctx context.Context) {
 	tasks := a.BuildTasks()
 	a.scheduler = scheduler.New(tasks, a.onJobResult, a.Log)
@@ -347,7 +345,7 @@ func (a *App) StartScheduler(ctx context.Context) {
 	a.scheduler.Start(ctx)
 }
 
-// Implementation note.
+// onJobResult hands every run result to both dashboard state and metrics.
 func (a *App) onJobResult(result scheduler.Result) {
 	a.State.RecordJobRun(result.Name, result.Success, result.StartedAt,
 		result.Duration, result.Err, result.Detail, result.NextRun)
@@ -396,6 +394,10 @@ func (a *App) maybeEscalateJobFailure(result scheduler.Result) {
 	msg := notify.Custom("QuotaPulse job keeps failing", lines, notify.KindJobFailure)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	if a.Notifier == nil {
+		a.Log.Warn("Job failure escalation skipped: WEBHOOK_URL is not configured", "task", result.Name, "failures", count)
+		return
+	}
 	if err := a.Notifier.Send(ctx, msg); err != nil {
 		a.Log.Error("Failed to send job failure escalation", "task", result.Name, "error", err)
 		return
@@ -421,14 +423,14 @@ func (a *App) RunDatabaseBackup(ctx context.Context) (any, error) {
 	return map[string]any{"file": filepath.Base(path)}, nil
 }
 
-// Implementation note.
+// StopScheduler stops the scheduling loop.
 func (a *App) StopScheduler() {
 	if a.scheduler != nil {
 		a.scheduler.Stop(5 * time.Second)
 	}
 }
 
-// Implementation note.
+// ServeMetrics exposes /metrics on a separate port.
 func (a *App) ServeMetrics(ctx context.Context) {
 	if !a.Settings.EnablePrometheus {
 		return

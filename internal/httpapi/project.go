@@ -11,8 +11,8 @@ import (
 
 func trimSpace(s string) string { return strings.TrimSpace(s) }
 
-// Implementation note.
-// Implementation note.
+// requireDynamicConfig guards every write. Reads stay available at all times so the
+// core build without a database still renders the project list, just read-only.
 func (s *Server) requireDynamicConfig(w http.ResponseWriter, what string) bool {
 	if s.Settings.EnableDynamicConfig {
 		return true
@@ -25,7 +25,7 @@ func (s *Server) handleProviders(w http.ResponseWriter, r *http.Request) {
 	etagJSON(w, r, map[string]any{"status": "success", "providers": provider.All()})
 }
 
-// Implementation note.
+// maskedProject is the external shape of a project config; the key is always masked.
 type maskedProject struct {
 	Name         string  `json:"name"`
 	Provider     string  `json:"provider"`
@@ -60,8 +60,10 @@ type projectRequest struct {
 	Enabled      *bool    `json:"enabled"`
 }
 
-// Implementation note.
-// Implementation note.
+// handleSaveProject creates or updates a project. name is the unique key; updates
+// change only the provided fields, and an empty key means unchanged — the page
+// shows a masked value and resubmitting it must not overwrite the key with
+// asterisks.
 func (s *Server) handleSaveProject(w http.ResponseWriter, r *http.Request) {
 	if !s.requireDynamicConfig(w, "projects") {
 		return
@@ -104,7 +106,7 @@ func (s *Server) handleSaveProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	model.NormalizeProject(&target)
-	// Implementation note.
+	// editing an env-discovered project here pins it into the database; from then on the database wins
 	target.FromEnv = false
 
 	if err := s.Store.UpsertProject(r.Context(), target); err != nil {
@@ -126,7 +128,9 @@ func applyProjectPatch(target *model.Project, body projectRequest) {
 	if body.Provider != nil && *body.Provider != "" {
 		target.Provider = strings.ToLower(trimSpace(*body.Provider))
 	}
-	if body.APIKey != nil && trimSpace(*body.APIKey) != "" {
+	// An empty key keeps the existing one; the page shows a masked value and
+	// resubmitting it verbatim must not clobber the real key.
+	if body.APIKey != nil && trimSpace(*body.APIKey) != "" && trimSpace(*body.APIKey) != maskSecret(target.APIKey, 4, 4) {
 		target.APIKey = trimSpace(*body.APIKey)
 	}
 	if body.Threshold != nil {
@@ -166,7 +170,7 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, "Project not found: "+body.Name)
 		return
 	}
-	// Implementation note.
+	// env-discovered projects cannot be deleted: they are not in the database and would come back on the next start
 	if existing.FromEnv {
 		fail(w, http.StatusBadRequest, "Project ["+body.Name+"] was auto-discovered from environment variables; remove "+
 			strings.ToUpper(existing.Provider)+"_API_KEY and restart")
@@ -191,7 +195,7 @@ type thresholdRequest struct {
 	NewThreshold *float64 `json:"new_threshold"`
 }
 
-// Implementation note.
+// handleUpdateThreshold is a threshold-only shortcut kept for old callers.
 func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
 	if !s.requireDynamicConfig(w, "projects") {
 		return
@@ -231,7 +235,7 @@ func (s *Server) handleUpdateThreshold(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"message": "Threshold updated for project [" + body.ProjectName + "]"})
 }
 
-// Implementation note.
+// refreshOne re-checks just this project and merges into the dashboard without hitting every upstream.
 func (s *Server) refreshOne(r *http.Request, name string) {
 	outcome, err := s.Monitor.Run(r.Context(), name, !s.Settings.EnableWebAlarm)
 	switch {
@@ -259,7 +263,7 @@ func findProject(projects []model.Project, name string) *model.Project {
 	return nil
 }
 
-// Implementation note.
+// storeWriteStatus maps "database disabled" to 503; other write failures are 500.
 func storeWriteStatus(err error) int {
 	if err == store.ErrDisabled {
 		return http.StatusServiceUnavailable
