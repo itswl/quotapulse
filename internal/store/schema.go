@@ -40,6 +40,13 @@ func ensureColumns(ctx context.Context, db *sql.DB) error {
 		"ALTER TABLE subscription_config ADD COLUMN webhook_url TEXT",
 		"ALTER TABLE project_config ADD COLUMN currency VARCHAR(10)",
 		"ALTER TABLE project_config ADD COLUMN monthly_budget DOUBLE PRECISION",
+		"ALTER TABLE custom_provider_config ADD COLUMN subtract_path VARCHAR(200)",
+		"ALTER TABLE custom_provider_config ADD COLUMN extract_mode VARCHAR(20)",
+		"ALTER TABLE custom_provider_config ADD COLUMN window_types VARCHAR(100)",
+		"ALTER TABLE custom_provider_config ADD COLUMN window_reset_hours DOUBLE",
+		"ALTER TABLE custom_provider_config ADD COLUMN extra_params VARCHAR(400)",
+		"ALTER TABLE custom_provider_config ADD COLUMN sign_region VARCHAR(50)",
+		"ALTER TABLE custom_provider_config ADD COLUMN sign_service VARCHAR(50)",
 	} {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "already exists") {
