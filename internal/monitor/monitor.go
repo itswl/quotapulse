@@ -287,12 +287,15 @@ func (m *Monitor) analyze(ctx context.Context, projects []model.Project, results
 }
 
 // checkBudgets runs the budget-pace alerts; without history or budgets it is
-// a no-op.
+// a no-op. Projects whose spend comes from local-tool reports (the Claude
+// Code reporter) share the same path: the budget lives on the config project
+// of the same name.
 func (m *Monitor) checkBudgets(ctx context.Context, projects []model.Project, dryRun bool) {
 	if m.Budget == nil || m.Store == nil || !m.Store.Enabled() {
 		return
 	}
 	m.Budget.Check(ctx, projects, currencyOfProject, dryRun)
+	m.Budget.CheckUsage(ctx, projects, currencyOfProject, dryRun)
 }
 
 // currencyOfProject resolves a project's native currency: an explicit

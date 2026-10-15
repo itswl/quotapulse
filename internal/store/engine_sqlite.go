@@ -263,3 +263,12 @@ func (e sqliteQuerier) upsertCustomProvider(ctx context.Context, arg upsertCusto
 func (e sqliteQuerier) deleteCustomProvider(ctx context.Context, name string) error {
 	return e.q.DeleteCustomProvider(ctx, name)
 }
+
+func (e sqliteQuerier) upsertUsageEvent(ctx context.Context, arg upsertUsageEventParams) error {
+	return e.q.UpsertUsageEvent(ctx, gen.UpsertUsageEventParams{
+		Source: arg.Source, ProjectName: arg.ProjectName, EntryDate: arg.EntryDate,
+		Model: arg.Model, Cost: arg.Cost, Currency: arg.Currency,
+		InputTokens: arg.InputTokens, OutputTokens: arg.OutputTokens,
+		Requests: int64(arg.Requests), UpdatedAt: arg.UpdatedAt,
+	})
+}

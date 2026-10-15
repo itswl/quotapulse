@@ -29,6 +29,8 @@ type Store interface {
 	ListCustomProviders(ctx context.Context) ([]model.CustomProvider, error)
 	UpsertCustomProvider(ctx context.Context, p model.CustomProvider) error
 	DeleteCustomProvider(ctx context.Context, name string) error
+	UpsertUsageEvent(ctx context.Context, e model.UsageEntry) error
+	ListUsageSpend(ctx context.Context, sinceDate string) ([]UsageSpend, error)
 
 	ListSubscriptions(ctx context.Context) ([]model.Subscription, error)
 	UpsertSubscription(ctx context.Context, s model.Subscription) error

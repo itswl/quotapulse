@@ -263,3 +263,7 @@ func (e postgresQuerier) upsertCustomProvider(ctx context.Context, arg upsertCus
 func (e postgresQuerier) deleteCustomProvider(ctx context.Context, name string) error {
 	return e.q.DeleteCustomProvider(ctx, name)
 }
+
+func (e postgresQuerier) upsertUsageEvent(ctx context.Context, arg upsertUsageEventParams) error {
+	return e.q.UpsertUsageEvent(ctx, gen.UpsertUsageEventParams(arg))
+}

@@ -51,6 +51,19 @@ definitions, so `{PROVIDER}_API_KEY` discovery works exactly as before.
 
 To monitor multiple accounts for one provider, use `{PROVIDER}_1_API_KEY`, `{PROVIDER}_2_API_KEY`, and matching threshold variables. For example, `VOLC_1_API_KEY` becomes the `volc-1` project.
 
+## Local usage reporting
+
+Tools that never touch an account balance — Claude Code, editor agents — can
+report their spend into the same monthly cost view and budget alerts:
+
+```bash
+QUOTAPULSE_URL=http://your-host:8080 QUOTAPULSE_KEY=$WEB_API_KEY   scripts/claude-code-usage.py            # month to date, idempotent: cron it hourly
+scripts/claude-code-usage.py --price "claude-sonnet-4-5:3,15" --dry-run   # token-only logs need prices
+```
+
+Give a project with the reporter's name a monthly budget on the dashboard and
+its pace alert fires like any balance-backed project. Needs `ENABLE_DATABASE`.
+
 Adding a simple provider usually requires a `RegisterSpec` declaration in `internal/provider/`. Providers that require request signing can implement the `Provider` interface directly.
 
 ## Configuration

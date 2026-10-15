@@ -214,3 +214,10 @@ ON CONFLICT (name) DO UPDATE SET
 
 -- name: DeleteCustomProvider :exec
 DELETE FROM custom_provider_config WHERE name = ?;
+
+-- name: UpsertUsageEvent :exec
+INSERT INTO usage_events (source, project_name, entry_date, model, cost, currency, input_tokens, output_tokens, requests, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (source, project_name, entry_date, model) DO UPDATE SET
+cost = excluded.cost, currency = excluded.currency, input_tokens = excluded.input_tokens, output_tokens = excluded.output_tokens, requests = excluded.requests, updated_at = excluded.updated_at;
+

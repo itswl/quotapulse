@@ -751,6 +751,15 @@
             <form id="custom-provider-form" class="modal-body" novalidate>
                 <input type="hidden" id="custom-provider-edit-mode" value="false">
 
+                <div class="form-group">
+                    <label for="custom-provider-template" data-i18n="providers.template">Start from a template</label>
+                    <select id="custom-provider-template">
+                        <option value="" data-i18n="providers.template_blank">Blank</option>
+                        <option value="newapi">new-api / one-api relay</option>
+                        <option value="siliconflow">SiliconFlow</option>
+                    </select>
+                </div>
+
                 <div id="custom-provider-list" class="chip-list"></div>
 
                 <div class="form-row">

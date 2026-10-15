@@ -302,6 +302,7 @@ type querier interface {
 	listCustomProviders(ctx context.Context) ([]customProviderRow, error)
 	upsertCustomProvider(ctx context.Context, arg upsertCustomProviderParams) error
 	deleteCustomProvider(ctx context.Context, name string) error
+	upsertUsageEvent(ctx context.Context, arg upsertUsageEventParams) error
 	updateProjectAPIKey(ctx context.Context, name, apiKey string) error
 
 	listSubscriptionConfigs(ctx context.Context) ([]subscriptionConfigRow, error)
@@ -353,4 +354,17 @@ func mapRows[S, D any](src []S, conv func(S) D) []D {
 // nullTime wraps a time into a query parameter. Time columns are nullable in the schema, hence sql.NullTime in generated code.
 func nullTime(t time.Time) sql.NullTime {
 	return sql.NullTime{Time: t.UTC(), Valid: true}
+}
+
+type upsertUsageEventParams struct {
+	Source       string
+	ProjectName  string
+	EntryDate    string
+	Model        string
+	Cost         float64
+	Currency     string
+	InputTokens  int64
+	OutputTokens int64
+	Requests     int32
+	UpdatedAt    sql.NullTime
 }

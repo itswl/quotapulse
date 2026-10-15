@@ -100,6 +100,7 @@ func (s *Server) Handler() http.Handler {
 	// core read endpoints
 	mux.HandleFunc("GET /api/features", s.handleFeatures)
 	mux.HandleFunc("GET /api/costs/summary", s.handleCostsSummary)
+	mux.HandleFunc("POST /api/usage/ingest", s.handleUsageIngest)
 	mux.HandleFunc("GET /api/credits", s.handleCredits)
 	mux.HandleFunc("GET /api/subscriptions", s.handleSubscriptions)
 	mux.HandleFunc("GET /api/jobs", s.handleJobs)

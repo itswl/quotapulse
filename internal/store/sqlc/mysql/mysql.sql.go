@@ -1134,3 +1134,39 @@ func (q *Queries) UpsertSubscriptionConfig(ctx context.Context, arg UpsertSubscr
 	)
 	return err
 }
+
+const upsertUsageEvent = `-- name: UpsertUsageEvent :exec
+INSERT INTO usage_events (source, project_name, entry_date, model, cost, currency, input_tokens, output_tokens, requests, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+cost = VALUES(cost), currency = VALUES(currency), input_tokens = VALUES(input_tokens), output_tokens = VALUES(output_tokens), requests = VALUES(requests), updated_at = VALUES(updated_at)
+`
+
+type UpsertUsageEventParams struct {
+	Source       string
+	ProjectName  string
+	EntryDate    string
+	Model        string
+	Cost         float64
+	Currency     string
+	InputTokens  int64
+	OutputTokens int64
+	Requests     int32
+	UpdatedAt    sql.NullTime
+}
+
+func (q *Queries) UpsertUsageEvent(ctx context.Context, arg UpsertUsageEventParams) error {
+	_, err := q.db.ExecContext(ctx, upsertUsageEvent,
+		arg.Source,
+		arg.ProjectName,
+		arg.EntryDate,
+		arg.Model,
+		arg.Cost,
+		arg.Currency,
+		arg.InputTokens,
+		arg.OutputTokens,
+		arg.Requests,
+		arg.UpdatedAt,
+	)
+	return err
+}

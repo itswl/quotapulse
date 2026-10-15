@@ -186,7 +186,55 @@ function promptApiKey(): string {
   return globalThis.prompt(t('providers.test_key_prompt')) ?? '';
 }
 
+/** Ready-made definitions for the common shapes; the user replaces the domain
+ * and key. Quota on new-api relays is 500000 per USD — exactly what the
+ * multiplier field is for. */
+const TEMPLATES: Record<string, Partial<CustomProviderConfig>> = {
+  newapi: {
+    name: 'my-relay',
+    display_name: 'My Relay',
+    url: 'https://REPLACE-ME.example.com/api/user/self',
+    auth_mode: 'bearer',
+    default_type: 'credits',
+    currency: 'USD',
+    balance_path: 'data.quota',
+    balance_scale: 0.000002,
+    success_path: 'success',
+  },
+  siliconflow: {
+    name: 'siliconflow',
+    display_name: 'SiliconFlow',
+    url: 'https://api.siliconflow.cn/v1/user/info',
+    auth_mode: 'bearer',
+    default_type: 'balance',
+    currency: 'CNY',
+    balance_path: 'data.balance',
+  },
+};
+
+function applyTemplate(key: string): void {
+  const template = TEMPLATES[key];
+  if (!template) return;
+  fillForm({
+    name: template.name ?? '',
+    display_name: template.display_name ?? '',
+    url: template.url ?? '',
+    auth_mode: (template.auth_mode ?? 'bearer') as CustomProviderConfig['auth_mode'],
+    auth_param: template.auth_param ?? '',
+    default_type: template.default_type ?? 'balance',
+    currency: template.currency ?? '',
+    balance_path: template.balance_path ?? '',
+    balance_scale: template.balance_scale ?? 1,
+    success_path: template.success_path ?? '',
+    success_values: template.success_values ?? '',
+    error_path: template.error_path ?? '',
+  });
+}
+
 export function bindCustomProviderManager(): void {
+  byId('custom-provider-template')?.addEventListener('change', (e) => {
+    applyTemplate((e.target as HTMLSelectElement).value);
+  });
   bindModalClose(MODAL_ID, '.js-close-custom-provider-modal');
   onClick('manage-providers-btn', () => void openCustomProviderModal());
   byId('test-custom-provider-btn')?.addEventListener('click', () => void testWiring());

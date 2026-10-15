@@ -163,3 +163,19 @@ CREATE TABLE IF NOT EXISTS custom_provider_config (
     PRIMARY KEY (id),
     UNIQUE (name)
 );
+
+CREATE TABLE IF NOT EXISTS usage_events (
+    id INTEGER NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    project_name VARCHAR(200) NOT NULL,
+    entry_date VARCHAR(10) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    cost DOUBLE NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    input_tokens INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    requests INTEGER NOT NULL,
+    updated_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE (source, project_name, entry_date, model)
+);

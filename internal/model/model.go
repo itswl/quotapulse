@@ -385,3 +385,18 @@ func CustomProviderKey(name string) string { return "custom:" + name }
 
 // AlertBudget is the budget-pace alert's cooldown key.
 const AlertBudget = "budget"
+
+// UsageEntry is one aggregated day/model cell reported by a local tool (the
+// Claude Code reporter, a cron script). Re-reporting the same cell overwrites
+// it, so reporters can run as often as they like.
+type UsageEntry struct {
+	Source       string  `json:"source"`   // reporter label, e.g. claude-code
+	Project      string  `json:"project"`  // groups into the cost view
+	Date         string  `json:"date"`     // YYYY-MM-DD, local to the reporter
+	Model        string  `json:"model"`    // model or "all"
+	Cost         float64 `json:"cost"`     // native currency
+	Currency     string  `json:"currency"` // ISO code
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	Requests     int64   `json:"requests"`
+}

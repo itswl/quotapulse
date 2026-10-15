@@ -159,3 +159,19 @@ CREATE TABLE IF NOT EXISTS custom_provider_config (
     PRIMARY KEY (id),
     UNIQUE KEY uq_custom_provider_config_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS usage_events (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    source VARCHAR(50) NOT NULL,
+    project_name VARCHAR(200) NOT NULL,
+    entry_date VARCHAR(10) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    cost DOUBLE NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    input_tokens BIGINT NOT NULL,
+    output_tokens BIGINT NOT NULL,
+    requests INTEGER NOT NULL,
+    updated_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_usage_events_identity (source, project_name, entry_date, model)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,12 +1,13 @@
 /** Balance trend dialog: stat cards plus the line chart; needs ENABLE_HISTORY_API. */
 
 import { getTrend } from '../api/endpoints.js';
-import type { TrendData, TrendPoint, TrendResponse } from '../api/types.js';
-import { LineChart, type ChartTheme } from '../chart/line-chart.js';
+import type { Runway, TrendData, TrendPoint, TrendResponse } from '../api/types.js';
+import { LineChart, type ChartTheme, type Series } from '../chart/line-chart.js';
 import { byId, requireById } from '../dom.js';
 import { escapeHTML, formatCurrency } from '../format.js';
 import { t } from '../i18n/index.js';
 import { ICON_INFO_CIRCLE } from '../ui/icons.js';
+import { AppState } from '../state.js';
 import { bindModalClose, closeModal, openModal } from '../ui/modal.js';
 import { setLoading } from '../ui/loading.js';
 
@@ -141,31 +142,78 @@ export function trendPoints(history: TrendPoint[]): { points: TrendPoint[]; labe
   };
 }
 
+/* Projected balance at the current burn rate: a dashed line from the newest
+   point to the depletion date (or 30 days out), clamped at zero. Returns null
+   without a runway estimate — no history means nothing to extrapolate. */
+export function projectionSeries(
+  history: TrendPoint[],
+  runway: Runway | null | undefined,
+  labels: string[],
+): Series | null {
+  const last = history[history.length - 1];
+  if (!runway?.burn_per_day || !(runway.burn_per_day > 0) || !last) return null;
+  const lastDay = new Date(last.timestamp);
+  const perStep = runway.burn_per_day / 24; // history steps are hourly
+  const horizon = runway.depletion_date
+    ? Math.min(30, Math.max(1, Math.round((new Date(runway.depletion_date).getTime() - lastDay.getTime()) / 86_400_000)))
+    : 30;
+  const projected: Array<number | null> = labels.map(() => null);
+  let balance = last.balance;
+  const stepsPerDay = 24;
+  for (let day = 0; day <= horizon; day += 1) {
+    for (let hour = 0; hour < stepsPerDay; hour += 1) {
+      if (day === 0 && hour === 0) continue;
+      balance = Math.max(0, balance - perStep);
+    }
+    projected.push(Math.round(balance * 100) / 100);
+    labels.push(projectLabel(lastDay, day + 1));
+  }
+  return {
+    label: t('trend.projection'),
+    values: projected,
+    color: cssVar('--warning', '#e0a03c'),
+    dashed: true,
+    showPoints: false,
+  };
+}
+
+function projectLabel(from: Date, daysAhead: number): string {
+  const d = new Date(from.getTime() + daysAhead * 86_400_000);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function renderTrendChart(trendData: TrendData): void {
   const canvas = requireById<HTMLCanvasElement>('trend-chart');
   const { points: history, labels } = trendPoints(trendData.history || []);
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+  // the projection rides the project's runway from the dashboard state
+  const project = (AppState.balanceData?.projects || []).find((p) => p.project === trendData.project_name);
+  const projection = projectionSeries(history, project?.runway ?? null, labels);
+
+  const series: Series[] = [
+    {
+      label: t('type.balance'),
+      values: history.map((h) => h.balance),
+      color: cssVar('--accent', '#3358d4'),
+      fill: cssVar('--chart-fill', 'rgba(51, 88, 212, 0.14)'),
+    },
+    {
+      label: t('projects.threshold'),
+      values: labels.map(() => trendData.threshold),
+      color: cssVar('--danger', '#d64545'),
+      dashed: true,
+      showPoints: false,
+    },
+  ];
+  if (projection) series.splice(1, 0, projection);
 
   const options = {
     labels,
     dark,
     theme: chartTheme(dark),
     formatValue: (value: number): string => formatCurrency(value),
-    series: [
-      {
-        label: t('type.balance'),
-        values: history.map((h) => h.balance),
-        color: cssVar('--accent', '#3358d4'),
-        fill: cssVar('--chart-fill', 'rgba(51, 88, 212, 0.14)'),
-      },
-      {
-        label: t('projects.threshold'),
-        values: labels.map(() => trendData.threshold),
-        color: cssVar('--danger', '#d64545'),
-        dashed: true,
-        showPoints: false,
-      },
-    ],
+    series,
   };
 
   // one canvas toggled across dialog opens; reuse the instance so listeners do not pile up

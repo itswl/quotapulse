@@ -134,3 +134,17 @@ type SubscriptionConfig struct {
 	CreatedAt       sql.NullTime
 	UpdatedAt       sql.NullTime
 }
+
+type UsageEvent struct {
+	ID           int64
+	Source       string
+	ProjectName  string
+	EntryDate    string
+	Model        string
+	Cost         float64
+	Currency     string
+	InputTokens  int64
+	OutputTokens int64
+	Requests     int32
+	UpdatedAt    sql.NullTime
+}

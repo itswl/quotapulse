@@ -263,3 +263,7 @@ func (e mysqlQuerier) upsertCustomProvider(ctx context.Context, arg upsertCustom
 func (e mysqlQuerier) deleteCustomProvider(ctx context.Context, name string) error {
 	return e.q.DeleteCustomProvider(ctx, name)
 }
+
+func (e mysqlQuerier) upsertUsageEvent(ctx context.Context, arg upsertUsageEventParams) error {
+	return e.q.UpsertUsageEvent(ctx, gen.UpsertUsageEventParams(arg))
+}

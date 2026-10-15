@@ -215,3 +215,10 @@ ON DUPLICATE KEY UPDATE
 
 -- name: DeleteCustomProvider :exec
 DELETE FROM custom_provider_config WHERE name = ?;
+
+-- name: UpsertUsageEvent :exec
+INSERT INTO usage_events (source, project_name, entry_date, model, cost, currency, input_tokens, output_tokens, requests, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+cost = VALUES(cost), currency = VALUES(currency), input_tokens = VALUES(input_tokens), output_tokens = VALUES(output_tokens), requests = VALUES(requests), updated_at = VALUES(updated_at);
+
