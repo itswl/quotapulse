@@ -117,8 +117,8 @@ func TestCustomProviderCheckFailures(t *testing.T) {
 	// a non-numeric balance is a config error, not a zero
 	srv2, _ := serveJSON(t, 200, `{"success":1,"data":{"balance":"lots"}}`)
 	p.spec.URL = srv2.URL
-	if _, err := p.Fetch(context.Background()); err == nil || !strings.Contains(err.Error(), "balance not found") {
-		t.Errorf("expected a missing-balance error, got %v", err)
+	if _, err := p.Fetch(context.Background()); err == nil || !strings.Contains(err.Error(), "no number at") {
+		t.Errorf("expected a no-number error, got %v", err)
 	}
 }
 

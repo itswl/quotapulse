@@ -38,21 +38,28 @@ type BalanceHistory struct {
 }
 
 type CustomProviderConfig struct {
-	ID            int64
-	Name          string
-	DisplayName   sql.NullString
-	Url           string
-	AuthMode      string
-	AuthParam     sql.NullString
-	DefaultType   string
-	Currency      sql.NullString
-	BalancePath   string
-	BalanceScale  sql.NullFloat64
-	SuccessPath   sql.NullString
-	SuccessValues sql.NullString
-	ErrorPath     sql.NullString
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
+	ID               int64
+	Name             string
+	DisplayName      sql.NullString
+	Url              string
+	AuthMode         string
+	AuthParam        sql.NullString
+	DefaultType      string
+	Currency         sql.NullString
+	BalancePath      string
+	BalanceScale     sql.NullFloat64
+	SuccessPath      sql.NullString
+	SuccessValues    sql.NullString
+	ErrorPath        sql.NullString
+	SubtractPath     sql.NullString
+	ExtractMode      sql.NullString
+	WindowTypes      sql.NullString
+	WindowResetHours sql.NullFloat64
+	ExtraParams      sql.NullString
+	SignRegion       sql.NullString
+	SignService      sql.NullString
+	CreatedAt        sql.NullTime
+	UpdatedAt        sql.NullTime
 }
 
 type EmailAlertHistory struct {

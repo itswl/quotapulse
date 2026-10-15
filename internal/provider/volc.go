@@ -108,50 +108,14 @@ func (p *volcProvider) query() map[string]string {
 }
 
 // buildHeaders builds the signed headers. body is the raw request body, empty for GET queries.
+// The Host stays pinned to the API host even when tests point the base URL
+// elsewhere: Host participates in the signature, so the sent Host header must
+// be the one signed, not the connection target.
 func (p *volcProvider) buildHeaders(now time.Time, body string) map[string]string {
-	xDate := now.UTC().Format("20060102T150405Z")
-	shortDate := xDate[:8]
-	contentSHA256 := volcSHA256(body)
-	credentialScope := strings.Join([]string{shortDate, volcRegion, volcService, "request"}, "/")
-	signedHeaders := strings.Join(volcSignedHeaders, ";")
-
-	// canonical request: method / path / query / headers / blank line / signed header list / body digest
-	canonicalRequest := strings.Join([]string{
-		volcMethod,
-		volcPath,
-		volcNormQuery(p.query()),
-		"content-type:" + volcContentType,
-		"host:" + volcHost,
-		"x-content-sha256:" + contentSHA256,
-		"x-date:" + xDate,
-		"",
-		signedHeaders,
-		contentSHA256,
-	}, "\n")
-
-	stringToSign := strings.Join([]string{
-		"HMAC-SHA256", xDate, credentialScope, volcSHA256(canonicalRequest),
-	}, "\n")
-
-	// derive the signing key: starting from the SK, HMAC level by level through
-	// date, region, service, request — leaking an intermediate key then only
-	// compromises that one day and service
-	signingKey := []byte(p.sk)
-	for _, part := range []string{shortDate, volcRegion, volcService, "request"} {
-		signingKey = volcHMAC(signingKey, part)
-	}
-	signature := hex.EncodeToString(volcHMAC(signingKey, stringToSign))
-
-	return map[string]string{
-		"Host":             volcHost,
-		"X-Content-Sha256": contentSHA256,
-		"X-Date":           xDate,
-		"Content-Type":     volcContentType,
-		"Authorization": fmt.Sprintf(
-			"HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s",
-			p.ak, credentialScope, signedHeaders, signature,
-		),
-	}
+	return VolcV4Headers(VolcV4Request{
+		Host: volcHost, Path: volcPath, Region: volcRegion, Service: volcService,
+		AK: p.ak, SK: p.sk, Params: p.query(), Body: body,
+	}, now)
 }
 
 // volcNormQuery normalizes query parameters: sorted keys, RFC 3986 encoding — the signature and the real request share the same string.

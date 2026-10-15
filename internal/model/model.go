@@ -355,7 +355,25 @@ type CustomProvider struct {
 	SuccessPath   string  `json:"success_path,omitempty"`
 	SuccessValues string  `json:"success_values,omitempty"`
 	ErrorPath     string  `json:"error_path,omitempty"`
-	FromDB        bool    `json:"from_db"`
+	// SubtractPath (optional): the value is balance_path − subtract_path —
+	// platforms that report cumulative top-ups and spend (OpenRouter style).
+	SubtractPath string `json:"subtract_path,omitempty"`
+	// ExtractMode selects the pipeline: "path" (default) or "min_window".
+	// min_window picks the quota windows resetting soonest and reports the
+	// lowest remaining percentage (GLM Coding Plan style).
+	ExtractMode string `json:"extract_mode,omitempty"`
+	// WindowTypes limits min_window to these entry types (CSV); empty means
+	// TOKENS_LIMIT/CREDIT_LIMIT. WindowResetHours is how far out a reset may
+	// sit and still count as rolling (default 6).
+	WindowTypes      string  `json:"window_types,omitempty"`
+	WindowResetHours float64 `json:"window_reset_hours,omitempty"`
+	// ExtraParams adds fixed query parameters, "k=v,k2=v2" — API-mandated
+	// units, actions and versions live here instead of a fat URL.
+	ExtraParams string `json:"extra_params,omitempty"`
+	// SignRegion / SignService parameterize the volc_v4 signing preset.
+	SignRegion  string `json:"sign_region,omitempty"`
+	SignService string `json:"sign_service,omitempty"`
+	FromDB      bool   `json:"from_db"`
 }
 
 // CustomProviderKey is the registry key of a custom provider.

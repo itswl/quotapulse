@@ -774,6 +774,8 @@
                             <option value="query" data-i18n="providers.auth_query">Query parameter</option>
                             <option value="header" data-i18n="providers.auth_header">Named header</option>
                             <option value="none" data-i18n="providers.auth_none">No key</option>
+                            <option value="aliyun_rpc">Aliyun RPC sign</option>
+                            <option value="volc_v4">Volcengine V4 sign</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -823,6 +825,53 @@
                     <label for="custom-provider-error-path" data-i18n="providers.error_path">Error message field</label>
                     <input type="text" id="custom-provider-error-path" placeholder="message" data-i18n-placeholder="providers.error_placeholder">
                 </div>
+
+                <details class="form-advanced">
+                    <summary data-i18n="providers.advanced">Advanced</summary>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="custom-provider-subtract" data-i18n="providers.subtract">Subtract field</label>
+                            <input type="text" id="custom-provider-subtract" placeholder="data.total_usage" data-i18n-placeholder="providers.subtract_placeholder">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-provider-extract" data-i18n="providers.extract_mode">Extract mode</label>
+                            <select id="custom-provider-extract">
+                                <option value="" data-i18n="providers.extract_path">JSON path</option>
+                                <option value="min_window" data-i18n="providers.extract_window">Lowest rolling window</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row" id="custom-provider-window-row" style="display: none;">
+                        <div class="form-group">
+                            <label for="custom-provider-window-types" data-i18n="providers.window_types">Window types</label>
+                            <input type="text" id="custom-provider-window-types" placeholder="TOKENS_LIMIT,CREDIT_LIMIT" data-i18n-placeholder="providers.window_types_placeholder">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-provider-window-hours" data-i18n="providers.window_hours">Rolling within (hours)</label>
+                            <input type="number" id="custom-provider-window-hours" step="any" min="0" max="168" placeholder="6">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="custom-provider-sign-region" data-i18n="providers.sign_region">Sign region (volc_v4)</label>
+                            <input type="text" id="custom-provider-sign-region" placeholder="cn-shanghai">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-provider-sign-service" data-i18n="providers.sign_service">Sign service (volc_v4)</label>
+                            <input type="text" id="custom-provider-sign-service" placeholder="billing">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="custom-provider-extra-params" data-i18n="providers.extra_params">Fixed query parameters</label>
+                        <input type="text" id="custom-provider-extra-params" placeholder="Action=QueryBalanceAcct,Version=2022-01-01" data-i18n-placeholder="providers.extra_placeholder">
+                    </div>
+
+                    <p class="subsection-hint" data-i18n="providers.path_help"></p>
+                </details>
             </form>
             <div class="modal-footer">
                 <button type="button" class="btn-ghost btn-danger" id="delete-custom-provider-btn" style="display: none;" data-i18n="common.delete">Delete</button>

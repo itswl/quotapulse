@@ -522,7 +522,7 @@ func (q *Queries) ListBalanceTrend(ctx context.Context, arg ListBalanceTrendPara
 }
 
 const listCustomProviders = `-- name: ListCustomProviders :many
-SELECT id, name, display_name, url, auth_mode, auth_param, default_type, currency, balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at FROM custom_provider_config ORDER BY id
+SELECT id, name, display_name, url, auth_mode, auth_param, default_type, currency, balance_path, balance_scale, success_path, success_values, error_path, subtract_path, extract_mode, window_types, window_reset_hours, extra_params, sign_region, sign_service, created_at, updated_at FROM custom_provider_config ORDER BY id
 `
 
 func (q *Queries) ListCustomProviders(ctx context.Context) ([]CustomProviderConfig, error) {
@@ -548,6 +548,13 @@ func (q *Queries) ListCustomProviders(ctx context.Context) ([]CustomProviderConf
 			&i.SuccessPath,
 			&i.SuccessValues,
 			&i.ErrorPath,
+			&i.SubtractPath,
+			&i.ExtractMode,
+			&i.WindowTypes,
+			&i.WindowResetHours,
+			&i.ExtraParams,
+			&i.SignRegion,
+			&i.SignService,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -884,9 +891,8 @@ func (q *Queries) UpdateSubscriptionWebhook(ctx context.Context, arg UpdateSubsc
 
 const upsertCustomProvider = `-- name: UpsertCustomProvider :exec
 INSERT INTO custom_provider_config (
-    name, display_name, url, auth_mode, auth_param, default_type, currency,
-    balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    name, display_name, url, auth_mode, auth_param, default_type, currency, balance_path, balance_scale, success_path, success_values, error_path, subtract_path, extract_mode, window_types, window_reset_hours, extra_params, sign_region, sign_service, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (name) DO UPDATE SET
     display_name = excluded.display_name,
     url = excluded.url,
@@ -899,24 +905,38 @@ ON CONFLICT (name) DO UPDATE SET
     success_path = excluded.success_path,
     success_values = excluded.success_values,
     error_path = excluded.error_path,
+    subtract_path = excluded.subtract_path,
+    extract_mode = excluded.extract_mode,
+    window_types = excluded.window_types,
+    window_reset_hours = excluded.window_reset_hours,
+    extra_params = excluded.extra_params,
+    sign_region = excluded.sign_region,
+    sign_service = excluded.sign_service,
     updated_at = excluded.updated_at
 `
 
 type UpsertCustomProviderParams struct {
-	Name          string
-	DisplayName   sql.NullString
-	Url           string
-	AuthMode      string
-	AuthParam     sql.NullString
-	DefaultType   string
-	Currency      sql.NullString
-	BalancePath   string
-	BalanceScale  sql.NullFloat64
-	SuccessPath   sql.NullString
-	SuccessValues sql.NullString
-	ErrorPath     sql.NullString
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
+	Name             string
+	DisplayName      sql.NullString
+	Url              string
+	AuthMode         string
+	AuthParam        sql.NullString
+	DefaultType      string
+	Currency         sql.NullString
+	BalancePath      string
+	BalanceScale     sql.NullFloat64
+	SuccessPath      sql.NullString
+	SuccessValues    sql.NullString
+	ErrorPath        sql.NullString
+	SubtractPath     sql.NullString
+	ExtractMode      sql.NullString
+	WindowTypes      sql.NullString
+	WindowResetHours sql.NullFloat64
+	ExtraParams      sql.NullString
+	SignRegion       sql.NullString
+	SignService      sql.NullString
+	CreatedAt        sql.NullTime
+	UpdatedAt        sql.NullTime
 }
 
 func (q *Queries) UpsertCustomProvider(ctx context.Context, arg UpsertCustomProviderParams) error {
@@ -933,6 +953,13 @@ func (q *Queries) UpsertCustomProvider(ctx context.Context, arg UpsertCustomProv
 		arg.SuccessPath,
 		arg.SuccessValues,
 		arg.ErrorPath,
+		arg.SubtractPath,
+		arg.ExtractMode,
+		arg.WindowTypes,
+		arg.WindowResetHours,
+		arg.ExtraParams,
+		arg.SignRegion,
+		arg.SignService,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)

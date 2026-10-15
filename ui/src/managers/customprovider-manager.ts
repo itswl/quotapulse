@@ -7,6 +7,7 @@
 import { mutate } from '../api/client.js';
 import { ENDPOINTS, getCustomProviders } from '../api/endpoints.js';
 import type { BalanceType, CustomProviderConfig, CustomProviderPayload, CustomProviderTestPayload, CustomProviderTestResponse } from '../api/types.js';
+
 import { byId, inputById, inputValue, onClick, selectById, setInputValue } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { clearFieldErrors, requireFields } from '../ui/forms.js';
@@ -73,7 +74,21 @@ function fillForm(provider: CustomProviderConfig | null): void {
   setInputValue('custom-provider-success-path', provider?.success_path ?? '');
   setInputValue('custom-provider-success-values', provider?.success_values ?? '');
   setInputValue('custom-provider-error-path', provider?.error_path ?? '');
+  setInputValue('custom-provider-subtract', provider?.subtract_path ?? '');
+  selectById('custom-provider-extract').value = provider?.extract_mode ?? '';
+  setInputValue('custom-provider-window-types', provider?.window_types ?? '');
+  setInputValue('custom-provider-window-hours', provider?.window_reset_hours ? String(provider.window_reset_hours) : '');
+  setInputValue('custom-provider-sign-region', provider?.sign_region ?? '');
+  setInputValue('custom-provider-sign-service', provider?.sign_service ?? '');
+  setInputValue('custom-provider-extra-params', provider?.extra_params ?? '');
+  syncAdvancedVisibility();
   renderChips(provider?.name ?? '');
+}
+
+/** Window fields only make sense in min_window mode; sign fields only for volc_v4. */
+function syncAdvancedVisibility(): void {
+  const windowRow = byId('custom-provider-window-row');
+  if (windowRow) windowRow.style.display = selectById('custom-provider-extract').value === 'min_window' ? 'flex' : 'none';
 }
 
 export async function openCustomProviderModal(): Promise<void> {
@@ -110,6 +125,22 @@ function collectPayload(): CustomProviderPayload | null {
   if (successValues) data.success_values = successValues;
   const errorPath = inputValue('custom-provider-error-path');
   if (errorPath) data.error_path = errorPath;
+  const subtract = inputValue('custom-provider-subtract');
+  if (subtract) data.subtract_path = subtract;
+  const extract = selectById('custom-provider-extract').value;
+  if (extract) data.extract_mode = extract;
+  if (extract === 'min_window') {
+    const windowTypes = inputValue('custom-provider-window-types');
+    if (windowTypes) data.window_types = windowTypes;
+    const hours = inputValue('custom-provider-window-hours');
+    if (hours !== '') data.window_reset_hours = Number.parseFloat(hours);
+  }
+  const signRegion = inputValue('custom-provider-sign-region');
+  if (signRegion) data.sign_region = signRegion;
+  const signService = inputValue('custom-provider-sign-service');
+  if (signService) data.sign_service = signService;
+  const extraParams = inputValue('custom-provider-extra-params');
+  if (extraParams) data.extra_params = extraParams;
   void isEdit;
   return data;
 }
@@ -165,6 +196,7 @@ export function bindCustomProviderManager(): void {
     void saveProvider();
   });
   onClick('delete-custom-provider-btn', () => void removeProvider());
+  byId('custom-provider-extract')?.addEventListener('change', syncAdvancedVisibility);
   byId('custom-provider-type')?.addEventListener('change', () => {
     const quota = selectById('custom-provider-type').value === 'quota';
     const currencyInput = inputById('custom-provider-currency');

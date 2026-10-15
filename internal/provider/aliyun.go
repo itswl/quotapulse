@@ -2,16 +2,11 @@ package provider
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
-	"strings"
 	"time"
 )
 
@@ -124,41 +119,7 @@ func (p *aliyunProvider) request(ctx context.Context) (map[string]any, error) {
 
 // buildParams assembles the fully signed request parameters.
 func (p *aliyunProvider) buildParams(now time.Time, nonce string) map[string]string {
-	params := map[string]string{
-		"Action":           aliyunAction,
-		"Version":          aliyunVersion,
-		"AccessKeyId":      p.accessKeyID,
-		"SignatureMethod":  "HMAC-SHA1",
-		"Timestamp":        now.UTC().Format("2006-01-02T15:04:05Z"),
-		"SignatureVersion": "1.0",
-		"SignatureNonce":   nonce,
-		"Format":           "JSON",
-	}
-	params["Signature"] = p.sign(params)
-	return params
-}
-
-// sign computes the RPC signature: canonical query string -> string-to-sign -> HMAC-SHA1 -> base64.
-func (p *aliyunProvider) sign(params map[string]string) string {
-	keys := make([]string, 0, len(params))
-	for key := range params {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	pairs := make([]string, 0, len(keys))
-	for _, key := range keys {
-		pairs = append(pairs, percentEncode(key)+"="+percentEncode(params[key]))
-	}
-	canonicalQuery := strings.Join(pairs, "&")
-
-	// the string-to-sign re-encodes the whole query string; "/" becomes %2F too
-	stringToSign := "GET&" + percentEncode("/") + "&" + percentEncode(canonicalQuery)
-
-	// the trailing & on the key is Aliyun's rule, not a typo
-	mac := hmac.New(sha1.New, []byte(p.accessKeySecret+"&"))
-	mac.Write([]byte(stringToSign))
-	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	return AliyunRPCParams(p.accessKeyID, p.accessKeySecret, aliyunAction, aliyunVersion, nil, now, nonce)
 }
 
 // aliyunNonce generates a v4 UUID as SignatureNonce. Aliyun only needs it unique

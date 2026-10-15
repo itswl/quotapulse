@@ -449,6 +449,13 @@ export interface CustomProviderConfig {
   success_path?: string;
   success_values?: string;
   error_path?: string;
+  subtract_path?: string;
+  extract_mode?: '' | 'path' | 'min_window';
+  window_types?: string;
+  window_reset_hours?: number;
+  extra_params?: string;
+  sign_region?: string;
+  sign_service?: string;
   from_db?: boolean;
 }
 
@@ -471,6 +478,13 @@ export interface CustomProviderPayload {
   success_path?: string;
   success_values?: string;
   error_path?: string;
+  subtract_path?: string;
+  extract_mode?: string;
+  window_types?: string;
+  window_reset_hours?: number;
+  extra_params?: string;
+  sign_region?: string;
+  sign_service?: string;
 }
 
 export interface CustomProviderTestPayload extends CustomProviderPayload {

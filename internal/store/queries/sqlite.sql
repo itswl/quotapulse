@@ -189,9 +189,8 @@ SELECT * FROM custom_provider_config ORDER BY id;
 
 -- name: UpsertCustomProvider :exec
 INSERT INTO custom_provider_config (
-    name, display_name, url, auth_mode, auth_param, default_type, currency,
-    balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    name, display_name, url, auth_mode, auth_param, default_type, currency, balance_path, balance_scale, success_path, success_values, error_path, subtract_path, extract_mode, window_types, window_reset_hours, extra_params, sign_region, sign_service, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (name) DO UPDATE SET
     display_name = excluded.display_name,
     url = excluded.url,
@@ -204,6 +203,13 @@ ON CONFLICT (name) DO UPDATE SET
     success_path = excluded.success_path,
     success_values = excluded.success_values,
     error_path = excluded.error_path,
+    subtract_path = excluded.subtract_path,
+    extract_mode = excluded.extract_mode,
+    window_types = excluded.window_types,
+    window_reset_hours = excluded.window_reset_hours,
+    extra_params = excluded.extra_params,
+    sign_region = excluded.sign_region,
+    sign_service = excluded.sign_service,
     updated_at = excluded.updated_at;
 
 -- name: DeleteCustomProvider :exec

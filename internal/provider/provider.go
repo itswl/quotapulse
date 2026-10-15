@@ -270,6 +270,10 @@ type Spec struct {
 	Check func(data map[string]any) error
 	// Extract pulls the balance from the response, erroring when absent.
 	Extract func(data map[string]any) (float64, error)
+	// Sign, when set, builds the per-request auth: signed headers and query
+	// parameters from the endpoint URL and key (the Aliyun RPC and Volcengine
+	// V4 presets). Optional.
+	Sign func(rawURL, apiKey string) (headers map[string]string, params map[string]string, err error)
 }
 
 // RegisterSpec registers a platform declaratively via Spec.
@@ -295,12 +299,25 @@ func (p *specProvider) Fetch(ctx context.Context) (float64, error) {
 		params[k] = v
 	}
 	switch p.spec.Auth {
-	case AuthBearer:
-		headers["Authorization"] = "Bearer " + p.apiKey
+	case AuthNone:
 	case AuthQuery:
 		params[p.spec.AuthParam] = p.apiKey
 	case AuthHeader:
 		headers[p.spec.AuthParam] = p.apiKey
+	default: // AuthBearer
+		headers["Authorization"] = "Bearer " + p.apiKey
+	}
+	if p.spec.Sign != nil {
+		signedHeaders, signedParams, err := p.spec.Sign(p.spec.URL, p.apiKey)
+		if err != nil {
+			return 0, err
+		}
+		for key, value := range signedHeaders {
+			headers[key] = value
+		}
+		for key, value := range signedParams {
+			params[key] = value
+		}
 	}
 
 	data, err := p.client.GetJSON(ctx, p.spec.URL, headers, params)

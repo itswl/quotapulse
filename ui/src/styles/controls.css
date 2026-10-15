@@ -340,3 +340,14 @@
 .cost-table tfoot td { font-weight: 600; }
 
 .cost-over { color: var(--danger, #d92d20); font-weight: 600; }
+
+.form-advanced { margin-top: 0.6rem; }
+
+.form-advanced summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted, #667085);
+  margin-bottom: 0.6rem;
+}
+
+.form-advanced[open] summary { margin-bottom: 0.8rem; }

@@ -185,7 +185,7 @@ func TestAliyunRequestIsSignedOverWhatItSends(t *testing.T) {
 	}
 	delete(sent, "Signature")
 
-	if want := provider.sign(sent); want != signature {
+	if want := aliyunRPCSign(provider.accessKeySecret, sent); want != signature {
 		t.Fatalf("请求带的签名 = %q，按收到的参数重算 = %q", signature, want)
 	}
 	if sent["Action"] != aliyunAction || sent["Version"] != aliyunVersion {

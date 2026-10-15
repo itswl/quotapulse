@@ -38,6 +38,14 @@ type customProviderRequest struct {
 	SuccessPath   *string  `json:"success_path"`
 	SuccessValues *string  `json:"success_values"`
 	ErrorPath     *string  `json:"error_path"`
+
+	SubtractPath     *string  `json:"subtract_path"`
+	ExtractMode      *string  `json:"extract_mode"`
+	WindowTypes      *string  `json:"window_types"`
+	WindowResetHours *float64 `json:"window_reset_hours"`
+	ExtraParams      *string  `json:"extra_params"`
+	SignRegion       *string  `json:"sign_region"`
+	SignService      *string  `json:"sign_service"`
 }
 
 // handleSaveCustomProvider creates or updates a page-defined platform. name is
@@ -189,6 +197,27 @@ func applyCustomProviderPatch(target *model.CustomProvider, body customProviderR
 	}
 	if body.ErrorPath != nil {
 		target.ErrorPath = trimSpace(*body.ErrorPath)
+	}
+	if body.SubtractPath != nil {
+		target.SubtractPath = trimSpace(*body.SubtractPath)
+	}
+	if body.ExtractMode != nil {
+		target.ExtractMode = strings.ToLower(trimSpace(*body.ExtractMode))
+	}
+	if body.WindowTypes != nil {
+		target.WindowTypes = trimSpace(*body.WindowTypes)
+	}
+	if body.WindowResetHours != nil && *body.WindowResetHours >= 0 {
+		target.WindowResetHours = *body.WindowResetHours
+	}
+	if body.ExtraParams != nil {
+		target.ExtraParams = trimSpace(*body.ExtraParams)
+	}
+	if body.SignRegion != nil {
+		target.SignRegion = trimSpace(*body.SignRegion)
+	}
+	if body.SignService != nil {
+		target.SignService = trimSpace(*body.SignService)
 	}
 }
 
