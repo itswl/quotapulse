@@ -125,6 +125,50 @@ Runway fields are present only when `ENABLE_DATABASE` is enabled and enough hist
 }
 ```
 
+### `GET /api/subscriptions`
+
+```json
+{
+  "last_update": "2026-09-14T03:35:17Z",
+  "subscriptions": [{
+    "name": "Claude Max", "renewal_day": 15, "cycle_type": "monthly",
+    "days_until_renewal": 3, "next_renewal_date": "2026-09-15",
+    "need_alert": true, "alert_sent": false, "amount": 100,
+    "already_renewed": false, "last_renewed_date": null
+  }]
+}
+```
+
+### `GET /api/config/projects`
+
+```json
+{
+  "status": "success",
+  "projects": [{
+    "name": "deepseek", "provider": "deepseek", "type": "balance",
+    "api_key": "sk-1***abcd", "threshold": 50,
+    "owner_project": null, "enabled": true, "from_env": false
+  }]
+}
+```
+
+### `GET /api/history/trend/<project_id>`
+
+`project_id` is the `md5("provider:name")` identity, or the raw `provider:name` (URL-encoded). Fewer than two points yield no `change` fields.
+
+```json
+{
+  "status": "success",
+  "project_id": "5f4dcc3b5aa765d61d8327deb882cf99",
+  "project_name": "deepseek", "provider": "deepseek",
+  "points": 20,
+  "first": {"timestamp": "2026-09-13T00:00:00Z", "balance": 500},
+  "last": {"timestamp": "2026-09-14T03:00:00Z", "balance": 437.5},
+  "change": -62.5, "change_percent": -12.5,
+  "history": [{"timestamp": "2026-09-14T03:00:00Z", "balance": 437.5}]
+}
+```
+
 ### `GET /api/email/scan`
 
 ```json
