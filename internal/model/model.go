@@ -42,6 +42,10 @@ func (p Project) ID() string { return ProjectID(p.Provider, p.Name) }
 
 // ProjectID = md5("provider:name")。
 func ProjectID(provider, name string) string {
+	// Identities predate the custom: namespace: a project that moved from the
+	// built-in adapter to the seeded custom definition keeps its history,
+	// runway and cooldowns because the hash ignores the prefix.
+	provider = strings.TrimPrefix(provider, "custom:")
 	sum := md5.Sum([]byte(provider + ":" + name))
 	return hex.EncodeToString(sum[:])
 }

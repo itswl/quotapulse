@@ -145,7 +145,12 @@ func withEnums(schema *jsonschema.Schema, enums map[string][]string) *jsonschema
 func (d *deps) addTools(server *sdkmcp.Server) {
 	balance, alerts := []string{config.ScopeBalance}, []string{config.ScopeAlerts}
 	subscriptions, email := []string{config.ScopeSubscriptions}, []string{config.ScopeEmail}
-	providers := provider.Keys()
+	// Agents speak bare platform names; the alias layer resolves them onto the
+	// custom: definitions, so the enum lists the bare names only.
+	providers := make([]string, 0, 8)
+	for _, key := range provider.Keys() {
+		providers = append(providers, provider.EnvPrefixOf(key))
+	}
 
 	addTool(d, server, toolSpec{
 		name: "dashboard_summary", title: "What needs attention",

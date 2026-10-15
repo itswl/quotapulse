@@ -84,11 +84,19 @@ func envFirstFloat(prefix, suffix string, ordinal int) float64 {
 }
 
 // ProviderKeyEnvNames lists the key variable names of a provider's ordinal-th account; the self-check uses them to hint what to configure.
+// envPrefixOf maps a provider key to its env-var prefix: the custom:
+// namespace strips away and the rest uppercases, so DEEPSEEK_API_KEY keeps
+// working whether the project rides the retired built-in key or
+// custom:deepseek.
+func envPrefixOf(providerKey string) string {
+	return strings.ToUpper(provider.EnvPrefixOf(providerKey))
+}
+
 func ProviderKeyEnvNames(providerKey string, ordinal int) []string {
 	if providerKey == "" {
 		return nil
 	}
-	return envVariants(strings.ToUpper(providerKey), "API_KEY", ordinal)
+	return envVariants(envPrefixOf(providerKey), "API_KEY", ordinal)
 }
 
 // DiscoverProjects finds monitored projects from environment variables.
@@ -104,10 +112,13 @@ func DiscoverProjects(declared []model.Project) []model.Project {
 
 	var discovered []model.Project
 	for _, key := range provider.Keys() {
-		if declaredProviders[key] {
+		// discovery speaks the bare name: the alias layer resolves it onto the
+		// custom: definition, and identities stay identical to the adapter era
+		name := provider.EnvPrefixOf(key)
+		if declaredProviders[name] || declaredProviders[key] {
 			continue
 		}
-		upper := strings.ToUpper(key)
+		upper := envPrefixOf(key)
 
 		type account struct {
 			ordinal int
@@ -121,16 +132,16 @@ func DiscoverProjects(declared []model.Project) []model.Project {
 		}
 
 		for _, acct := range accounts {
-			name := key
+			projectName := name
 			if len(accounts) > 1 {
-				name = fmt.Sprintf("%s-%d", key, acct.ordinal)
+				projectName = fmt.Sprintf("%s-%d", name, acct.ordinal)
 			}
 			discovered = append(discovered, model.Project{
-				Name:         name,
-				Provider:     key,
+				Name:         projectName,
+				Provider:     name,
 				APIKey:       acct.apiKey,
 				Threshold:    envFirstFloat(upper, "THRESHOLD", acct.ordinal),
-				Type:         model.DefaultBalanceType(key),
+				Type:         model.DefaultBalanceType(name),
 				OwnerProject: model.OwnerProjectOf(envFirst(upper, "OWNER_PROJECT", acct.ordinal)),
 				Enabled:      true,
 				FromEnv:      true,

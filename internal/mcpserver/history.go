@@ -276,9 +276,14 @@ func (d *deps) alertStats(ctx context.Context, in statsInput) (AlertStatsOutput,
 // ==================== Providers, spending and renewals ====================
 
 func (d *deps) providerStatus(ctx context.Context, _ emptyInput) (ProviderStatusOutput, string, *ErrorInfo) {
+	// keyed by both the canonical custom: key and the bare alias, so
+	// adapter-era provider values keep resolving
 	names := map[string]string{}
 	for _, p := range provider.All() {
 		names[p.Key] = p.Name
+		if bare := provider.EnvPrefixOf(p.Key); bare != p.Key {
+			names[bare] = p.Name
+		}
 	}
 	var views []*ProviderStatusView
 	byKey := map[string]*ProviderStatusView{}

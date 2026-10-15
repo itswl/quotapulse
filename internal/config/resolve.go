@@ -61,8 +61,39 @@ func (r *Resolver) CustomProviders(ctx context.Context) []model.CustomProvider {
 
 // registerCustomProviders swaps the dynamic provider registry. Called on
 // every Load so page edits apply to the next check round without a restart.
+// defaultsSeededMarker keys the one-time seeding of the retired built-in
+// platforms into the custom provider table.
+const defaultsSeededMarker = "custom_defaults_seeded"
+
 func (r *Resolver) registerCustomProviders(ctx context.Context) {
+	// Without dynamic configuration the database holds no definitions; the
+	// defaults registered at package init stay in place untouched.
+	if !r.settings.EnableDynamicConfig {
+		return
+	}
 	list := r.CustomProviders(ctx)
+	// First start with dynamic configuration: persist the default platforms as
+	// ordinary rows, once — only the missing ones, so definitions the user
+	// already added under other names stay untouched. Later deletions stick:
+	// the marker outlives them.
+	if seeded, err := r.store.GetAppSetting(ctx, defaultsSeededMarker); err != nil || seeded != "1" {
+		known := map[string]bool{}
+		for _, custom := range list {
+			known[custom.Name] = true
+		}
+		for _, custom := range provider.DefaultCustomProviders() {
+			if known[custom.Name] {
+				continue
+			}
+			if err := r.store.UpsertCustomProvider(ctx, custom); err != nil {
+				r.log.Warn("Failed to seed a default custom provider", "name", custom.Name, "error", err)
+			}
+		}
+		if err := r.store.SetAppSetting(ctx, defaultsSeededMarker, "1"); err != nil {
+			r.log.Warn("Failed to record the defaults seeding; it will retry", "error", err)
+		}
+		list = r.CustomProviders(ctx)
+	}
 	specs := make([]provider.Spec, 0, len(list))
 	for _, custom := range list {
 		spec, err := provider.SpecFromCustomProvider(custom)

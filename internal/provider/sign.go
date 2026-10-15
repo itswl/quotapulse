@@ -2,7 +2,9 @@ package provider
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -136,4 +138,42 @@ func hostAndPathOf(rawURL string) (string, string, error) {
 		path = "/"
 	}
 	return parsed.Host, path, nil
+}
+
+// volcNormQuery normalizes query parameters: sorted keys, RFC 3986 encoding — the signature and the real request share the same string.
+func volcNormQuery(params map[string]string) string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	items := make([]string, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, percentEncode(key)+"="+percentEncode(params[key]))
+	}
+	return strings.Join(items, "&")
+}
+
+func volcSHA256(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
+}
+
+func volcHMAC(key []byte, content string) []byte {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(content))
+	return mac.Sum(nil)
+}
+
+// aliyunNonce generates a v4 UUID as SignatureNonce. Aliyun only needs it
+// unique (anti-replay); the standard library suffices — not worth a
+// dependency.
+func aliyunNonce() string {
+	var b [16]byte
+	// crypto/rand.Read never fails; it panics on its own
+	_, _ = rand.Read(b[:])
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // RFC 4122 variant
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

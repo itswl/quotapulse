@@ -63,12 +63,14 @@ func RegisterWithCurrency(key, name, defaultType, currency string, factory Facto
 	}{Info{Key: key, Name: name, DefaultType: defaultType, Currency: currency}, factory}
 }
 
-// New creates an adapter by platform name.
+// New creates an adapter by platform name. A bare name resolves to its
+// custom: definition, so projects created against the retired built-in
+// adapters keep working unmodified.
 func New(key, apiKey string, client *Client) (Provider, error) {
 	if client == nil {
 		client = NewClient(DefaultTimeout)
 	}
-	if spec, ok := lookupSpec(key); ok {
+	if spec, ok := lookupSpec(canonicalKey(key)); ok {
 		return &specProvider{spec: spec, apiKey: apiKey, client: client}, nil
 	}
 	entry, ok := registry[key]
@@ -104,11 +106,29 @@ func All() []Info {
 
 // Lookup returns one platform's metadata.
 func Lookup(key string) (Info, bool) {
-	if spec, ok := lookupSpec(key); ok {
+	if spec, ok := lookupSpec(canonicalKey(key)); ok {
 		return Info{Key: spec.Key, Name: spec.Name, DefaultType: spec.DefaultType, Currency: spec.Currency}, true
 	}
 	entry, ok := registry[key]
 	return entry.info, ok
+}
+
+// trimCustomPrefix drops the custom: namespace for env-var derivation and
+// identity purposes.
+func trimCustomPrefix(key string) string {
+	return strings.TrimPrefix(key, "custom:")
+}
+
+// canonicalKey maps a bare platform name onto its custom: definition when one
+// exists; anything else passes through unchanged.
+func canonicalKey(key string) string {
+	if _, ok := registry[key]; ok {
+		return key
+	}
+	if lookupSpecExact("custom:" + key) {
+		return "custom:" + key
+	}
+	return key
 }
 
 // DisplayName returns the platform's display name, or the input unchanged when unregistered.

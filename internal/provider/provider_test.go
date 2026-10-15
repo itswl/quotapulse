@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -107,26 +108,28 @@ func assertFloat(t *testing.T, got, want float64) {
 
 // ---------- Registry ----------
 
+// The built-in adapters are gone: the catalog is the seeded custom set under
+// the custom: namespace, and bare names alias onto it.
 func TestRegistry(t *testing.T) {
-	// display names and default balance types enter the database and page dropdowns; changes strand existing data
-	want := []Info{
-		{Key: "aliyun", Name: "Alibaba Cloud", DefaultType: "balance", Currency: "CNY"},
-		{Key: "deepseek", Name: "DeepSeek", DefaultType: "balance", Currency: "CNY"},
-		{Key: "glm", Name: "GLM", DefaultType: "quota"},
-		{Key: "openrouter", Name: "OpenRouter", DefaultType: "credits", Currency: "USD"},
-		{Key: "tikhub", Name: "TikHub", DefaultType: "balance", Currency: "USD"},
-		{Key: "uniapi", Name: "UniAPI", DefaultType: "credits", Currency: "USD"},
-		{Key: "volc", Name: "Volcengine", DefaultType: "balance", Currency: "CNY"},
-		{Key: "wxrank", Name: "WxRank", DefaultType: "credits"},
+	keys := Keys()
+	if len(keys) != 8 {
+		t.Fatalf("expected the 8 seeded platforms, got %d: %v", len(keys), keys)
 	}
-	got := All()
-	if len(got) != len(want) {
-		t.Fatalf("注册了 %d 个平台，expected %d 个: %v", len(got), len(want), Keys())
-	}
-	for i, info := range want {
-		if got[i] != info {
-			t.Errorf("第 %d 个平台 = %+v，expected %+v", i, got[i], info)
+	for _, key := range []string{"custom:aliyun", "custom:deepseek", "custom:glm", "custom:openrouter",
+		"custom:tikhub", "custom:uniapi", "custom:volc", "custom:wxrank"} {
+		if !slices.Contains(keys, key) {
+			t.Errorf("missing %s in %v", key, keys)
 		}
+	}
+
+	// metadata: defaults carry their type and currency
+	info, ok := Lookup("custom:deepseek")
+	if !ok || info.DefaultType != "balance" || info.Currency != "CNY" || info.Name != "DeepSeek" {
+		t.Errorf("custom:deepseek metadata wrong: %+v", info)
+	}
+	// the bare built-in name still resolves — projects from the adapter era
+	if _, ok := Lookup("deepseek"); !ok {
+		t.Error("the bare name must alias onto the custom definition")
 	}
 }
 

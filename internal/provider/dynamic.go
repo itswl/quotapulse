@@ -45,10 +45,15 @@ func ReplaceDynamic(specs []Spec) error {
 func lookupSpec(key string) (Spec, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
-	if spec, ok := dynamicSpecs[key]; ok {
-		return spec, true
-	}
-	return Spec{}, false
+	spec, ok := dynamicSpecs[key]
+	return spec, ok
+}
+
+func lookupSpecExact(key string) bool {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	_, ok := dynamicSpecs[key]
+	return ok
 }
 
 func dynamicKeys() []string {

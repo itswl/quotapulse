@@ -36,10 +36,16 @@ Agents should start with `dashboard_summary`, which lists what needs attention, 
 
 ## Providers
 
+Every platform is a custom provider definition — one GET, a JSON path to the
+balance, and how the key travels. The eight below ship as seeded defaults
+(editable or deletable on the page); anything else you add needs no release:
+see "Custom platforms…" in the project dialog. Bare keys alias onto the seeded
+definitions, so `{PROVIDER}_API_KEY` discovery works exactly as before.
+
 | Provider | Key | Credential format |
 | --- | --- | --- |
 | OpenRouter, UniAPI, WeChat Rank, TikHub, DeepSeek | `openrouter`, `uniapi`, `wxrank`, `tikhub`, `deepseek` | API key |
-| GLM Coding Plan | `glm` | `id.secret`; threshold is a percentage |
+| GLM Coding Plan | `glm` | API key; threshold is a percentage |
 | Volcengine | `volc` | `AccessKeyId:SecretAccessKey` |
 | Alibaba Cloud | `aliyun` | `AccessKeyId:AccessKeySecret` |
 

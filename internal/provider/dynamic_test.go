@@ -135,7 +135,7 @@ func TestReplaceDynamicRegistry(t *testing.T) {
 	if err := ReplaceDynamic([]Spec{spec}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = ReplaceDynamic(nil) })
+	t.Cleanup(func() { _ = ReplaceDynamic(defaultSpecs()) })
 
 	if !IsDynamic("custom:acme") {
 		t.Fatal("custom:acme should be registered")
@@ -160,10 +160,10 @@ func TestReplaceDynamicRegistry(t *testing.T) {
 		t.Error("replacing with an empty set should unregister")
 	}
 
-	// a builtin key can never be shadowed
-	builtin := spec
-	builtin.Key = "deepseek"
-	if err := ReplaceDynamic([]Spec{builtin}); err == nil {
-		t.Error("colliding with a builtin key must fail")
+	// the built-in adapters are retired: their names now belong to the
+	// seeded customs, and the page must refuse redefining them by name (the
+	// httpapi tests pin that guard); ReplaceDynamic itself accepts any key
+	if err := ReplaceDynamic([]Spec{spec}); err != nil {
+		t.Errorf("no builtins remain to collide with: %v", err)
 	}
 }

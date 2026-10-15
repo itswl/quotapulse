@@ -108,3 +108,33 @@ func TestParseJSONObject(t *testing.T) {
 		t.Errorf("= %v, %v", data, err)
 	}
 }
+
+func TestGLMRemainingPercentIgnoresStringNumbers(t *testing.T) {
+	// quota fields must be real numbers; the string "50" does not count.
+	// Loosening this to Num would admit strings and produce a plausible-looking
+	// wrong balance
+	if _, ok := glmRemainingPercent(map[string]any{"usage": "100", "remaining": "50"}); ok {
+		t.Error("字符串的 usage/remaining 不该被当成数字")
+	}
+	if _, ok := glmRemainingPercent(map[string]any{"percentage": "30"}); ok {
+		t.Error("字符串的 percentage 不该被当成数字")
+	}
+}
+
+func TestRound2HalfToEven(t *testing.T) {
+	// round2's contract: exact ties go to even; the rest follow the true binary value
+	cases := []struct{ in, want float64 }{
+		{0.125, 0.12}, // 正中间，进偶数
+		{0.135, 0.14}, // 二进制里略大于 0.135
+		{2.675, 2.67}, // 二进制里略小于 2.675
+		{0.005, 0.01}, // 二进制里略大于 0.005
+		{98.7, 98.7},  // 本来就够短
+		{66.666666, 66.67},
+		{33.333333, 33.33},
+	}
+	for _, tc := range cases {
+		if got := round2(tc.in); got != tc.want {
+			t.Errorf("round2(%v) = %v，expected %v", tc.in, got, tc.want)
+		}
+	}
+}
