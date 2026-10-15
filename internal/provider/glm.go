@@ -4,11 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 )
 
 // GLM Coding Plan exposes several quota windows. The dashboard value is the
 // remaining percentage of the rolling five-hour window; longer windows reset
 // on a different schedule and must not be used as the account balance.
+//
+// Window identity: a rolling five-hour window always resets within five
+// hours, so nextResetTime is the reliable marker. The unit/number fields are
+// an opaque enum — an earlier revision read unit=5 as "5 hours" and kept
+// picking the monthly tool quota (search / web-reader / zread), which sits at
+// 100% almost always and hides real exhaustion. TIME_LIMIT entries are tool
+// time quotas and never the balance; TOKENS_LIMIT / CREDIT_LIMIT are.
 var glmSpec = Spec{
 	Key:         "glm",
 	Name:        "GLM",
@@ -27,8 +35,8 @@ var glmSpec = Spec{
 			return 0, errors.New("Could not parse data.limits field")
 		}
 
-		var fiveHour []float64
-		var legacy []float64
+		now := time.Now()
+		var rolling, balance, legacy []float64
 		for _, item := range limits {
 			limit := Object(item)
 			if limit == nil {
@@ -38,14 +46,23 @@ var glmSpec = Spec{
 			if !ok {
 				continue
 			}
-			if glmIsFiveHourWindow(limit) {
-				fiveHour = append(fiveHour, percent)
-			} else if !glmHasWindowMetadata(limit) {
+			switch {
+			case glmBalanceWindow(limit) && glmResetsWithin(limit, now, rollingWindowSlack):
+				rolling = append(rolling, percent)
+			case glmBalanceWindow(limit):
+				balance = append(balance, percent)
+			case !glmHasWindowMetadata(limit):
 				legacy = append(legacy, percent)
 			}
 		}
-		if len(fiveHour) > 0 {
-			return round2(minFloat(fiveHour)), nil
+		// A window that resets within hours is the rolling one; take the
+		// lowest so the tightest limit surfaces. Without a readable reset
+		// time, the lowest balance-type window is still the safest answer.
+		if len(rolling) > 0 {
+			return round2(minFloat(rolling)), nil
+		}
+		if len(balance) > 0 {
+			return round2(minFloat(balance)), nil
 		}
 		// Preserve compatibility with older responses that returned one
 		// unlabelled limit, but never guess when several labelled windows exist.
@@ -56,10 +73,33 @@ var glmSpec = Spec{
 	},
 }
 
-func glmIsFiveHourWindow(limit map[string]any) bool {
-	unit, hasUnit := jsonNum(limit["unit"])
-	number, hasNumber := jsonNum(limit["number"])
-	return hasUnit && hasNumber && unit == 5 && number == 1
+// rollingWindowSlack is how far out a reset may sit and still count as the
+// rolling window. Five hours of window plus an hour of clock skew.
+const rollingWindowSlack = 6 * time.Hour
+
+// glmBalanceWindow reports whether the entry is a token/credit quota — the
+// plan's balance — rather than a tool time quota.
+func glmBalanceWindow(limit map[string]any) bool {
+	switch limit["type"] {
+	case "TOKENS_LIMIT", "CREDIT_LIMIT":
+		return true
+	}
+	return false
+}
+
+// glmResetsWithin reports whether the window's reset timestamp falls inside
+// the next d. nextResetTime may arrive in milliseconds or seconds.
+func glmResetsWithin(limit map[string]any, now time.Time, d time.Duration) bool {
+	value, ok := jsonNum(limit["nextResetTime"])
+	if !ok || value <= 0 {
+		return false
+	}
+	seconds := value / 1000
+	if value < 1e12 { // already seconds
+		seconds = value
+	}
+	reset := time.Unix(int64(seconds), 0).UTC()
+	return reset.After(now) && reset.Sub(now) <= d
 }
 
 func glmHasWindowMetadata(limit map[string]any) bool {

@@ -2,19 +2,51 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 )
 
 func TestGLMFetch(t *testing.T) {
 	runSpecCases(t, glmSpec, []specCase{
 		{
-			// The longer window has less quota left, but the five-hour window is authoritative.
-			name: "多窗口固定取五小时窗口",
-			body: `{"code":200,"msg":"操作成功","success":true,"data":{"level":"pro","limits":[
+			// The monthly tool quota is full and its reset is weeks out; the
+			// rolling window is the TOKENS_LIMIT one resetting within hours.
+			// unit=5 does NOT mean five hours (that misread once pinned the
+			// balance at 100% forever).
+			name: "多窗口取正在滚动的五小时窗口",
+			body: fmt.Sprintf(`{"code":200,"msg":"操作成功","success":true,"data":{"level":"pro","limits":[
 				{"type":"TIME_LIMIT","unit":5,"number":1,"usage":1000,"currentValue":13,
-				 "remaining":987,"percentage":1,"nextResetTime":1790409645998},
-				{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":90}]}}`,
-			want: 98.7,
+				 "remaining":987,"percentage":1,"nextResetTime":%d},
+				{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":90,
+				 "nextResetTime":%d}]}}`,
+				time.Now().Add(240*time.Hour).UnixMilli(),
+				time.Now().Add(40*time.Minute).UnixMilli()),
+			want: 10,
+		},
+		{
+			// Captured from the live API on 2026-10-15: the tool quota sits at
+			// 100% while the rolling window has 47% used. The dashboard must
+			// report the rolling one.
+			name: "线上真实报文：工具配额 100% 时仍报滚动窗口",
+			body: fmt.Sprintf(`{"code":200,"msg":"操作成功","success":true,"data":{"level":"pro","limits":[
+				{"type":"TIME_LIMIT","unit":5,"number":1,"usage":1000,"currentValue":0,
+				 "remaining":1000,"percentage":0,"nextResetTime":%d},
+				{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":47,
+				 "nextResetTime":%d}]}}`,
+				time.Now().Add(250*time.Hour).UnixMilli(),
+				time.Now().Add(50*time.Minute).UnixMilli()),
+			want: 53,
+		},
+		{
+			// No reset timestamps at all: fall back to the lowest
+			// balance-type window instead of the tool quota.
+			name: "没有重置时间时取最低的 TOKENS/CREDIT 窗口",
+			body: `{"code":200,"success":true,"data":{"limits":[
+				{"type":"TIME_LIMIT","unit":5,"number":1,"usage":1000,"remaining":500},
+				{"type":"TOKENS_LIMIT","percentage":20},
+				{"type":"CREDIT_LIMIT","percentage":30}]}}`,
+			want: 70,
 		},
 		{
 			name: "新版 CREDIT_LIMIT 结构",
@@ -82,8 +114,9 @@ func TestGLMFetch(t *testing.T) {
 			errMsg: "data.limits contains no five-hour quota window",
 		},
 		{
-			name:   "没有五小时窗口时不猜测其他窗口",
-			body:   `{"code":200,"success":true,"data":{"limits":[{"type":"CREDIT_LIMIT","unit":3,"number":5,"percentage":20},{"type":"CREDIT_LIMIT","unit":6,"number":1,"percentage":30}]}}`,
+			// Tool time quotas alone are never the balance.
+			name:   "只有工具配额时不猜测",
+			body:   `{"code":200,"success":true,"data":{"limits":[{"type":"TIME_LIMIT","unit":5,"number":1,"percentage":20}]}}`,
 			errMsg: "data.limits contains no five-hour quota window",
 		},
 	})
