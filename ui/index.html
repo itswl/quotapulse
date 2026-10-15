@@ -532,7 +532,9 @@
                         <input type="text" id="project-name" required placeholder="e.g. volc-main" data-i18n-placeholder="project.name_placeholder">
                     </div>
                     <div class="form-group">
-                        <label for="project-provider" data-i18n="project.provider">Provider *</label>
+                        <label for="project-provider"><span data-i18n="project.provider">Provider *</span>
+                            <button type="button" class="link-btn" id="manage-providers-btn" data-i18n="providers.manage">Custom platforms…</button>
+                        </label>
                         <select id="project-provider" required></select>
                     </div>
                 </div>
@@ -557,6 +559,18 @@
                             <option value="credits" data-i18n="type.credits">Credits</option>
                             <option value="quota" data-i18n="project.type_quota_pct">Quota percentage</option>
                         </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="project-currency" data-i18n="project.currency">Currency</label>
+                        <input type="text" id="project-currency" maxlength="3" placeholder="Auto" data-i18n-placeholder="project.currency_placeholder">
+                        <p class="subsection-hint" id="project-currency-hint"></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-budget" data-i18n="project.budget">Monthly budget</label>
+                        <input type="number" id="project-budget" step="0.01" min="0" placeholder="No budget" data-i18n-placeholder="project.budget_placeholder">
                     </div>
                 </div>
 
@@ -722,5 +736,120 @@
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
     <script defer src="/static/app.js?v=__BUILD_ID__"></script>
+    <!-- Custom provider management -->
+    <div id="custom-provider-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="custom-provider-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="custom-provider-modal-title" data-i18n="providers.title">Custom platforms</h2>
+                <button class="modal-close js-close-custom-provider-modal" aria-label="Close" data-i18n-aria-label="common.close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+                </button>
+            </div>
+            <form id="custom-provider-form" class="modal-body" novalidate>
+                <input type="hidden" id="custom-provider-edit-mode" value="false">
+
+                <div id="custom-provider-list" class="chip-list"></div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="custom-provider-name" data-i18n="providers.name">Key *</label>
+                        <input type="text" id="custom-provider-name" required placeholder="my-platform" data-i18n-placeholder="providers.name_placeholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-provider-display" data-i18n="providers.display_name">Display name</label>
+                        <input type="text" id="custom-provider-display" placeholder="My Platform" data-i18n-placeholder="providers.display_placeholder">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="custom-provider-url" data-i18n="providers.url">Balance API URL *</label>
+                    <input type="url" id="custom-provider-url" required placeholder="https://api.example.com/balance">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="custom-provider-auth" data-i18n="providers.auth">API key goes in</label>
+                        <select id="custom-provider-auth">
+                            <option value="bearer" data-i18n="providers.auth_bearer">Authorization: Bearer</option>
+                            <option value="query" data-i18n="providers.auth_query">Query parameter</option>
+                            <option value="header" data-i18n="providers.auth_header">Named header</option>
+                            <option value="none" data-i18n="providers.auth_none">No key</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-provider-auth-param" data-i18n="providers.auth_param">Parameter / header name</label>
+                        <input type="text" id="custom-provider-auth-param" placeholder="apikey">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="custom-provider-type" data-i18n="providers.type">Balance type *</label>
+                        <select id="custom-provider-type">
+                            <option value="balance" data-i18n="type.balance">Balance</option>
+                            <option value="credits" data-i18n="type.credits">Credits</option>
+                            <option value="quota" data-i18n="project.type_quota_pct">Quota percentage</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-provider-currency" data-i18n="project.currency">Currency</label>
+                        <input type="text" id="custom-provider-currency" maxlength="3" placeholder="USD / CNY" data-i18n-placeholder="providers.currency_placeholder">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="custom-provider-path" data-i18n="providers.balance_path">JSON path to balance *</label>
+                        <input type="text" id="custom-provider-path" required placeholder="data.balance" data-i18n-placeholder="providers.path_placeholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-provider-scale" data-i18n="providers.scale">Multiplier</label>
+                        <input type="number" id="custom-provider-scale" step="any" min="0" placeholder="1">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="custom-provider-success-path" data-i18n="providers.success_path">Success field</label>
+                        <input type="text" id="custom-provider-success-path" placeholder="success" data-i18n-placeholder="providers.success_placeholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-provider-success-values" data-i18n="providers.success_values">Success values</label>
+                        <input type="text" id="custom-provider-success-values" placeholder="true,1,ok" data-i18n-placeholder="providers.success_values_placeholder">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="custom-provider-error-path" data-i18n="providers.error_path">Error message field</label>
+                    <input type="text" id="custom-provider-error-path" placeholder="message" data-i18n-placeholder="providers.error_placeholder">
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" class="btn-ghost btn-danger" id="delete-custom-provider-btn" style="display: none;" data-i18n="common.delete">Delete</button>
+                <button type="button" class="btn-ghost js-close-custom-provider-modal" data-i18n="common.cancel">Cancel</button>
+                <button type="button" class="btn-ghost" id="test-custom-provider-btn" data-i18n="providers.test">Test wiring</button>
+                <button type="button" class="btn-primary js-save-custom-provider" data-i18n="common.save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly cost breakdown -->
+    <div id="cost-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cost-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="cost-modal-title" data-i18n="costs.title">This month's spend</h2>
+                <button class="modal-close js-close-cost-modal" aria-label="Close" data-i18n-aria-label="common.close">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="cost-modal-body"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-primary js-close-cost-modal" data-i18n="common.done">Done</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

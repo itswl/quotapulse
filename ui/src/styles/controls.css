@@ -286,3 +286,57 @@
     border-color: transparent;
     color: var(--danger);
 }
+
+/* ==================== Custom providers & costs ==================== */
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0 0 0 0.5rem;
+  color: var(--accent, #4c7ef3);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-btn:hover { opacity: 0.8; }
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.chip-list:empty { display: none; }
+
+.chip-list .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d5dd);
+  background: var(--surface, #f5f7fb);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.chip-list .chip.active { border-color: var(--accent, #4c7ef3); }
+
+.cost-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+.cost-table th,
+.cost-table td {
+  text-align: right;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border, #e3e8f0);
+  white-space: nowrap;
+}
+
+.cost-table th:first-child,
+.cost-table td:first-child { text-align: left; }
+
+.cost-table tfoot td { font-weight: 600; }
+
+.cost-over { color: var(--danger, #d92d20); font-weight: 600; }

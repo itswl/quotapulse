@@ -3,7 +3,9 @@
 
 import { fetchJson, request } from './client.js';
 import type {
+  CostsSummaryResponse,
   CreditsResponse,
+  CustomProvidersResponse,
   EmailAlertRecord,
   EmailScanState,
   EmailSuppression,
@@ -36,6 +38,12 @@ export const getSubscriptions = (noCache = false): Promise<SubscriptionsResponse
     '/api/subscriptions',
     noCache ? { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } } : {},
   );
+
+export const getCustomProviders = (): Promise<CustomProvidersResponse> =>
+  request<CustomProvidersResponse>('/api/config/providers');
+
+export const getCostsSummary = (): Promise<CostsSummaryResponse> =>
+  request<CostsSummaryResponse>('/api/costs/summary');
 
 export const getSubscriptionsConfig = (): Promise<SubscriptionsConfigResponse> =>
   request<SubscriptionsConfigResponse>('/api/config/subscriptions');
@@ -86,6 +94,10 @@ export const runEmailScan = (days: number): Promise<EmailScanState> =>
 export const ENDPOINTS = {
   saveProject: '/api/config/project',
   deleteProject: '/api/config/project/delete',
+  listCustomProviders: '/api/config/providers',
+  saveCustomProvider: '/api/config/provider',
+  deleteCustomProvider: '/api/config/provider/delete',
+  testCustomProvider: '/api/config/provider/test',
   addSubscription: '/api/subscription/add',
   updateSubscription: '/api/config/subscription',
   deleteSubscription: '/api/subscription/delete',

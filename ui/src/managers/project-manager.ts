@@ -17,7 +17,8 @@ import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'project-modal';
 
-/** The provider list rarely changes; fetch once and cache */
+/** The provider list rarely changes; fetch once and cache. Custom platforms
+ * save through their own manager, which calls invalidateProviderCache. */
 let providers: ProviderOption[] = [];
 
 async function loadProviders(): Promise<ProviderOption[]> {
@@ -29,6 +30,11 @@ async function loadProviders(): Promise<ProviderOption[]> {
     console.warn('Failed to load provider list:', error);
   }
   return providers;
+}
+
+/** Drop the cached dropdown so newly saved custom platforms appear. */
+export function invalidateProviderCache(): void {
+  providers = [];
 }
 
 function fillProviderOptions(selected = ''): void {
@@ -55,6 +61,16 @@ function syncTypeHint(): void {
   if (hint) {
     hint.textContent = typeSelect?.value === 'quota' ? t('project.hint_quota') : t('project.hint_balance');
   }
+  const currencyInput = inputById('project-currency');
+  const currencyHint = byId('project-currency-hint');
+  if (currencyInput && currencyHint) {
+    const quota = typeSelect?.value === 'quota';
+    currencyInput.disabled = quota;
+    if (quota) currencyInput.value = '';
+    currencyHint.textContent = !quota && known?.currency && !currencyInput.value
+      ? t('project.currency_default', { currency: known.currency })
+      : '';
+  }
 }
 
 export async function openProjectModal(project: ProjectConfig | null = null): Promise<void> {
@@ -77,6 +93,8 @@ export async function openProjectModal(project: ProjectConfig | null = null): Pr
   selectById('project-provider').disabled = isEdit;
   setInputValue('project-threshold', project?.threshold ?? '');
   typeSelect.value = project?.type ?? '';
+  setInputValue('project-currency', project?.currency ?? '');
+  setInputValue('project-budget', project?.monthly_budget ? String(project.monthly_budget) : '');
   setInputValue('project-owner', project?.owner_project ?? '');
   setChecked('project-enabled', project ? project.enabled !== false : true);
   setInputValue('project-api-key', '');
@@ -108,6 +126,7 @@ async function saveProject(event: Event): Promise<void> {
 
   const threshold = inputById('project-threshold').value;
   const typeValue = selectById('project-type').value;
+  const budget = inputById('project-budget').value;
 
   const data: ProjectPayload = {
     name: inputValue('project-name'),
@@ -119,6 +138,9 @@ async function saveProject(event: Event): Promise<void> {
   if (threshold !== '') data.threshold = Number.parseFloat(threshold);
   const apiKey = inputValue('project-api-key');
   if (apiKey) data.api_key = apiKey;
+  const currency = inputValue('project-currency').trim().toUpperCase();
+  if (currency) data.currency = currency;
+  if (budget !== '') data.monthly_budget = Number.parseFloat(budget);
 
   const result = await mutate(ENDPOINTS.saveProject, data, {
     success: isEdit ? t('project.updated') : t('project.added'),

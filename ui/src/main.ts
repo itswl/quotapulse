@@ -13,6 +13,10 @@ import { byId, debounce, onClick, selectById } from './dom.js';
 import { loadData, loadFeatures, refreshNow, startAutoRefresh, stopAutoRefresh } from './data.js';
 import { bindEmailManager, deleteEmail, editEmail, suppressEmail, unsuppressEmail } from './managers/email-manager.js';
 import { bindProjectManager, deleteProject, editProject } from './managers/project-manager.js';
+import { bindCustomProviderManager, setProviderCacheInvalidator } from './managers/customprovider-manager.js';
+import { invalidateProviderCache } from './managers/project-manager.js';
+import { bindCostModal } from './ui/costs.js';
+import { bindCostTile } from './ui/stats.js';
 import { bindSettingsManager } from './managers/settings-manager.js';
 import {
   bindSubscriptionManager,
@@ -125,6 +129,10 @@ function bindEvents(): void {
 
   bindCardActions();
   bindProjectManager();
+  bindCustomProviderManager();
+  setProviderCacheInvalidator(invalidateProviderCache);
+  bindCostModal();
+  bindCostTile();
   bindSubscriptionManager();
   bindEmailManager();
   bindSettingsManager();

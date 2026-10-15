@@ -1,6 +1,9 @@
 /** Top overview numbers: total, healthy, alert, shortest runway, last update. */
 
 import { byId, setText } from '../dom.js';
+import { getCostsSummary } from '../api/endpoints.js';
+import type { CostSummary } from '../api/types.js';
+import { showCostModal } from './costs.js';
 import { formatCurrency, formatDays, formatRunway, getRelativeTime, needsAttention } from '../format.js';
 import { t } from '../i18n/index.js';
 import { AppState } from '../state.js';
@@ -109,6 +112,8 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null, unav
     setText('sub-due-30', '—');
     setText('sub-renewed', '—');
     setText('sub-cost', '—');
+    // even without subscriptions, measured history can still price the month
+    void refreshMeasuredCost();
     return;
   }
 
@@ -135,7 +140,38 @@ export function updateSubscriptionStats(data: SubscriptionsResponse | null, unav
     due30Value.className = `stat-value${due30.length > 0 ? ' runway-warning' : ''}`;
   }
   setText('sub-renewed', String(renewed));
+  // the subscriptions estimate is the fallback; measured history wins when the
+  // database is on
   setText('sub-cost', formatCurrency(cost));
+  void refreshMeasuredCost();
+}
+
+/* ==================== Measured monthly cost ==================== */
+
+let lastSummary: CostSummary | null = null;
+
+/** The tile shows measured month-to-date spend in the base currency when
+ * balance history exists, and stays on the subscription estimate otherwise. */
+export async function refreshMeasuredCost(): Promise<void> {
+  const tile = byId('sub-cost');
+  if (!tile) return;
+  if (AppState.features.database === false) return;
+  try {
+    const result = await getCostsSummary();
+    lastSummary = result.summary;
+    tile.textContent = `${result.summary.total_base.toLocaleString()} ${result.summary.base_currency}`;
+    const over = (result.summary.projects || []).some((p) => p.over_budget);
+    tile.className = `stat-value${over ? ' runway-danger' : ''}`;
+  } catch {
+    // no history (or not enabled): keep the subscription estimate
+  }
+}
+
+/** Clicking the tile opens the per-project breakdown. */
+export function bindCostTile(): void {
+  byId('sub-cost')?.addEventListener('click', () => {
+    if (lastSummary) showCostModal(lastSummary);
+  });
 }
 
 /* ==================== Switcher badges ==================== */

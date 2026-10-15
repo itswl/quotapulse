@@ -199,6 +199,7 @@ export interface ProviderOption {
   value: string;
   label: string;
   default_type: BalanceType;
+  currency?: string;
 }
 
 export interface ProvidersResponse {
@@ -215,6 +216,8 @@ export interface ProjectConfig {
   api_key: string;
   threshold: number;
   type: BalanceType;
+  currency?: string;
+  monthly_budget?: number;
   owner_project: string | null;
   enabled: boolean;
   from_env?: boolean;
@@ -234,6 +237,8 @@ export interface ProjectPayload {
   enabled: boolean;
   threshold?: number;
   api_key?: string;
+  currency?: string;
+  monthly_budget?: number;
 }
 
 // ==================== /api/config/emails ====================
@@ -426,4 +431,83 @@ export interface JobState {
 export interface JobsResponse {
   healthy: boolean;
   jobs: JobState[];
+}
+
+// ==================== Custom providers ====================
+
+/** A page-defined platform: one GET, a JSON path to the balance, and how the key travels. */
+export interface CustomProviderConfig {
+  name: string;
+  display_name: string;
+  url: string;
+  auth_mode: 'bearer' | 'query' | 'header' | 'none';
+  auth_param?: string;
+  default_type: BalanceType;
+  currency?: string;
+  balance_path: string;
+  balance_scale?: number;
+  success_path?: string;
+  success_values?: string;
+  error_path?: string;
+  from_db?: boolean;
+}
+
+export interface CustomProvidersResponse {
+  status: 'success';
+  providers: CustomProviderConfig[];
+}
+
+/** POST /api/config/provider payload: name identifies; fields are optional on update. */
+export interface CustomProviderPayload {
+  name: string;
+  display_name?: string;
+  url?: string;
+  auth_mode?: string;
+  auth_param?: string;
+  default_type?: BalanceType;
+  currency?: string;
+  balance_path?: string;
+  balance_scale?: number;
+  success_path?: string;
+  success_values?: string;
+  error_path?: string;
+}
+
+export interface CustomProviderTestPayload extends CustomProviderPayload {
+  api_key?: string;
+}
+
+export interface CustomProviderTestResponse {
+  status: 'success';
+  message: string;
+  value: number;
+  type: BalanceType;
+}
+
+// ==================== Costs ====================
+
+export interface ProjectSpend {
+  project: string;
+  provider: string;
+  currency: string | null;
+  spend: number;
+  spend_base: number;
+  budget?: number;
+  projected: number;
+  over_budget: boolean;
+}
+
+export interface CostSummary {
+  month: string;
+  base_currency: string;
+  days_elapsed: number;
+  days_in_month: number;
+  projects: ProjectSpend[];
+  total_base: number;
+  unknown_fx?: string[];
+}
+
+export interface CostsSummaryResponse {
+  status: 'success';
+  summary: CostSummary;
 }
