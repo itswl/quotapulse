@@ -40,3 +40,8 @@ k8s/*-secret.yaml
 *~
 .DS_Store
 Thumbs.db
+
+# Host-specific deployment files (never commit)
+docker-compose.override.yml
+docker-compose.override.yml.bak*
+.env.bak*
