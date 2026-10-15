@@ -99,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 
 	// core read endpoints
 	mux.HandleFunc("GET /api/features", s.handleFeatures)
+	mux.HandleFunc("GET /api/costs/summary", s.handleCostsSummary)
 	mux.HandleFunc("GET /api/credits", s.handleCredits)
 	mux.HandleFunc("GET /api/subscriptions", s.handleSubscriptions)
 	mux.HandleFunc("GET /api/jobs", s.handleJobs)
@@ -116,6 +117,10 @@ func (s *Server) Handler() http.Handler {
 
 	// project config
 	mux.HandleFunc("GET /api/providers", s.handleProviders)
+	mux.HandleFunc("GET /api/config/providers", s.handleListCustomProviders)
+	mux.HandleFunc("POST /api/config/provider", s.handleSaveCustomProvider)
+	mux.HandleFunc("POST /api/config/provider/delete", s.handleDeleteCustomProvider)
+	mux.HandleFunc("POST /api/config/provider/test", s.handleTestCustomProvider)
 	mux.HandleFunc("GET /api/config/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/config/project", s.handleSaveProject)
 	mux.HandleFunc("POST /api/config/project/delete", s.handleDeleteProject)

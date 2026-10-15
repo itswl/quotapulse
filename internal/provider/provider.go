@@ -40,6 +40,7 @@ type Info struct {
 	Key         string `json:"value"`
 	Name        string `json:"label"`
 	DefaultType string `json:"default_type"`
+	Currency    string `json:"currency,omitempty"`
 }
 
 var registry = map[string]struct {
@@ -49,20 +50,30 @@ var registry = map[string]struct {
 
 // Register adds a platform; called from each adapter's init.
 func Register(key, name, defaultType string, factory Factory) {
+	RegisterWithCurrency(key, name, defaultType, "", factory)
+}
+
+// RegisterWithCurrency adds a platform whose balance is a monetary amount in
+// the given ISO currency; empty means quota percent or credits without a
+// known currency.
+func RegisterWithCurrency(key, name, defaultType, currency string, factory Factory) {
 	registry[key] = struct {
 		info    Info
 		factory Factory
-	}{Info{Key: key, Name: name, DefaultType: defaultType}, factory}
+	}{Info{Key: key, Name: name, DefaultType: defaultType, Currency: currency}, factory}
 }
 
 // New creates an adapter by platform name.
 func New(key, apiKey string, client *Client) (Provider, error) {
+	if client == nil {
+		client = NewClient(DefaultTimeout)
+	}
+	if spec, ok := lookupSpec(key); ok {
+		return &specProvider{spec: spec, apiKey: apiKey, client: client}, nil
+	}
 	entry, ok := registry[key]
 	if !ok {
 		return nil, fmt.Errorf("Unknown provider: %s. Supported providers: %s", key, strings.Join(Keys(), ", "))
-	}
-	if client == nil {
-		client = NewClient(DefaultTimeout)
 	}
 	return entry.factory(apiKey, client)
 }
@@ -73,14 +84,19 @@ func Keys() []string {
 	for k := range registry {
 		keys = append(keys, k)
 	}
+	keys = append(keys, dynamicKeys()...)
 	sort.Strings(keys)
 	return keys
 }
 
 // All returns every platform's metadata, sorted by name.
 func All() []Info {
-	out := make([]Info, 0, len(registry))
+	out := make([]Info, 0, len(registry)+8)
 	for _, k := range Keys() {
+		if spec, ok := lookupSpec(k); ok {
+			out = append(out, Info{Key: spec.Key, Name: spec.Name, DefaultType: spec.DefaultType, Currency: spec.Currency})
+			continue
+		}
 		out = append(out, registry[k].info)
 	}
 	return out
@@ -88,6 +104,9 @@ func All() []Info {
 
 // Lookup returns one platform's metadata.
 func Lookup(key string) (Info, bool) {
+	if spec, ok := lookupSpec(key); ok {
+		return Info{Key: spec.Key, Name: spec.Name, DefaultType: spec.DefaultType, Currency: spec.Currency}, true
+	}
 	entry, ok := registry[key]
 	return entry.info, ok
 }
@@ -231,6 +250,8 @@ type AuthMode int
 const (
 	AuthBearer AuthMode = iota // Authorization: Bearer <key>
 	AuthQuery                  // appended to the query string
+	AuthHeader                 // a named request header, e.g. X-API-Key
+	AuthNone                   // key never leaves the project row
 )
 
 // Spec declares a "one GET, read one number from JSON" balance API.
@@ -238,6 +259,7 @@ type Spec struct {
 	Key         string // registry name, e.g. deepseek
 	Name        string // display name, e.g. DeepSeek
 	DefaultType string // balance type: balance / credits / quota
+	Currency    string // native currency of the balance; empty for quota percents
 	URL         string
 	Auth        AuthMode
 	AuthParam   string // parameter name when Auth is AuthQuery
@@ -252,7 +274,7 @@ type Spec struct {
 
 // RegisterSpec registers a platform declaratively via Spec.
 func RegisterSpec(spec Spec) {
-	Register(spec.Key, spec.Name, spec.DefaultType, func(apiKey string, client *Client) (Provider, error) {
+	RegisterWithCurrency(spec.Key, spec.Name, spec.DefaultType, spec.Currency, func(apiKey string, client *Client) (Provider, error) {
 		return &specProvider{spec: spec, apiKey: apiKey, client: client}, nil
 	})
 }
@@ -272,10 +294,13 @@ func (p *specProvider) Fetch(ctx context.Context) (float64, error) {
 	for k, v := range p.spec.Params {
 		params[k] = v
 	}
-	if p.spec.Auth == AuthBearer {
+	switch p.spec.Auth {
+	case AuthBearer:
 		headers["Authorization"] = "Bearer " + p.apiKey
-	} else {
+	case AuthQuery:
 		params[p.spec.AuthParam] = p.apiKey
+	case AuthHeader:
+		headers[p.spec.AuthParam] = p.apiKey
 	}
 
 	data, err := p.client.GetJSON(ctx, p.spec.URL, headers, params)

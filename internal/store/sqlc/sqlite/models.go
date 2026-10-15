@@ -37,6 +37,24 @@ type BalanceHistory struct {
 	Timestamp   sql.NullTime
 }
 
+type CustomProviderConfig struct {
+	ID            int64
+	Name          string
+	DisplayName   sql.NullString
+	Url           string
+	AuthMode      string
+	AuthParam     sql.NullString
+	DefaultType   string
+	Currency      sql.NullString
+	BalancePath   string
+	BalanceScale  sql.NullFloat64
+	SuccessPath   sql.NullString
+	SuccessValues sql.NullString
+	ErrorPath     sql.NullString
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+}
+
 type EmailAlertHistory struct {
 	ID              int64
 	Mailbox         string
@@ -71,16 +89,18 @@ type EmailSuppression struct {
 }
 
 type ProjectConfig struct {
-	ID           int64
-	Name         string
-	OwnerProject sql.NullString
-	Provider     string
-	ApiKey       string
-	Threshold    sql.NullFloat64
-	Type         sql.NullString
-	Enabled      sql.NullBool
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	ID            int64
+	Name          string
+	OwnerProject  sql.NullString
+	Provider      string
+	ApiKey        string
+	Threshold     sql.NullFloat64
+	Type          sql.NullString
+	Currency      sql.NullString
+	MonthlyBudget sql.NullFloat64
+	Enabled       sql.NullBool
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
 }
 
 type PushSubscription struct {

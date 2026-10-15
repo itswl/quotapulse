@@ -247,3 +247,19 @@ func (e sqliteQuerier) getAppSetting(ctx context.Context, key string) (string, e
 func (e sqliteQuerier) setAppSetting(ctx context.Context, arg setAppSettingParams) error {
 	return e.q.SetAppSetting(ctx, gen.SetAppSettingParams(arg))
 }
+
+func (e sqliteQuerier) listCustomProviders(ctx context.Context) ([]customProviderRow, error) {
+	rows, err := e.q.ListCustomProviders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapRows(rows, func(r gen.CustomProviderConfig) customProviderRow { return customProviderRow(r) }), nil
+}
+
+func (e sqliteQuerier) upsertCustomProvider(ctx context.Context, arg upsertCustomProviderParams) error {
+	return e.q.UpsertCustomProvider(ctx, gen.UpsertCustomProviderParams(arg))
+}
+
+func (e sqliteQuerier) deleteCustomProvider(ctx context.Context, name string) error {
+	return e.q.DeleteCustomProvider(ctx, name)
+}

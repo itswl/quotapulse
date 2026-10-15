@@ -62,6 +62,11 @@ type Settings struct {
 	WebhookType   string
 	WebhookSource string
 
+	// Cost view: everything converts into the base currency using FXRates
+	// ("1 unit of X = N base"), e.g. "USD=7.16,EUR=7.85".
+	BaseCurrency string
+	FXRates      string
+
 	// in-process scheduled jobs; times follow the process-local timezone (TZ inside a container)
 	AlertSchedule          string
 	EmailScanSchedule      string
@@ -140,6 +145,9 @@ const (
 	DefaultJobFailureAlertThreshold = 3
 	DefaultJobTimeoutSeconds        = 600
 	DefaultBackupKeep               = 7
+
+	// DefaultBaseCurrency is what totals display in when BASE_CURRENCY is unset.
+	DefaultBaseCurrency = "CNY"
 )
 
 // Load reads settings from the environment and validates them. Bad config fails startup instead of silently behaving differently.
@@ -166,6 +174,8 @@ func Load() (*Settings, error) {
 		WebhookURL:    e.text("WEBHOOK_URL", ""),
 		WebhookType:   e.text("WEBHOOK_TYPE", ""),
 		WebhookSource: e.text("WEBHOOK_SOURCE", ""),
+		BaseCurrency:  strings.ToUpper(strings.TrimSpace(e.text("BASE_CURRENCY", DefaultBaseCurrency))),
+		FXRates:       e.text("FX_RATES", ""),
 
 		AlertSchedule:          e.text("ALERT_SCHEDULE", "09:00,15:00"),
 		EmailScanSchedule:      e.text("EMAIL_SCAN_SCHEDULE", "10:00"),
@@ -296,6 +306,32 @@ func (s *Settings) AlertKeywordExtras() []string { return splitList(s.EmailExtra
 
 // CORSOriginList is the comma-separated allowlist.
 func (s *Settings) CORSOriginList() []string { return splitList(s.CORSOrigins) }
+
+// BaseCurrencyValue returns the display currency, defaulting to CNY.
+func (s *Settings) BaseCurrencyValue() string {
+	if v := strings.ToUpper(strings.TrimSpace(s.BaseCurrency)); v != "" {
+		return v
+	}
+	return DefaultBaseCurrency
+}
+
+// FXTable parses FX_RATES into a lookup of "1 unit of X = N base". Entries
+// failing to parse are skipped; the self-rate (base=1) is always present.
+func (s *Settings) FXTable() map[string]float64 {
+	table := map[string]float64{s.BaseCurrencyValue(): 1}
+	for _, item := range splitList(s.FXRates) {
+		code, raw, found := strings.Cut(item, "=")
+		if !found {
+			continue
+		}
+		rate, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+		if err != nil || rate <= 0 {
+			continue
+		}
+		table[strings.ToUpper(strings.TrimSpace(code))] = rate
+	}
+	return table
+}
 
 // JobFailureAlertThresholdValue is how many consecutive job failures trigger one
 // escalation webhook; zero disables escalation entirely.

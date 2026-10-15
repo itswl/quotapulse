@@ -43,6 +43,7 @@ const (
 	KindRunway       = "runway"
 	KindSpendSpike   = "spend_spike"
 	KindWeeklyReport = "weekly_report"
+	KindBudget       = "budget"
 	KindTest         = "test"
 	KindJobFailure   = "job_failure"
 	KindCheckFailed  = "check_failed"

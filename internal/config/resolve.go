@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/itswl/quotapulse/internal/model"
+	"github.com/itswl/quotapulse/internal/provider"
 	"github.com/itswl/quotapulse/internal/store"
 )
 
@@ -41,7 +42,39 @@ func (r *Resolver) Load(ctx context.Context) model.Config {
 	cfg.Projects = append(cfg.Projects, DiscoverProjects(cfg.Projects)...)
 	cfg.Mailboxes = append(cfg.Mailboxes, DiscoverMailboxes(cfg.Mailboxes)...)
 	r.normalize(&cfg)
+	r.registerCustomProviders(ctx)
 	return cfg
+}
+
+// CustomProviders lists the page-defined platforms from the database.
+func (r *Resolver) CustomProviders(ctx context.Context) []model.CustomProvider {
+	if !r.settings.EnableDynamicConfig {
+		return nil
+	}
+	list, err := r.store.ListCustomProviders(ctx)
+	if err != nil {
+		r.log.Warn("Failed to read custom provider configuration", "error", err)
+		return nil
+	}
+	return list
+}
+
+// registerCustomProviders swaps the dynamic provider registry. Called on
+// every Load so page edits apply to the next check round without a restart.
+func (r *Resolver) registerCustomProviders(ctx context.Context) {
+	list := r.CustomProviders(ctx)
+	specs := make([]provider.Spec, 0, len(list))
+	for _, custom := range list {
+		spec, err := provider.SpecFromCustomProvider(custom)
+		if err != nil {
+			r.log.Warn("Skipping invalid custom provider", "name", custom.Name, "error", err)
+			continue
+		}
+		specs = append(specs, spec)
+	}
+	if err := provider.ReplaceDynamic(specs); err != nil {
+		r.log.Error("Failed to register custom providers", "error", err)
+	}
 }
 
 func (r *Resolver) fromDatabase(ctx context.Context) model.Config {

@@ -8,6 +8,7 @@ var tikhubSpec = Spec{
 	Name:        "TikHub",
 	DefaultType: "balance",
 	URL:         "https://api.tikhub.dev/api/v1/tikhub/user/get_user_info",
+	Currency:    "USD",
 	Headers:     map[string]string{"accept": "application/json"},
 	Extract: func(data map[string]any) (float64, error) {
 		// the API changed shape: balance may sit under user_data, data or the top level; try in this order

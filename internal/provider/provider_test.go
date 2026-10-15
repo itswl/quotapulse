@@ -110,13 +110,13 @@ func assertFloat(t *testing.T, got, want float64) {
 func TestRegistry(t *testing.T) {
 	// display names and default balance types enter the database and page dropdowns; changes strand existing data
 	want := []Info{
-		{Key: "aliyun", Name: "Alibaba Cloud", DefaultType: "balance"},
-		{Key: "deepseek", Name: "DeepSeek", DefaultType: "balance"},
+		{Key: "aliyun", Name: "Alibaba Cloud", DefaultType: "balance", Currency: "CNY"},
+		{Key: "deepseek", Name: "DeepSeek", DefaultType: "balance", Currency: "CNY"},
 		{Key: "glm", Name: "GLM", DefaultType: "quota"},
-		{Key: "openrouter", Name: "OpenRouter", DefaultType: "credits"},
-		{Key: "tikhub", Name: "TikHub", DefaultType: "balance"},
-		{Key: "uniapi", Name: "UniAPI", DefaultType: "credits"},
-		{Key: "volc", Name: "Volcengine", DefaultType: "balance"},
+		{Key: "openrouter", Name: "OpenRouter", DefaultType: "credits", Currency: "USD"},
+		{Key: "tikhub", Name: "TikHub", DefaultType: "balance", Currency: "USD"},
+		{Key: "uniapi", Name: "UniAPI", DefaultType: "credits", Currency: "USD"},
+		{Key: "volc", Name: "Volcengine", DefaultType: "balance", Currency: "CNY"},
 		{Key: "wxrank", Name: "WxRank", DefaultType: "credits"},
 	}
 	got := All()

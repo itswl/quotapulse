@@ -77,6 +77,8 @@ The most important variables are:
 | `ENABLE_PROMETHEUS` / `METRICS_PORT` | `false` / `9100` | Expose Prometheus metrics |
 | `BURN_RATE_WINDOW_DAYS` / `RUNWAY_ALERT_DAYS` | `7` / `7` | Runway calculation and alert threshold |
 | `SPEND_SPIKE_RATIO` | `3` | Spending-spike multiplier; `0` disables the alert |
+| `BASE_CURRENCY` | `CNY` | Display currency of the monthly cost view |
+| `FX_RATES` | — | Conversion into the base currency, e.g. `USD=7.16,EUR=7.85`; unset currencies stay native |
 | `ALERT_COOLDOWN_SECONDS` | `86400` | Per-alert notification cooldown |
 | `JOB_FAILURE_ALERT_THRESHOLD` | `3` | Consecutive failures before a job escalates to the webhook; `0` disables |
 | `JOB_TIMEOUT_SECONDS` | `600` | Per-run timeout for scheduled jobs; `0` disables |

@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS project_config (
     api_key TEXT NOT NULL,
     threshold DOUBLE,
     type VARCHAR(20),
+    currency VARCHAR(10),
+    monthly_budget DOUBLE,
     enabled BOOLEAN,
     created_at DATETIME,
     updated_at DATETIME,
@@ -131,3 +133,22 @@ CREATE TABLE IF NOT EXISTS app_settings (
     setting_value TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS custom_provider_config (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    display_name VARCHAR(100),
+    url TEXT NOT NULL,
+    auth_mode VARCHAR(10) NOT NULL,
+    auth_param VARCHAR(50),
+    default_type VARCHAR(20) NOT NULL,
+    currency VARCHAR(10),
+    balance_path VARCHAR(200) NOT NULL,
+    balance_scale DOUBLE,
+    success_path VARCHAR(200),
+    success_values VARCHAR(200),
+    error_path VARCHAR(200),
+    created_at DATETIME,
+    updated_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_custom_provider_config_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

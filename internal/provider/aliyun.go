@@ -37,7 +37,7 @@ type aliyunProvider struct {
 }
 
 func init() {
-	Register("aliyun", "Alibaba Cloud", "balance", func(apiKey string, client *Client) (Provider, error) {
+	RegisterWithCurrency("aliyun", "Alibaba Cloud", "balance", "CNY", func(apiKey string, client *Client) (Provider, error) {
 		id, secret, err := SplitKeyPair(apiKey, "Alibaba Cloud", "AccessKeyId:AccessKeySecret")
 		if err != nil {
 			return nil, err

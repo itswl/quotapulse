@@ -22,6 +22,13 @@ import (
 // dynamic-config endpoints can be exercised end to end.
 func newServerWithDB(t *testing.T, tweak func(*config.Settings)) (*Server, http.Handler, store.Store) {
 	t.Helper()
+	return newServerWithDBPath(t, tweak, nil)
+}
+
+// newServerWithDBPath additionally reports the SQLite file path for tests
+// that seed raw rows.
+func newServerWithDBPath(t *testing.T, tweak func(*config.Settings), onPath func(string)) (*Server, http.Handler, store.Store) {
+	t.Helper()
 	settings := &config.Settings{
 		WebAPIKey: testAPIKey, AppVersion: "1.0.0",
 		RequestTimeout: 5, ResponseCacheTTL: 0,
@@ -30,8 +37,12 @@ func newServerWithDB(t *testing.T, tweak func(*config.Settings)) (*Server, http.
 	if tweak != nil {
 		tweak(settings)
 	}
+	dbPath := filepath.Join(t.TempDir(), "httpapi_test.db")
+	if onPath != nil {
+		onPath(dbPath)
+	}
 	st, err := store.Open(context.Background(), store.Options{
-		DatabaseURL: "sqlite:///" + filepath.Join(t.TempDir(), "httpapi_test.db"),
+		DatabaseURL: "sqlite:///" + dbPath,
 	})
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)

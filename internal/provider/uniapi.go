@@ -8,6 +8,7 @@ var uniapiSpec = Spec{
 	Name:        "UniAPI",
 	DefaultType: "credits",
 	URL:         "https://api.uniapi.io/v1/billing/usage",
+	Currency:    "USD",
 	Params:      map[string]string{"unit": "usd"},
 	Check: func(data map[string]any) error {
 		if !truthy(data["success"]) {

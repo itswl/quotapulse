@@ -165,6 +165,15 @@ func (q *Queries) CountRecentEmailAlerts(ctx context.Context, arg CountRecentEma
 	return count, err
 }
 
+const deleteCustomProvider = `-- name: DeleteCustomProvider :exec
+DELETE FROM custom_provider_config WHERE name = ?
+`
+
+func (q *Queries) DeleteCustomProvider(ctx context.Context, name string) error {
+	_, err := q.db.ExecContext(ctx, deleteCustomProvider, name)
+	return err
+}
+
 const deleteEmailConfig = `-- name: DeleteEmailConfig :exec
 DELETE FROM email_config WHERE name = ?
 `
@@ -516,6 +525,49 @@ func (q *Queries) ListBalanceTrend(ctx context.Context, arg ListBalanceTrendPara
 	return items, nil
 }
 
+const listCustomProviders = `-- name: ListCustomProviders :many
+SELECT id, name, display_name, url, auth_mode, auth_param, default_type, currency, balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at FROM custom_provider_config ORDER BY id
+`
+
+func (q *Queries) ListCustomProviders(ctx context.Context) ([]CustomProviderConfig, error) {
+	rows, err := q.db.QueryContext(ctx, listCustomProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CustomProviderConfig{}
+	for rows.Next() {
+		var i CustomProviderConfig
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.DisplayName,
+			&i.Url,
+			&i.AuthMode,
+			&i.AuthParam,
+			&i.DefaultType,
+			&i.Currency,
+			&i.BalancePath,
+			&i.BalanceScale,
+			&i.SuccessPath,
+			&i.SuccessValues,
+			&i.ErrorPath,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEmailAlertHistory = `-- name: ListEmailAlertHistory :many
 SELECT id, mailbox, sender, subject, date, service_name, amount, matched_keywords, alert_sent, timestamp FROM email_alert_history
 WHERE ` + "`" + `timestamp` + "`" + ` >= ?
@@ -641,7 +693,7 @@ func (q *Queries) ListEmailSuppressions(ctx context.Context) ([]ListEmailSuppres
 
 const listProjectConfigs = `-- name: ListProjectConfigs :many
 
-SELECT id, name, owner_project, provider, api_key, threshold, type, enabled, created_at, updated_at FROM project_config ORDER BY id
+SELECT id, name, owner_project, provider, api_key, threshold, type, currency, monthly_budget, enabled, created_at, updated_at FROM project_config ORDER BY id
 `
 
 // NOTE: keep this file ASCII-only. sqlc computes byte offsets from rune positions
@@ -664,6 +716,8 @@ func (q *Queries) ListProjectConfigs(ctx context.Context) ([]ProjectConfig, erro
 			&i.ApiKey,
 			&i.Threshold,
 			&i.Type,
+			&i.Currency,
+			&i.MonthlyBudget,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -841,6 +895,63 @@ func (q *Queries) UpdateSubscriptionWebhook(ctx context.Context, arg UpdateSubsc
 	return err
 }
 
+const upsertCustomProvider = `-- name: UpsertCustomProvider :exec
+INSERT INTO custom_provider_config (
+    name, display_name, url, auth_mode, auth_param, default_type, currency,
+    balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    display_name = VALUES(display_name),
+    url = VALUES(url),
+    auth_mode = VALUES(auth_mode),
+    auth_param = VALUES(auth_param),
+    default_type = VALUES(default_type),
+    currency = VALUES(currency),
+    balance_path = VALUES(balance_path),
+    balance_scale = VALUES(balance_scale),
+    success_path = VALUES(success_path),
+    success_values = VALUES(success_values),
+    error_path = VALUES(error_path),
+    updated_at = VALUES(updated_at)
+`
+
+type UpsertCustomProviderParams struct {
+	Name          string
+	DisplayName   sql.NullString
+	Url           string
+	AuthMode      string
+	AuthParam     sql.NullString
+	DefaultType   string
+	Currency      sql.NullString
+	BalancePath   string
+	BalanceScale  sql.NullFloat64
+	SuccessPath   sql.NullString
+	SuccessValues sql.NullString
+	ErrorPath     sql.NullString
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+}
+
+func (q *Queries) UpsertCustomProvider(ctx context.Context, arg UpsertCustomProviderParams) error {
+	_, err := q.db.ExecContext(ctx, upsertCustomProvider,
+		arg.Name,
+		arg.DisplayName,
+		arg.Url,
+		arg.AuthMode,
+		arg.AuthParam,
+		arg.DefaultType,
+		arg.Currency,
+		arg.BalancePath,
+		arg.BalanceScale,
+		arg.SuccessPath,
+		arg.SuccessValues,
+		arg.ErrorPath,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
 const upsertEmailConfig = `-- name: UpsertEmailConfig :exec
 INSERT INTO email_config (
     name, host, port, username, password, use_ssl, enabled, created_at, updated_at
@@ -884,28 +995,32 @@ func (q *Queries) UpsertEmailConfig(ctx context.Context, arg UpsertEmailConfigPa
 
 const upsertProjectConfig = `-- name: UpsertProjectConfig :exec
 INSERT INTO project_config (
-    name, owner_project, provider, api_key, threshold, type, enabled, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    name, owner_project, provider, api_key, threshold, type, currency, monthly_budget, enabled, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
     owner_project = VALUES(owner_project),
     provider = VALUES(provider),
     api_key = VALUES(api_key),
     threshold = VALUES(threshold),
     type = VALUES(type),
+    currency = VALUES(currency),
+    monthly_budget = VALUES(monthly_budget),
     enabled = VALUES(enabled),
     updated_at = VALUES(updated_at)
 `
 
 type UpsertProjectConfigParams struct {
-	Name         string
-	OwnerProject sql.NullString
-	Provider     string
-	ApiKey       string
-	Threshold    sql.NullFloat64
-	Type         sql.NullString
-	Enabled      sql.NullBool
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	Name          string
+	OwnerProject  sql.NullString
+	Provider      string
+	ApiKey        string
+	Threshold     sql.NullFloat64
+	Type          sql.NullString
+	Currency      sql.NullString
+	MonthlyBudget sql.NullFloat64
+	Enabled       sql.NullBool
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
 }
 
 func (q *Queries) UpsertProjectConfig(ctx context.Context, arg UpsertProjectConfigParams) error {
@@ -916,6 +1031,8 @@ func (q *Queries) UpsertProjectConfig(ctx context.Context, arg UpsertProjectConf
 		arg.ApiKey,
 		arg.Threshold,
 		arg.Type,
+		arg.Currency,
+		arg.MonthlyBudget,
 		arg.Enabled,
 		arg.CreatedAt,
 		arg.UpdatedAt,

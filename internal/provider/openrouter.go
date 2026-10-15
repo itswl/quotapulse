@@ -8,6 +8,7 @@ var openRouterSpec = Spec{
 	Name:        "OpenRouter",
 	DefaultType: "credits",
 	URL:         "https://openrouter.ai/api/v1/credits",
+	Currency:    "USD",
 	Extract: func(data map[string]any) (float64, error) {
 		// both response shapes have been seen: fields under data, or flat at the top level
 		scope := data

@@ -8,6 +8,7 @@ var deepseekSpec = Spec{
 	Name:        "DeepSeek",
 	DefaultType: "balance",
 	URL:         "https://api.deepseek.com/user/balance",
+	Currency:    "CNY",
 	Headers:     map[string]string{"Accept": "application/json"},
 	Extract: func(data map[string]any) (float64, error) {
 		infos, ok := data["balance_infos"].([]any)

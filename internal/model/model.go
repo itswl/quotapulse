@@ -22,14 +22,16 @@ const (
 
 // Project is one monitored account.
 type Project struct {
-	Name         string  `json:"name"`
-	Provider     string  `json:"provider"`
-	APIKey       string  `json:"api_key"`
-	Threshold    float64 `json:"threshold"`
-	Type         string  `json:"type"`
-	OwnerProject *string `json:"owner_project"`
-	Enabled      bool    `json:"enabled"`
-	FromEnv      bool    `json:"from_env,omitempty"` // auto-discovered from environment variables; read-only on the dashboard
+	Name          string  `json:"name"`
+	Provider      string  `json:"provider"`
+	APIKey        string  `json:"api_key"`
+	Threshold     float64 `json:"threshold"`
+	Type          string  `json:"type"`
+	Currency      string  `json:"currency,omitempty"`       // empty = the provider's default; quota types carry none
+	MonthlyBudget float64 `json:"monthly_budget,omitempty"` // in the project's currency; 0 = no budget
+	OwnerProject  *string `json:"owner_project"`
+	Enabled       bool    `json:"enabled"`
+	FromEnv       bool    `json:"from_env,omitempty"` // auto-discovered from environment variables; read-only on the dashboard
 }
 
 // ID is the project's stable identity across history tables and alert cooldowns.
@@ -337,3 +339,27 @@ type PushSubscription struct {
 	P256dh   string `json:"p256dh"`
 	Auth     string `json:"auth"`
 }
+
+// CustomProvider is a zero-code platform integration defined on the page: one
+// GET, a JSON path to the balance, and how the API key travels.
+type CustomProvider struct {
+	Name          string  `json:"name"`
+	DisplayName   string  `json:"display_name"`
+	URL           string  `json:"url"`
+	AuthMode      string  `json:"auth_mode"`
+	AuthParam     string  `json:"auth_param,omitempty"`
+	DefaultType   string  `json:"default_type"`
+	Currency      string  `json:"currency,omitempty"`
+	BalancePath   string  `json:"balance_path"`
+	BalanceScale  float64 `json:"balance_scale,omitempty"`
+	SuccessPath   string  `json:"success_path,omitempty"`
+	SuccessValues string  `json:"success_values,omitempty"`
+	ErrorPath     string  `json:"error_path,omitempty"`
+	FromDB        bool    `json:"from_db"`
+}
+
+// CustomProviderKey is the registry key of a custom provider.
+func CustomProviderKey(name string) string { return "custom:" + name }
+
+// AlertBudget is the budget-pace alert's cooldown key.
+const AlertBudget = "budget"

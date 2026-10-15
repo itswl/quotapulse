@@ -7,14 +7,16 @@ SELECT * FROM project_config ORDER BY id;
 
 -- name: UpsertProjectConfig :exec
 INSERT INTO project_config (
-    name, owner_project, provider, api_key, threshold, type, enabled, created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    name, owner_project, provider, api_key, threshold, type, currency, monthly_budget, enabled, created_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (name) DO UPDATE SET
     owner_project = excluded.owner_project,
     provider = excluded.provider,
     api_key = excluded.api_key,
     threshold = excluded.threshold,
     type = excluded.type,
+    currency = excluded.currency,
+    monthly_budget = excluded.monthly_budget,
     enabled = excluded.enabled,
     updated_at = excluded.updated_at;
 
@@ -186,3 +188,27 @@ SELECT setting_value FROM app_settings WHERE setting_key = $1;
 INSERT INTO app_settings (setting_key, setting_value) VALUES ($1, $2)
 ON CONFLICT (setting_key) DO UPDATE SET setting_value = excluded.setting_value;
 
+-- name: ListCustomProviders :many
+SELECT * FROM custom_provider_config ORDER BY id;
+
+-- name: UpsertCustomProvider :exec
+INSERT INTO custom_provider_config (
+    name, display_name, url, auth_mode, auth_param, default_type, currency,
+    balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = excluded.display_name,
+    url = excluded.url,
+    auth_mode = excluded.auth_mode,
+    auth_param = excluded.auth_param,
+    default_type = excluded.default_type,
+    currency = excluded.currency,
+    balance_path = excluded.balance_path,
+    balance_scale = excluded.balance_scale,
+    success_path = excluded.success_path,
+    success_values = excluded.success_values,
+    error_path = excluded.error_path,
+    updated_at = excluded.updated_at;
+
+-- name: DeleteCustomProvider :exec
+DELETE FROM custom_provider_config WHERE name = $1;

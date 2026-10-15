@@ -139,13 +139,15 @@ func (s *sqlStore) ListProjects(ctx context.Context) ([]model.Project, error) {
 	out := make([]model.Project, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, model.Project{
-			Name:         row.Name,
-			Provider:     row.Provider,
-			APIKey:       s.cipher.decrypt(row.ApiKey),
-			Threshold:    row.Threshold.Float64,
-			Type:         row.Type.String,
-			OwnerProject: model.OwnerProjectOf(row.OwnerProject.String),
-			Enabled:      row.Enabled.Bool,
+			Name:          row.Name,
+			Provider:      row.Provider,
+			APIKey:        s.cipher.decrypt(row.ApiKey),
+			Threshold:     row.Threshold.Float64,
+			Type:          row.Type.String,
+			Currency:      row.Currency.String,
+			MonthlyBudget: row.MonthlyBudget.Float64,
+			OwnerProject:  model.OwnerProjectOf(row.OwnerProject.String),
+			Enabled:       row.Enabled.Bool,
 		})
 	}
 	return out, nil
@@ -154,20 +156,74 @@ func (s *sqlStore) ListProjects(ctx context.Context) ([]model.Project, error) {
 func (s *sqlStore) UpsertProject(ctx context.Context, p model.Project) error {
 	now := time.Now().UTC()
 	return s.q.upsertProjectConfig(ctx, upsertProjectParams{
-		Name:         p.Name,
-		OwnerProject: nullStringOf(p.OwnerProject),
-		Provider:     p.Provider,
-		ApiKey:       s.cipher.encrypt(p.APIKey),
-		Threshold:    sql.NullFloat64{Float64: p.Threshold, Valid: true},
-		Type:         sql.NullString{String: p.Type, Valid: true},
-		Enabled:      sql.NullBool{Bool: p.Enabled, Valid: true},
-		CreatedAt:    nullTime(now),
-		UpdatedAt:    nullTime(now),
+		Name:          p.Name,
+		OwnerProject:  nullStringOf(p.OwnerProject),
+		Provider:      p.Provider,
+		ApiKey:        s.cipher.encrypt(p.APIKey),
+		Threshold:     sql.NullFloat64{Float64: p.Threshold, Valid: true},
+		Type:          sql.NullString{String: p.Type, Valid: true},
+		Currency:      sql.NullString{String: p.Currency, Valid: true},
+		MonthlyBudget: sql.NullFloat64{Float64: p.MonthlyBudget, Valid: true},
+		Enabled:       sql.NullBool{Bool: p.Enabled, Valid: true},
+		CreatedAt:     nullTime(now),
+		UpdatedAt:     nullTime(now),
 	})
 }
 
 func (s *sqlStore) DeleteProject(ctx context.Context, name string) error {
 	return s.q.deleteProjectConfig(ctx, name)
+}
+
+// ---------- Custom providers ----------
+
+func (s *sqlStore) ListCustomProviders(ctx context.Context) ([]model.CustomProvider, error) {
+	rows, err := s.q.listCustomProviders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.CustomProvider, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, model.CustomProvider{
+			Name:          row.Name,
+			DisplayName:   row.DisplayName.String,
+			URL:           row.Url,
+			AuthMode:      row.AuthMode,
+			AuthParam:     row.AuthParam.String,
+			DefaultType:   row.DefaultType,
+			Currency:      row.Currency.String,
+			BalancePath:   row.BalancePath,
+			BalanceScale:  row.BalanceScale.Float64,
+			SuccessPath:   row.SuccessPath.String,
+			SuccessValues: row.SuccessValues.String,
+			ErrorPath:     row.ErrorPath.String,
+			FromDB:        true,
+		})
+	}
+	return out, nil
+}
+
+func (s *sqlStore) UpsertCustomProvider(ctx context.Context, p model.CustomProvider) error {
+	now := time.Now().UTC()
+	return s.q.upsertCustomProvider(ctx, upsertCustomProviderParams{
+		Name:          p.Name,
+		DisplayName:   nullStringOf(model.OwnerProjectOf(p.DisplayName)),
+		Url:           p.URL,
+		AuthMode:      p.AuthMode,
+		AuthParam:     nullStringOf(model.OwnerProjectOf(p.AuthParam)),
+		DefaultType:   p.DefaultType,
+		Currency:      nullStringOf(model.OwnerProjectOf(p.Currency)),
+		BalancePath:   p.BalancePath,
+		BalanceScale:  sql.NullFloat64{Float64: p.BalanceScale, Valid: true},
+		SuccessPath:   nullStringOf(model.OwnerProjectOf(p.SuccessPath)),
+		SuccessValues: nullStringOf(model.OwnerProjectOf(p.SuccessValues)),
+		ErrorPath:     nullStringOf(model.OwnerProjectOf(p.ErrorPath)),
+		CreatedAt:     nullTime(now),
+		UpdatedAt:     nullTime(now),
+	})
+}
+
+func (s *sqlStore) DeleteCustomProvider(ctx context.Context, name string) error {
+	return s.q.deleteCustomProvider(ctx, name)
 }
 
 // ---------- Subscription config ----------

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
+	"github.com/itswl/quotapulse/internal/cost"
 	"github.com/itswl/quotapulse/internal/model"
 	"github.com/itswl/quotapulse/internal/notify"
 	"github.com/itswl/quotapulse/internal/provider"
@@ -34,6 +35,7 @@ type Monitor struct {
 	Push     *push.Manager
 	Client   *provider.Client
 	Alerter  *runway.Alerter
+	Budget   *cost.Alerter
 	Log      *slog.Logger
 
 	// OnNotify fires once per notification, for metrics. Optional.
@@ -75,7 +77,7 @@ func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Out
 	results := m.checkAll(ctx, projects, dryRun)
 
 	outcome := Outcome{Results: results}
-	outcome.Runways, outcome.Sent = m.analyze(ctx, results, dryRun)
+	outcome.Runways, outcome.Sent = m.analyze(ctx, projects, results, dryRun)
 
 	m.logSummary(results, time.Since(started))
 	return outcome, nil
@@ -264,7 +266,9 @@ func (m *Monitor) recordAlert(ctx context.Context, projectID string, p model.Pro
 
 // analyze runs trend analysis after the round: attach profiles and send runway /
 // spike alerts. Without a database there is no history and this does nothing.
-func (m *Monitor) analyze(ctx context.Context, results []model.CheckResult, dryRun bool) (map[string]model.Runway, runway.Sent) {
+func (m *Monitor) analyze(ctx context.Context, projects []model.Project, results []model.CheckResult, dryRun bool) (map[string]model.Runway, runway.Sent) {
+	m.checkBudgets(ctx, projects, dryRun)
+
 	series, err := m.Store.BalanceSeries(ctx, m.Settings.BurnRateWindowDays)
 	if err != nil {
 		m.log().Warn("Failed to read balance history; skipping trend analysis", "error", err)
@@ -280,6 +284,30 @@ func (m *Monitor) analyze(ctx context.Context, results []model.CheckResult, dryR
 		return runways, runway.Sent{}
 	}
 	return runways, m.Alerter.Check(ctx, results, dryRun)
+}
+
+// checkBudgets runs the budget-pace alerts; without history or budgets it is
+// a no-op.
+func (m *Monitor) checkBudgets(ctx context.Context, projects []model.Project, dryRun bool) {
+	if m.Budget == nil || m.Store == nil || !m.Store.Enabled() {
+		return
+	}
+	m.Budget.Check(ctx, projects, currencyOfProject, dryRun)
+}
+
+// currencyOfProject resolves a project's native currency: an explicit
+// override wins, then the provider's default; quota percents carry none.
+func currencyOfProject(p model.Project) string {
+	if p.Type == model.TypeQuota {
+		return ""
+	}
+	if p.Currency != "" {
+		return p.Currency
+	}
+	if info, ok := provider.Lookup(p.Provider); ok {
+		return info.Currency
+	}
+	return ""
 }
 
 // failure reports a check that could not read the balance. Outside dry runs it also

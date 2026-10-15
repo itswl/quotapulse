@@ -18,9 +18,16 @@ func Null() Store { return nullStore{} }
 
 type nullStore struct{}
 
-func (nullStore) ListProjects(context.Context) ([]model.Project, error)           { return nil, nil }
-func (nullStore) UpsertProject(context.Context, model.Project) error              { return ErrDisabled }
-func (nullStore) DeleteProject(context.Context, string) error                     { return ErrDisabled }
+func (nullStore) ListProjects(context.Context) ([]model.Project, error) { return nil, nil }
+func (nullStore) UpsertProject(context.Context, model.Project) error    { return ErrDisabled }
+func (nullStore) DeleteProject(context.Context, string) error           { return ErrDisabled }
+func (nullStore) ListCustomProviders(context.Context) ([]model.CustomProvider, error) {
+	return nil, nil
+}
+func (nullStore) UpsertCustomProvider(context.Context, model.CustomProvider) error {
+	return ErrDisabled
+}
+func (nullStore) DeleteCustomProvider(context.Context, string) error              { return ErrDisabled }
 func (nullStore) ListSubscriptions(context.Context) ([]model.Subscription, error) { return nil, nil }
 func (nullStore) UpsertSubscription(context.Context, model.Subscription) error    { return ErrDisabled }
 func (nullStore) DeleteSubscription(context.Context, string) error                { return ErrDisabled }

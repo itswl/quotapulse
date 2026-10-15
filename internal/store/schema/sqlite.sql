@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS project_config (
     api_key TEXT NOT NULL,
     threshold FLOAT,
     type VARCHAR(20),
+    currency VARCHAR(10),
+    monthly_budget FLOAT,
     enabled BOOLEAN,
     created_at DATETIME,
     updated_at DATETIME,
@@ -135,3 +137,22 @@ CREATE TABLE IF NOT EXISTS app_settings (
     setting_value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS custom_provider_config (
+    id INTEGER NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    display_name VARCHAR(100),
+    url TEXT NOT NULL,
+    auth_mode VARCHAR(10) NOT NULL,
+    auth_param VARCHAR(50),
+    default_type VARCHAR(20) NOT NULL,
+    currency VARCHAR(10),
+    balance_path VARCHAR(200) NOT NULL,
+    balance_scale FLOAT,
+    success_path VARCHAR(200),
+    success_values VARCHAR(200),
+    error_path VARCHAR(200),
+    created_at DATETIME,
+    updated_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE (name)
+);

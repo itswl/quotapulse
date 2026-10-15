@@ -38,6 +38,8 @@ func ensureColumns(ctx context.Context, db *sql.DB) error {
 		"ALTER TABLE subscription_config ADD COLUMN snoozed_until VARCHAR(20)",
 		"ALTER TABLE subscription_config ADD COLUMN timezone VARCHAR(50)",
 		"ALTER TABLE subscription_config ADD COLUMN webhook_url TEXT",
+		"ALTER TABLE project_config ADD COLUMN currency VARCHAR(10)",
+		"ALTER TABLE project_config ADD COLUMN monthly_budget DOUBLE PRECISION",
 	} {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "already exists") {

@@ -7,14 +7,16 @@ SELECT * FROM project_config ORDER BY id;
 
 -- name: UpsertProjectConfig :exec
 INSERT INTO project_config (
-    name, owner_project, provider, api_key, threshold, type, enabled, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    name, owner_project, provider, api_key, threshold, type, currency, monthly_budget, enabled, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
     owner_project = VALUES(owner_project),
     provider = VALUES(provider),
     api_key = VALUES(api_key),
     threshold = VALUES(threshold),
     type = VALUES(type),
+    currency = VALUES(currency),
+    monthly_budget = VALUES(monthly_budget),
     enabled = VALUES(enabled),
     updated_at = VALUES(updated_at);
 
@@ -183,3 +185,27 @@ SELECT setting_value FROM app_settings WHERE setting_key = ?;
 INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
+-- name: ListCustomProviders :many
+SELECT * FROM custom_provider_config ORDER BY id;
+
+-- name: UpsertCustomProvider :exec
+INSERT INTO custom_provider_config (
+    name, display_name, url, auth_mode, auth_param, default_type, currency,
+    balance_path, balance_scale, success_path, success_values, error_path, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    display_name = VALUES(display_name),
+    url = VALUES(url),
+    auth_mode = VALUES(auth_mode),
+    auth_param = VALUES(auth_param),
+    default_type = VALUES(default_type),
+    currency = VALUES(currency),
+    balance_path = VALUES(balance_path),
+    balance_scale = VALUES(balance_scale),
+    success_path = VALUES(success_path),
+    success_values = VALUES(success_values),
+    error_path = VALUES(error_path),
+    updated_at = VALUES(updated_at);
+
+-- name: DeleteCustomProvider :exec
+DELETE FROM custom_provider_config WHERE name = ?;

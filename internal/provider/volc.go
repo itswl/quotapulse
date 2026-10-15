@@ -43,7 +43,7 @@ type volcProvider struct {
 }
 
 func init() {
-	Register("volc", "Volcengine", "balance", func(apiKey string, client *Client) (Provider, error) {
+	RegisterWithCurrency("volc", "Volcengine", "balance", "CNY", func(apiKey string, client *Client) (Provider, error) {
 		ak, sk, err := SplitKeyPair(apiKey, "Volcengine", "AK:SK")
 		if err != nil {
 			return nil, err

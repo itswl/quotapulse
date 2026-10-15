@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
+	"github.com/itswl/quotapulse/internal/cost"
 	"github.com/itswl/quotapulse/internal/httpapi"
 	"github.com/itswl/quotapulse/internal/mailscan"
 	"github.com/itswl/quotapulse/internal/mcpserver"
@@ -95,6 +96,12 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 			SpikeRatio:      settings.SpendSpikeRatio,
 			SpikeMinAmount:  settings.SpendSpikeMinAmount,
 			Cooldown:        time.Duration(settings.CooldownSeconds("balance")) * time.Second,
+		},
+		Budget: &cost.Alerter{
+			Store:           st,
+			Notifier:        notifier,
+			Log:             log,
+			CooldownSeconds: settings.CooldownSeconds("balance"),
 		},
 	}
 	app.Subs = &subscription.Checker{

@@ -26,6 +26,9 @@ type Store interface {
 	ListProjects(ctx context.Context) ([]model.Project, error)
 	UpsertProject(ctx context.Context, p model.Project) error
 	DeleteProject(ctx context.Context, name string) error
+	ListCustomProviders(ctx context.Context) ([]model.CustomProvider, error)
+	UpsertCustomProvider(ctx context.Context, p model.CustomProvider) error
+	DeleteCustomProvider(ctx context.Context, name string) error
 
 	ListSubscriptions(ctx context.Context) ([]model.Subscription, error)
 	UpsertSubscription(ctx context.Context, s model.Subscription) error

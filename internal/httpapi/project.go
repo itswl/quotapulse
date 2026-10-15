@@ -27,14 +27,16 @@ func (s *Server) handleProviders(w http.ResponseWriter, r *http.Request) {
 
 // maskedProject is the external shape of a project config; the key is always masked.
 type maskedProject struct {
-	Name         string  `json:"name"`
-	Provider     string  `json:"provider"`
-	APIKey       string  `json:"api_key"`
-	Threshold    float64 `json:"threshold"`
-	Type         string  `json:"type"`
-	OwnerProject *string `json:"owner_project"`
-	Enabled      bool    `json:"enabled"`
-	FromEnv      bool    `json:"from_env"`
+	Name          string  `json:"name"`
+	Provider      string  `json:"provider"`
+	APIKey        string  `json:"api_key"`
+	Threshold     float64 `json:"threshold"`
+	Type          string  `json:"type"`
+	Currency      string  `json:"currency,omitempty"`
+	MonthlyBudget float64 `json:"monthly_budget,omitempty"`
+	OwnerProject  *string `json:"owner_project"`
+	Enabled       bool    `json:"enabled"`
+	FromEnv       bool    `json:"from_env"`
 }
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +45,8 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	for _, p := range cfg.Projects {
 		projects = append(projects, maskedProject{
 			Name: p.Name, Provider: p.Provider, APIKey: maskSecret(p.APIKey, 4, 4),
-			Threshold: p.Threshold, Type: p.Type, OwnerProject: p.OwnerProject,
+			Threshold: p.Threshold, Type: p.Type, Currency: p.Currency,
+			MonthlyBudget: p.MonthlyBudget, OwnerProject: p.OwnerProject,
 			Enabled: p.Enabled, FromEnv: p.FromEnv,
 		})
 	}
@@ -51,13 +54,15 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 type projectRequest struct {
-	Name         string   `json:"name"`
-	Provider     *string  `json:"provider"`
-	APIKey       *string  `json:"api_key"`
-	Threshold    *float64 `json:"threshold"`
-	Type         *string  `json:"type"`
-	OwnerProject *string  `json:"owner_project"`
-	Enabled      *bool    `json:"enabled"`
+	Name          string   `json:"name"`
+	Provider      *string  `json:"provider"`
+	APIKey        *string  `json:"api_key"`
+	Threshold     *float64 `json:"threshold"`
+	Type          *string  `json:"type"`
+	Currency      *string  `json:"currency"`
+	MonthlyBudget *float64 `json:"monthly_budget"`
+	OwnerProject  *string  `json:"owner_project"`
+	Enabled       *bool    `json:"enabled"`
 }
 
 // handleSaveProject creates or updates a project. name is the unique key; updates
@@ -138,6 +143,15 @@ func applyProjectPatch(target *model.Project, body projectRequest) {
 	}
 	if body.Type != nil && *body.Type != "" {
 		target.Type = *body.Type
+	}
+	if body.Currency != nil {
+		target.Currency = strings.ToUpper(trimSpace(*body.Currency))
+	}
+	if body.MonthlyBudget != nil {
+		if *body.MonthlyBudget < 0 {
+			*body.MonthlyBudget = 0
+		}
+		target.MonthlyBudget = *body.MonthlyBudget
 	}
 	if body.OwnerProject != nil {
 		target.OwnerProject = model.OwnerProjectOf(*body.OwnerProject)

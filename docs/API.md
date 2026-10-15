@@ -41,6 +41,11 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `POST /api/subscription/clear_renewed` | Removes the renewal mark from `{"name":"..."}` | Subscriptions, dynamic configuration |
 | `GET /api/providers` | Supported providers and default balance types | — |
 | `GET /api/config/projects` | Project configuration with redacted keys | — |
+| `GET /api/config/providers` | Custom (page-defined) platforms | — |
+| `POST /api/config/provider` | Create or update a custom platform: one GET, a `balance_path` JSON pointer (dot syntax, numeric array indexes), optional `balance_scale`, `auth_mode` (`bearer`/`query`/`header`/`none` + `auth_param`), `default_type`, `currency`, and optional `success_path`/`success_values`/`error_path` validation | Dynamic configuration |
+| `POST /api/config/provider/test` | Runs a (possibly unsaved) definition once against its real endpoint with the given `api_key`; returns the extracted balance or the failure verbatim | Dynamic configuration |
+| `POST /api/config/provider/delete` | Delete `{"name":"..."}`; refused while a project still uses it | Dynamic configuration |
+| `GET /api/costs/summary` | Monthly cost view: per-project month-to-date spend (native and base currency), budget pace and month-end projection; accepts `month=YYYY-MM` | History API |
 | `POST /api/config/project` | Create or update a project; empty `api_key` preserves an existing key | Dynamic configuration |
 | `POST /api/config/project/delete` | Delete `{"name":"..." }`; auto-discovered projects cannot be deleted | Dynamic configuration |
 | `POST /api/config/threshold` | Update only a threshold: `{"project_name":"...","new_threshold":0}` | Dynamic configuration |
