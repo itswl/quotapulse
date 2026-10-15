@@ -7,10 +7,10 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// maxScanDays is how far back an immediate scan looks. Beyond that, read the mailbox itself.
 const maxScanDays = 30
 
-// Implementation note.
+// maskedMailbox is the external shape of a mailbox config; the password only says whether one is set.
 type maskedMailbox struct {
 	Name     string `json:"name"`
 	Host     string `json:"host"`
@@ -48,8 +48,9 @@ type mailboxRequest struct {
 	Enabled  *bool   `json:"enabled"`
 }
 
-// Implementation note.
-// Implementation note.
+// handleSaveMailbox creates or updates a mailbox. An empty password on update means
+// unchanged: the page shows asterisks and resubmitting them must not overwrite the
+// real password.
 func (s *Server) handleSaveMailbox(w http.ResponseWriter, r *http.Request) {
 	if !s.requireDynamicConfig(w, "mailboxes") {
 		return
@@ -78,7 +79,7 @@ func (s *Server) handleSaveMailbox(w http.ResponseWriter, r *http.Request) {
 	if body.Username != nil && *body.Username != "" {
 		target.Username = trimSpace(*body.Username)
 	}
-	// Implementation note.
+	// asterisks are display placeholders, never write them back as the password
 	if body.Password != nil && trimSpace(*body.Password) != "" && trimSpace(*body.Password) != "***" {
 		target.Password = *body.Password
 	}
@@ -162,7 +163,7 @@ type scanRequest struct {
 	Days *int `json:"days"`
 }
 
-// Implementation note.
+// handleEmailScan scans all enabled mailboxes immediately and writes results into dashboard state.
 func (s *Server) handleEmailScan(w http.ResponseWriter, r *http.Request) {
 	days := 1
 	if r.ContentLength > 0 {

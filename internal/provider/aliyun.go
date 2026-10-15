@@ -15,9 +15,10 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Aliyun reports the account's available credit (CNY). Signing is the old RPC
+// style: sort parameters into a canonical string and sign with HMAC-SHA1. The
+// algorithm is the API's requirement, not our choice — only the newer APIs use
+// V3/HMAC-SHA256.
 const (
 	aliyunEndpoint = "business.aliyuncs.com"
 	aliyunAction   = "QueryAccountBalance"
@@ -30,7 +31,7 @@ type aliyunProvider struct {
 	accessKeySecret string
 	client          *Client
 	baseURL         string
-	// Implementation note.
+	// now and nonce are swappable so tests can pin signature results
 	now   func() time.Time
 	nonce func() string
 }
@@ -61,8 +62,9 @@ func (p *aliyunProvider) Fetch(ctx context.Context) (float64, error) {
 	return aliyunExtractAmount(data)
 }
 
-// Implementation note.
-// Implementation note.
+// aliyunExtractAmount parses the balance. Aliyun's API versions return different
+// shapes: both the Code-wrapped standard structure and the legacy one with a
+// bare balance field must parse.
 func aliyunExtractAmount(data map[string]any) (float64, error) {
 	if code, ok := data["Code"]; ok && code != nil && !aliyunCodeOK(code) {
 		return 0, fmt.Errorf("API returned an error: %s (Code: %s)",
@@ -80,7 +82,7 @@ func aliyunExtractAmount(data map[string]any) (float64, error) {
 		if candidate == nil {
 			continue
 		}
-		// Implementation note.
+		// amounts may be strings with thousands separators ("1,234.56"); Num already handles commas
 		if amount, ok := Num(candidate); ok {
 			return amount, nil
 		}
@@ -89,7 +91,7 @@ func aliyunExtractAmount(data map[string]any) (float64, error) {
 	return 0, fmt.Errorf("Could not parse balance field, response: %s", formatValue(data))
 }
 
-// Implementation note.
+// aliyunCodeOK checks the business code: string "Success", number 200 and string "200" all count as success.
 func aliyunCodeOK(code any) bool {
 	if s, ok := code.(string); ok && s == "Success" {
 		return true
@@ -110,8 +112,9 @@ func (p *aliyunProvider) request(ctx context.Context) (map[string]any, error) {
 		return nil, err
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// the status code is deliberately not checked: Aliyun returns business errors
+	// as 4xx + JSON, and failing early on status would replace useful "invalid
+	// AccessKey" details with a bare HTTP 400
 	_, body, err := fetchBody(p.client, req)
 	if err != nil {
 		return nil, err
@@ -119,7 +122,7 @@ func (p *aliyunProvider) request(ctx context.Context) (map[string]any, error) {
 	return parseJSONObject(body)
 }
 
-// Implementation note.
+// buildParams assembles the fully signed request parameters.
 func (p *aliyunProvider) buildParams(now time.Time, nonce string) map[string]string {
 	params := map[string]string{
 		"Action":           aliyunAction,
@@ -135,7 +138,7 @@ func (p *aliyunProvider) buildParams(now time.Time, nonce string) map[string]str
 	return params
 }
 
-// Implementation note.
+// sign computes the RPC signature: canonical query string -> string-to-sign -> HMAC-SHA1 -> base64.
 func (p *aliyunProvider) sign(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for key := range params {
@@ -149,22 +152,22 @@ func (p *aliyunProvider) sign(params map[string]string) string {
 	}
 	canonicalQuery := strings.Join(pairs, "&")
 
-	// Implementation note.
+	// the string-to-sign re-encodes the whole query string; "/" becomes %2F too
 	stringToSign := "GET&" + percentEncode("/") + "&" + percentEncode(canonicalQuery)
 
-	// Implementation note.
+	// the trailing & on the key is Aliyun's rule, not a typo
 	mac := hmac.New(sha1.New, []byte(p.accessKeySecret+"&"))
 	mac.Write([]byte(stringToSign))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// Implementation note.
-// Implementation note.
+// aliyunNonce generates a v4 UUID as SignatureNonce. Aliyun only needs it unique
+// (anti-replay); the standard library suffices — not worth a dependency.
 func aliyunNonce() string {
 	var b [16]byte
-	// Implementation note.
+	// crypto/rand.Read never fails; it panics on its own
 	_, _ = rand.Read(b[:])
-	b[6] = (b[6] & 0x0f) | 0x40 // operation 4
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // RFC 4122 variant
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

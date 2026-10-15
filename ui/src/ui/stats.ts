@@ -1,4 +1,4 @@
-/* Implementation note. */
+/** Top overview numbers: total, healthy, alert, shortest runway, last update. */
 
 import { byId, setText } from '../dom.js';
 import { formatCurrency, formatDays, formatRunway, getRelativeTime, needsAttention } from '../format.js';
@@ -7,7 +7,7 @@ import { AppState } from '../state.js';
 import type { CheckResult, CreditsResponse, SubscriptionsResponse, SubscriptionResult } from '../api/types.js';
 import { sortSubscriptionsByNextDate } from './subscriptions.js';
 
-/* Implementation note. */
+/** The account that runs out first; null when nothing is estimable */
 export function shortestRunway(projects: CheckResult[]): CheckResult | null {
   const ranked = projects
     .filter((p) => p.success && p.runway && p.runway.runway_days !== null && p.runway.runway_days !== undefined)
@@ -27,8 +27,10 @@ export function updateStats(data: CreditsResponse): void {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Projects whose query failed count as neither Healthy nor Alert; when
+ * Total disagrees with the parts, this explains it. It hangs on the Alert
+ * card's label instead of taking up its own tile.
  */
 export function updateFailedHint(projects: CheckResult[]): void {
   const label = byId('alert-projects-label');

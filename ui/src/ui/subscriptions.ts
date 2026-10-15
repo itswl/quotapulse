@@ -1,4 +1,4 @@
-/* Implementation note. */
+/** Subscription reminders: one per row, days remaining on the right. */
 
 import { requireById } from '../dom.js';
 import { cycleLabel, escapeAttr, escapeHTML, formatCurrency, formatUntil, lunarDateLabel, renewalUrgency } from '../format.js';
@@ -45,7 +45,7 @@ export function renderSubscriptionCard(sub: SubscriptionResult): string {
   const subName = sub.name || t('subs.unknown');
   const subNameAttr = escapeAttr(subName);
 
-  // Implementation note.
+  // renewed ones get "cancel mark", unrenewed get "mark renewed"; mutually exclusive
   const renewalAction = sub.already_renewed
     ? `
                         <button class="action-icon-btn js-clear-renewed" data-name="${subNameAttr}" title="${escapeAttr(t('subs.clear_renewed'))}">

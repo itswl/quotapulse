@@ -10,36 +10,41 @@ import (
 	"strings"
 
 	"github.com/emersion/go-message"
-	// Implementation note.
-	// Implementation note.
+	// register GBK / Big5 / ISO-8859 charsets: Chinese billing mails use GBK heavily;
+	// without registration subjects and bodies turn to mojibake and no keyword ever
+	// matches.
 	_ "github.com/emersion/go-message/charset"
 )
 
-// Implementation note.
+// maxPartDepth caps MIME nesting: real mails stop at two or three levels; this gate is for crafted deep nesting.
 const maxPartDepth = 10
 
-// Implementation note.
+// htmlTag matches HTML tags, replaced with spaces rather than deleted — tags are often the only separator between words.
 var htmlTag = regexp.MustCompile(`<[^>]+>`)
 
-// Implementation note.
+// parsedMessage is what scanning needs from one mail.
 type parsedMessage struct {
-	ID      string // operation
+	ID      string // dedup key within this scan
 	Subject string
 	Sender  string
 	Date    string
 	Body    string
 }
 
-// Implementation note.
-// Implementation note.
+// parseMessage parses one RFC822 raw message. The returned parsedMessage is
+// always usable; the error only says the mail is malformed and worth a log
+// line.
 //
-// Implementation note.
-// Implementation note.
+// On an unrecognized charset or transfer encoding message.Read still yields
+// a readable Entity, which is used as-is: unknown bytes become replacement
+// characters, better than dropping the whole mail — the keywords usually
+// survive in the decodable part.
 func parseMessage(raw []byte) (parsedMessage, error) {
 	ent, err := message.Read(bytes.NewReader(raw))
 	if ent == nil {
-		// Implementation note.
-		// Implementation note.
+		// when headers are too broken to parse, scan the raw message as the body —
+		// keywords still match. Dedup keys fall back to a digest of the raw bytes, or
+		// every broken mail collapses into one ID.
 		sum := md5.Sum(raw)
 		return parsedMessage{ID: hex.EncodeToString(sum[:]), Body: string(raw)}, fmt.Errorf("Failed to parse email: %w", err)
 	}
@@ -52,8 +57,9 @@ func parseMessage(raw []byte) (parsedMessage, error) {
 	}, nil
 }
 
-// Implementation note.
-// Implementation note.
+// headerText decodes MIME-encoded headers (=?utf-8?B?...?=) and falls back to the
+// raw bytes — a half-readable header still beats an empty string; at least logs
+// show who sent it.
 func headerText(h *message.Header, key string) string {
 	value, err := h.Text(key)
 	if err != nil {
@@ -62,8 +68,9 @@ func headerText(h *message.Header, key string) string {
 	return value
 }
 
-// Implementation note.
-// Implementation note.
+// messageID prefers Message-ID and falls back to md5(date|subject|from). Both use
+// undecoded raw headers: decoded forms vary by implementation, raw bytes do not,
+// and dedup keys must be stable.
 func messageID(h *message.Header) string {
 	if id := strings.TrimSpace(h.Get("Message-ID")); id != "" {
 		return id
@@ -72,7 +79,7 @@ func messageID(h *message.Header) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Implementation note.
+// extractText extracts the body text: text/plain as-is, text/html stripped of tags, attachments skipped.
 func extractText(ent *message.Entity) string {
 	var texts []string
 	collectText(ent, &texts, 0)
@@ -80,8 +87,9 @@ func extractText(ent *message.Entity) string {
 }
 
 func collectText(ent *message.Entity, texts *[]string, depth int) {
-	// Implementation note.
-	// Implementation note.
+	// containers have no body but must be traversed: leave the attachment decision
+	// to leaf parts, or the body of a forwarded mail marked attachment as a whole
+	// is lost
 	if mr := ent.MultipartReader(); mr != nil {
 		if depth >= maxPartDepth {
 			return
@@ -89,7 +97,7 @@ func collectText(ent *message.Entity, texts *[]string, depth int) {
 		for {
 			part, err := mr.NextPart()
 			if err != nil {
-				return // io.EOF,operation——operation
+				return // io.EOF, or this mail's part is broken — nothing more to read
 			}
 			collectText(part, texts, depth+1)
 		}
@@ -103,7 +111,7 @@ func collectText(ent *message.Entity, texts *[]string, depth int) {
 		return
 	}
 
-	// Implementation note.
+	// even a broken read keeps what was read: keywords in a partial body still count
 	body, _ := io.ReadAll(ent.Body)
 	text := string(body)
 	if contentType == "text/html" {

@@ -1,43 +1,45 @@
 /**
- * Implementation note.
+/**
+ * Type definitions for the HTTP contract.
  *
- * Implementation note.
- * Implementation note.
- * Implementation note.
+ * Fields cross-checked one by one against docs/API.md and
+ * internal/model/model.go — the backend serializes "no data" as null rather
+ * than 0, so `| null` is used consistently instead of optional properties:
+ * a missed null check would show a failed project as "balance 0, healthy".
  */
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
-/* Implementation note. */
+/** Balance type, mirrors model.TypeBalance / TypeCredits / TypeQuota */
 export type BalanceType = 'balance' | 'credits' | 'quota';
 
-/* Implementation note. */
+/** Runway confidence, mirrors model.Confidence*; none empties the other estimate fields, low never feeds alerting */
 export type Confidence = 'none' | 'low' | 'medium' | 'high';
 
-/* Implementation note. */
+/** Runway confidence, mirrors model.Confidence*; none empties the other estimate fields, low never feeds alerting */
 export type CycleType = 'weekly' | 'monthly' | 'yearly' | 'lunar_yearly';
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
-/* Implementation note. */
+/** Error response; validation failures also carry errors */
 export interface ErrorResponse {
   status: 'error';
   message: string;
   errors?: string[];
 }
 
-/* Implementation note. */
+/** Write success response */
 export interface MutationResponse {
   status: 'success';
   message?: string;
 }
 
-/* Implementation note. */
+/** data is null on parse failure or non-JSON responses; callers must handle that */
 export type ApiPayload<T> = T | ErrorResponse | null;
 
 // ==================== /api/features ====================
 
-/* Implementation note. */
+/** Optional capability switches; add fields here as the backend grows — unknown fields are ignored without error */
 export interface Features {
   subscriptions: boolean;
   dynamic_config: boolean;
@@ -54,13 +56,13 @@ export interface FeaturesResponse {
 
 // ==================== /api/credits ====================
 
-/* Implementation note. */
+/** Spend grouped by local date in runway analysis, mirrors model.DailySpend */
 export interface DailySpend {
   date: string; // YYYY-MM-DD
   consumed: number;
 }
 
-/* Implementation note. */
+/** One account's spend profile, mirrors model.Runway */
 export interface Runway {
   project_id: string;
   project_name: string;
@@ -84,8 +86,10 @@ export interface Runway {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * One balance check's result, mirrors model.CheckResult.
+ * runway is omitempty: without a database or enough history the whole field
+ * is absent.
  */
 export interface CheckResult {
   project: string;
@@ -102,7 +106,7 @@ export interface CheckResult {
   runway?: Runway | null;
 }
 
-/* Implementation note. */
+/** Dashboard header counts, mirrors model.BalanceSummary */
 export interface BalanceSummary {
   total: number;
   success: number;
@@ -110,7 +114,7 @@ export interface BalanceSummary {
   need_alarm: number;
 }
 
-/* Implementation note. */
+/** Right after process start nothing has been checked yet: projects is empty and summary is {}, hence Partial */
 export interface CreditsResponse {
   last_update: string | null; // ISO timestamp ending in Z.
   projects: CheckResult[];
@@ -129,7 +133,7 @@ export interface RefreshResponse {
 
 // ==================== /api/subscriptions ====================
 
-/* Implementation note. */
+/** One subscription's check result, mirrors model.SubscriptionResult */
 export interface SubscriptionResult {
   name: string;
   owner_project: string | null;
@@ -157,7 +161,7 @@ export interface SubscriptionsResponse {
 
 // ==================== /api/config/subscriptions ====================
 
-/* Implementation note. */
+/** Subscription config (including fields absent from runtime status like alert_days_before), mirrors model.Subscription */
 export interface SubscriptionConfig {
   name: string;
   owner_project: string | null;
@@ -176,7 +180,7 @@ export interface SubscriptionsConfigResponse {
   subscriptions: SubscriptionConfig[];
 }
 
-/* Implementation note. */
+/** POST /api/config/subscription payload: name locates, new_name renames, the rest optional */
 export interface SubscriptionPayload {
   name: string;
   new_name?: string;
@@ -204,7 +208,7 @@ export interface ProvidersResponse {
 
 // ==================== /api/config/projects ====================
 
-/* Implementation note. */
+/** Project config, mirrors model.Project; api_key is masked and from_env projects cannot be deleted */
 export interface ProjectConfig {
   name: string;
   provider: string;
@@ -221,7 +225,7 @@ export interface ProjectsConfigResponse {
   projects: ProjectConfig[];
 }
 
-/* Implementation note. */
+/** POST /api/config/project payload: creating needs provider + api_key; empty key on update keeps the old one */
 export interface ProjectPayload {
   name: string;
   provider: string;
@@ -234,7 +238,7 @@ export interface ProjectPayload {
 
 // ==================== /api/config/emails ====================
 
-/* Implementation note. */
+/** Mailbox config, mirrors model.Mailbox; password is masked to '***' or '' */
 export interface MailboxConfig {
   name: string;
   host: string;
@@ -251,7 +255,7 @@ export interface EmailsConfigResponse {
   emails: MailboxConfig[];
 }
 
-/* Implementation note. */
+/** POST /api/config/email payload: creating needs host / username / password; empty password on update keeps the old one */
 export interface MailboxPayload {
   name: string;
   host: string;
@@ -264,7 +268,7 @@ export interface MailboxPayload {
 
 // ==================== /api/email/scan ====================
 
-/* Implementation note. */
+/** One mailbox's connection and stats for a scan, mirrors model.MailboxResult */
 export interface MailboxResult {
   name: string;
   host: string;
@@ -276,7 +280,7 @@ export interface MailboxResult {
   error: string | null;
 }
 
-/* Implementation note. */
+/** One keyword-hit mail, mirrors model.EmailAlert */
 export interface EmailAlert {
   mailbox: string;
   subject: string;
@@ -287,9 +291,11 @@ export interface EmailAlert {
   amount: number | null;
   alert_sent: boolean;
   /**
-   * Implementation note.
-   * Implementation note.
-   */
+/**
+ * Scan results live in process memory and clear on restart: last_update is
+ * then null, and days / dry_run are null too — the page uses this to tell
+ * "never scanned" from "scanned, nothing hit".
+ */
   duplicate?: boolean;
 }
 
@@ -302,8 +308,10 @@ export interface EmailScanSummary {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Scan results live in process memory and clear on restart: last_update is
+ * then null, and days / dry_run are null too — the page uses this to tell
+ * "never scanned" from "scanned, nothing hit".
  */
 export interface EmailScanState {
   last_update: string | null;
@@ -322,7 +330,7 @@ export interface HistoryListResponse<T> {
   data: T[];
 }
 
-/* Implementation note. */
+/** One balance snapshot row from the database */
 export interface BalanceHistoryRecord {
   id: number;
   project_id: string;
@@ -341,7 +349,7 @@ export interface EmailSuppression {
   sender: string;
 }
 
-/* Implementation note. */
+/** Historical alert mail; the stored column is matched_keywords, a different name from the live scan's keywords */
 export interface EmailAlertRecord {
   id: number;
   mailbox: string;
@@ -355,14 +363,14 @@ export interface EmailAlertRecord {
   timestamp: string;
 }
 
-/* Implementation note. */
+/** One data point in the trend dialog */
 export interface TrendPoint {
   timestamp: string;
   balance: number;
   need_alarm: boolean;
 }
 
-/* Implementation note. */
+/** GET /api/history/trend/<project_id>; fewer than two points means no change / change_percent */
 export interface TrendData {
   project_id: string;
   project_name: string;

@@ -12,7 +12,7 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// Checker decides whether subscriptions approach renewal.
 type Checker struct {
 	Store    store.Store
 	Notifier notify.Notifier
@@ -23,7 +23,7 @@ type Checker struct {
 	WebhookType string
 	Source      string
 
-	// Implementation note.
+	// OnNotify fires once per notification, for metrics. Optional.
 	OnNotify func(kind string, ok bool)
 
 	// Now is the clock; nil means time.Now. Tests and the docs screenshot harness pin it.
@@ -40,7 +40,7 @@ const (
 	AlertStateSnoozed         = "snoozed"
 )
 
-// Implementation note.
+// Check walks subscriptions deciding reminders. dry-run judges without sending.
 func (c *Checker) Check(ctx context.Context, subs []model.Subscription, dryRun bool) []model.SubscriptionResult {
 	if len(subs) == 0 {
 		c.log().Info("No subscriptions; add them on the dashboard (requires database dynamic configuration)")
@@ -172,7 +172,7 @@ func (c *Checker) record(ctx context.Context, alertID string, sub model.Subscrip
 	}
 }
 
-// Implementation note.
+// parseRenewedDate parses the last renewal date; a malformed value counts as never renewed, with a warning logged.
 func parseRenewedDate(value *string, loc *time.Location, log *slog.Logger) *time.Time {
 	if value == nil || *value == "" {
 		return nil

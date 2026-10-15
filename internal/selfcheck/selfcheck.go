@@ -1,8 +1,10 @@
-// Package selfcheck provides the package implementation.
+// Package selfcheck shows "what is configured, where it came from, and what
+// is wrong" in one command.
 //
 //	quotapulse -show-config
 //
-// Implementation note.
+// Problems return a nonzero exit code, usable directly as a pre-deploy
+// check.
 package selfcheck
 
 import (
@@ -20,14 +22,14 @@ import (
 	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
-// Implementation note.
+// Markers: ✓ fine, ! runs but suspicious, ✗ definitely broken.
 const (
 	markOK   = "✓"
 	markWarn = "!"
 	markBad  = "✗"
 )
 
-// Implementation note.
+// Run prints the self-check report and returns the number of problems found.
 func Run(ctx context.Context, instance *app.App, out io.Writer) int {
 	settings := instance.Settings
 	cfg := instance.Resolver.Load(ctx)
@@ -84,7 +86,7 @@ func databaseLabel(settings *config.Settings) string {
 	return scheme
 }
 
-// Implementation note.
+// sources explains where each of the three inventories comes from: database, environment, or both.
 func sources(cfg model.Config, settings *config.Settings) string {
 	label := func(total, fromEnv int) string {
 		if total == 0 {

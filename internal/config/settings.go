@@ -1,13 +1,15 @@
-// Package config provides the package implementation.
+// Package config is the single entry point for configuration.
 //
-// Implementation note.
+// Only two sources, and every value has exactly one home:
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+//   - environment variables: keys, connections, switches, schedule parameters,
+//     plus projects and mailboxes discovered from {PROVIDER}_API_KEY / EMAIL_HOST
+//   - database dynamic config: the projects / subscriptions / email business
+//     inventories, editable on the page
 //
-// Implementation note.
-// Implementation note.
+// There is no config-file layer. The database inventory comes first,
+// environment-discovered entries append after it, and anything already declared
+// is never added twice.
 package config
 
 import (
@@ -20,12 +22,13 @@ import (
 	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
-// Implementation note.
+// Settings is every environment-variable setting.
 //
-// Implementation note.
-// Implementation note.
+// Pointer fields mean "not set via environment"; the accessors fall back to
+// built-in defaults. This distinguishes "unset" from "set to 0" (a zero
+// cooldown, for example, means no cooldown).
 type Settings struct {
-	// Implementation note.
+	// optional capability switches, all off by default; the core build runs balance alerts only
 	EnableDatabase      bool
 	EnableDynamicConfig bool
 	EnableHistoryAPI    bool
@@ -42,7 +45,7 @@ type Settings struct {
 	// MCPRateLimitPerMinute caps /mcp requests per key; 0 disables the limit.
 	MCPRateLimitPerMinute int
 
-	// Implementation note.
+	// scheduling and concurrency
 	BalanceRefreshIntervalSeconds   *int
 	MaxConcurrentChecks             *int
 	AlertCooldownSeconds            *int
@@ -54,12 +57,12 @@ type Settings struct {
 	BackupDir                       string
 	BackupKeep                      *int
 
-	// Implementation note.
+	// alerting channels
 	WebhookURL    string
 	WebhookType   string
 	WebhookSource string
 
-	// Implementation note.
+	// in-process scheduled jobs; times follow the process-local timezone (TZ inside a container)
 	AlertSchedule          string
 	EmailScanSchedule      string
 	EmailScanDays          int
@@ -67,55 +70,67 @@ type Settings struct {
 	EmailAlertKeywords     string
 	EmailExtraAlertKeyword string
 
-	// Implementation note.
+	// spend and runway analysis, needs database history; 0 disables each alert
 	BurnRateWindowDays  int
 	RunwayAlertDays     float64
 	SpendSpikeRatio     float64
 	SpendSpikeMinAmount float64
 
-	// Implementation note.
+	// HTTP and scanning
 	RequestTimeout   int
 	MaxEmailsToScan  int
 	ResponseCacheTTL int
 
-	// Implementation note.
+	// logging
 	LogLevel  string
 	LogFormat string
 	LogFile   string
 
-	// Implementation note.
+	// database
 	DatabaseURL          string
 	StrictDatabaseErrors bool
 	AutoEncryptOnRead    bool
 	ConfigEncryptionKey  string
 
-	// Implementation note.
+	// web server
 	WebPort       int
 	MetricsPort   int
 	AppVersion    string
 	WebEnableCORS bool
 	CORSOrigins   string
 	WebAPIKey     string
-	// Implementation note.
-	// Implementation note.
+	// ShutdownDelaySeconds keeps serving this long after SIGTERM before shutting
+	// down. K8s removes the endpoint and sends the signal in parallel; without the
+	// wait a few requests still hit the dying Pod.
 	ShutdownDelaySeconds int
 
-	// Implementation note.
+	// parsed schedule, validated at startup
 	AlertTimes           []timeutil.ClockTime
 	EmailScanTimes       []timeutil.ClockTime
 	WeeklyReportTimes    []timeutil.ClockTime
 	WeeklyReportWeekdays map[int]bool
 }
 
-// Implementation note.
+// Version is the build-injected version:
 //
 //	go build -ldflags "-X github.com/itswl/quotapulse/internal/config.Version=v1.2.3"
 //
-// Implementation note.
-// Implementation note.
+// Without injection it is dev. /health and /live both report it, so production
+// shows which build is running instead of one hardcoded number for every
+// version. APP_VERSION can still override it.
+//
+//	go build -ldflags "-X github.com/itswl/quotapulse/internal/config.Version=v1.2.3"
+//
+// Version is the build-injected version:
+//
+//	go build -ldflags "-X github.com/itswl/quotapulse/internal/config.Version=v1.2.3"
+//
+// Without injection it is dev. /health and /live both report it, so production
+// shows which build is running instead of one hardcoded number for every
+// version. APP_VERSION can still override it.
 var Version = "dev"
 
-// Implementation note.
+// Defaults live here; the accessors below reference them.
 const (
 	DefaultRefreshInterval = 3600
 	DefaultMaxConcurrent   = 20
@@ -127,7 +142,7 @@ const (
 	DefaultBackupKeep               = 7
 )
 
-// Implementation note.
+// Load reads settings from the environment and validates them. Bad config fails startup instead of silently behaving differently.
 func Load() (*Settings, error) {
 	e := &envReader{}
 	s := &Settings{
@@ -239,7 +254,7 @@ func (s *Settings) parseSchedules() error {
 	return nil
 }
 
-// Implementation note.
+// RefreshInterval is the dashboard refresh interval; default when unset or non-positive.
 func (s *Settings) RefreshInterval() int {
 	if s.BalanceRefreshIntervalSeconds == nil || *s.BalanceRefreshIntervalSeconds <= 0 {
 		return DefaultRefreshInterval
@@ -247,7 +262,7 @@ func (s *Settings) RefreshInterval() int {
 	return *s.BalanceRefreshIntervalSeconds
 }
 
-// Implementation note.
+// Concurrency is the parallel check count, clamped to [1, 50].
 func (s *Settings) Concurrency() int {
 	n := DefaultMaxConcurrent
 	if s.MaxConcurrentChecks != nil {
@@ -256,8 +271,9 @@ func (s *Settings) Concurrency() int {
 	return max(1, min(n, MaxConcurrentUpper))
 }
 
-// Implementation note.
-// Implementation note.
+// CooldownSeconds is the cooldown per alert kind.
+// Subscriptions read SUBSCRIPTION_ALERT_COOLDOWN_SECONDS first, falling back to
+// ALERT_COOLDOWN_SECONDS.
 func (s *Settings) CooldownSeconds(kind string) int {
 	var value *int
 	if kind == "subscription" {
@@ -272,13 +288,13 @@ func (s *Settings) CooldownSeconds(kind string) int {
 	return max(0, *value)
 }
 
-// Implementation note.
+// AlertKeywordOverride replaces the default keyword list wholesale; empty means no override.
 func (s *Settings) AlertKeywordOverride() []string { return splitList(s.EmailAlertKeywords) }
 
-// Implementation note.
+// AlertKeywordExtras appends to the default list.
 func (s *Settings) AlertKeywordExtras() []string { return splitList(s.EmailExtraAlertKeyword) }
 
-// Implementation note.
+// CORSOriginList is the comma-separated allowlist.
 func (s *Settings) CORSOriginList() []string { return splitList(s.CORSOrigins) }
 
 // JobFailureAlertThresholdValue is how many consecutive job failures trigger one
@@ -319,9 +335,9 @@ func splitList(text string) []string {
 	return out
 }
 
-// Implementation note.
+// ---------- Environment variable reading ----------
 
-// Implementation note.
+// envReader collects every parse error and reports them all at once instead of bailing on the first.
 type envReader struct{ problems []string }
 
 func (e *envReader) err() error {
@@ -331,7 +347,7 @@ func (e *envReader) err() error {
 	return fmt.Errorf("Invalid environment variables:\n  %s", strings.Join(e.problems, "\n  "))
 }
 
-// Implementation note.
+// raw reads an environment variable; blank values count as unset (the common KEY= line in .env).
 func raw(key string) (string, bool) {
 	value, ok := os.LookupEnv(key)
 	if !ok {

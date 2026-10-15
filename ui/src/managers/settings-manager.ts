@@ -1,8 +1,9 @@
 /**
- * Implementation note.
+ * System settings dialog: dark mode, auto refresh, API key.
  *
- * Implementation note.
- * Implementation note.
+ * Listeners bind exactly once at init. The native-JS version called
+ * addEventListener on every open — five opens left five listeners, and one
+ * theme tweak ran five times.
  */
 
 import { fetchJson, getApiKey, mutate, setApiKey } from '../api/client.js';
@@ -19,7 +20,7 @@ import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'settings-modal';
 
-/* Implementation note. */
+/** Sync the controls to the real current state every time it opens */
 function syncSettingsForm(): void {
   const autoRefresh = byId<HTMLInputElement>('setting-auto-refresh');
   if (autoRefresh) autoRefresh.checked = AppState.autoRefreshTimer !== null;
@@ -201,7 +202,7 @@ export function bindSettingsManager(): void {
     showToast(getApiKey() ? t('settings.key_saved') : t('settings.key_cleared'), 'info');
   });
 
-  // Implementation note.
+  // after rotating the key in settings, sync the dialog's input too so the two displays agree
   byId('auth-form')?.addEventListener('submit', () => {
     const settingsInput = byId<HTMLInputElement>('setting-api-key');
     if (settingsInput) settingsInput.value = inputById('auth-api-key').value.trim();

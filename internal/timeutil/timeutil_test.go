@@ -91,13 +91,13 @@ func TestParseWeeklySchedule(t *testing.T) {
 		t.Errorf(`ParseWeeklySchedule("Mon 09:00") = %v %v %v`, weekdays, times, err)
 	}
 
-	// Implementation note.
+	// omitting the weekday means daily
 	weekdays, times, err = ParseWeeklySchedule("09:00")
 	if err != nil || len(weekdays) != 0 || len(times) != 1 {
 		t.Errorf(`ParseWeeklySchedule("09:00") 应为每天 09:00，得到 %v %v %v`, weekdays, times, err)
 	}
 
-	// Implementation note.
+	// both weekdays and times may list several
 	weekdays, times, err = ParseWeeklySchedule("Mon,Thu 09:00,18:00")
 	if err != nil || len(weekdays) != 2 || len(times) != 2 {
 		t.Errorf(`ParseWeeklySchedule("Mon,Thu 09:00,18:00") 得到 %v %v %v`, weekdays, times, err)
@@ -109,7 +109,7 @@ func TestParseWeeklySchedule(t *testing.T) {
 }
 
 func TestNextOccurrence(t *testing.T) {
-	// Implementation note.
+	// Wednesday 14:00
 	now := time.Date(2026, 9, 16, 14, 0, 0, 0, time.Local)
 
 	tests := []struct {
@@ -163,7 +163,7 @@ func TestDescribe(t *testing.T) {
 }
 
 func TestISOWeekday(t *testing.T) {
-	// Implementation note.
+	// 2026-09-14 is a Monday
 	for offset, want := range []int{1, 2, 3, 4, 5, 6, 7} {
 		day := time.Date(2026, 9, 14+offset, 12, 0, 0, 0, time.Local)
 		if got := ISOWeekday(day); got != want {

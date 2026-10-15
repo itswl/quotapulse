@@ -11,11 +11,11 @@ import (
 	"github.com/itswl/quotapulse/internal/provider"
 )
 
-// Implementation note.
+// MaxEnvAccounts is how many accounts (suffix _1 … _N) auto-discovery accepts per provider / mailbox variable group.
 const MaxEnvAccounts = 10
 
-// Implementation note.
-// Implementation note.
+// LoadEnvFile loads .env into the environment, overwriting existing variables.
+// A missing file is not an error: containers and K8s inject env vars directly.
 func LoadEnvFile(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -39,7 +39,7 @@ func LoadEnvFile(path string) error {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
-		// Implementation note.
+		// strip the surrounding quotes; keep inline # comments — keys may legitimately contain #
 		if len(value) >= 2 && (value[0] == '"' && value[len(value)-1] == '"' ||
 			value[0] == '\'' && value[len(value)-1] == '\'') {
 			value = value[1 : len(value)-1]
@@ -51,8 +51,9 @@ func LoadEnvFile(path string) error {
 	return scanner.Err()
 }
 
-// Implementation note.
-// Implementation note.
+// envVariants returns the environment variable names a field may use.
+// Ordinal 1 accepts both PREFIX_SUFFIX and PREFIX_1_SUFFIX so the same account is
+// never discovered twice.
 func envVariants(prefix, suffix string, ordinal int) []string {
 	if ordinal <= 1 {
 		return []string{prefix + "_" + suffix, prefix + "_1_" + suffix}
@@ -60,7 +61,7 @@ func envVariants(prefix, suffix string, ordinal int) []string {
 	return []string{fmt.Sprintf("%s_%d_%s", prefix, ordinal, suffix)}
 }
 
-// Implementation note.
+// envFirst returns the first variant that has a value.
 func envFirst(prefix, suffix string, ordinal int) string {
 	for _, name := range envVariants(prefix, suffix, ordinal) {
 		if value, ok := raw(name); ok {
@@ -82,7 +83,7 @@ func envFirstFloat(prefix, suffix string, ordinal int) float64 {
 	return f
 }
 
-// Implementation note.
+// ProviderKeyEnvNames lists the key variable names of a provider's ordinal-th account; the self-check uses them to hint what to configure.
 func ProviderKeyEnvNames(providerKey string, ordinal int) []string {
 	if providerKey == "" {
 		return nil
@@ -90,10 +91,11 @@ func ProviderKeyEnvNames(providerKey string, ordinal int) []string {
 	return envVariants(strings.ToUpper(providerKey), "API_KEY", ordinal)
 }
 
-// Implementation note.
+// DiscoverProjects finds monitored projects from environment variables.
 //
-// Implementation note.
-// Implementation note.
+// Any provider absent from declared joins automatically once {PROVIDER}_API_KEY
+// is set. The threshold comes from {PROVIDER}_THRESHOLD; unset means 0, never
+// alerting, and the self-check flags it.
 func DiscoverProjects(declared []model.Project) []model.Project {
 	declaredProviders := make(map[string]bool, len(declared))
 	for _, p := range declared {
@@ -138,10 +140,11 @@ func DiscoverProjects(declared []model.Project) []model.Project {
 	return discovered
 }
 
-// Implementation note.
+// DiscoverMailboxes finds mailboxes to scan from environment variables.
 //
-// Implementation note.
-// Implementation note.
+// All three of EMAIL_HOST / EMAIL_USERNAME / EMAIL_PASSWORD must be set;
+// multiple mailboxes use EMAIL_1_HOST / EMAIL_2_HOST. Names or accounts
+// already declared are never added twice.
 func DiscoverMailboxes(declared []model.Mailbox) []model.Mailbox {
 	declaredNames := make(map[string]bool, len(declared)*2)
 	for _, m := range declared {
@@ -180,15 +183,16 @@ func DiscoverMailboxes(declared []model.Mailbox) []model.Mailbox {
 			Name: name, Host: host, Port: port, Username: username,
 			Password: password, UseSSL: useSSL, Enabled: true, FromEnv: true,
 		})
-		// Implementation note.
+		// no duplicate names within one pass either
 		declaredNames[name] = true
 		declaredNames[username] = true
 	}
 	return discovered
 }
 
-// Implementation note.
-// Implementation note.
+// ResolveAPIKey fills in keys from environment variables for projects that did not
+// pin one. ordinal is the provider's appearance order in the inventory. Returns the
+// key and a human-readable source description.
 func ResolveAPIKey(p model.Project, ordinal int) (string, string) {
 	if p.APIKey != "" {
 		return p.APIKey, "the api_key field in the configuration"

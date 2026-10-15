@@ -2,9 +2,10 @@ package store
 
 import "testing"
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Fixed samples: one key, one passphrase, one plaintext, and the two
+// ciphertexts they produce. They are pinned here so a broken key derivation
+// or ciphertext format fails here first — not the day production cannot read
+// its config.
 const (
 	sampleFernetKey  = "a9Abfm3N7fV2A1xsrdfE68FhvoOVlKhJJrw7iUIuNXw="
 	samplePassphrase = "hunter2"
@@ -63,8 +64,10 @@ func TestEncryptRoundTrip(t *testing.T) {
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// A 43-character unpadded string must take the passphrase branch: base64
+// decoding without padding fails, so it is treated as a passphrase, not a key.
+// This check decides the derived key; change it and existing ciphertext stays
+// locked.
 func TestKeyNormalization(t *testing.T) {
 	padded := newCipher(sampleFernetKey)
 	unpadded := newCipher("a9Abfm3N7fV2A1xsrdfE68FhvoOVlKhJJrw7iUIuNXw")
@@ -72,7 +75,7 @@ func TestKeyNormalization(t *testing.T) {
 		t.Error("去掉补位符后应当推出另一个密钥，却解开了同一条密文")
 	}
 
-	// Implementation note.
+	// characters outside the alphabet are ignored, so this is equivalent to the original key
 	lenient := newCipher("a9Abfm3N7fV2A1xsrd!fE68FhvoOVlKhJJrw7iUIuNXw=")
 	if got := lenient.decrypt(padded.encrypt("x")); got != "x" {
 		t.Errorf("忽略非字母表字符后应当是同一个密钥，却得到 %q", got)
@@ -91,7 +94,7 @@ func TestEncryptWithoutKeyIsPassThrough(t *testing.T) {
 	if got := c.decrypt(secret); got != secret {
 		t.Errorf("解密得到 %q, 期望原样返回 %q", got, secret)
 	}
-	// Implementation note.
+	// without a key, ciphertext passes through as-is — still better than failing to list the whole config
 	if got := c.decrypt(sampleTokenFromKey); got != sampleTokenFromKey {
 		t.Errorf("没有密钥时解密应当原样返回，却得到 %q", got)
 	}
@@ -114,7 +117,7 @@ func TestDecryptGarbageReturnsInput(t *testing.T) {
 	if got := c.decrypt(broken); got != broken {
 		t.Errorf("解不开时应当原样返回，却得到 %q", got)
 	}
-	// Implementation note.
+	// a different key cannot decrypt either; return as-is rather than erroring
 	other := newCipher("完全不同的口令")
 	token := c.encrypt("secret")
 	if got := other.decrypt(token); got != token {

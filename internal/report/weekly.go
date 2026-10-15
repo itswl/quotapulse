@@ -1,8 +1,11 @@
-// Package report provides the package implementation.
+// Package report builds the weekly report: one week of balances, spend,
+// runway, subscriptions and mailboxes summarized into a single card.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Normally notifications only arrive when something breaks; the weekly
+// report makes "all is well" perceivable too: what this week burned, which
+// account runs out first, how much subscription spend the next month needs.
+// All data comes from dashboard state and balance history — no extra
+// upstream calls.
 package report
 
 import (
@@ -16,15 +19,15 @@ import (
 )
 
 const (
-	// Implementation note.
+	// WindowDays is the weekly report's reporting span.
 	WindowDays = 7
-	// Implementation note.
+	// TopN is how many entries each chart takes.
 	TopN = 3
-	// Implementation note.
+	// UpcomingDays is the horizon for subscription spend estimates.
 	UpcomingDays = 30
 )
 
-// Implementation note.
+// SpendRow is one row of the spend chart.
 type SpendRow struct {
 	Project       string   `json:"project"`
 	Consumed      float64  `json:"consumed"`
@@ -34,40 +37,40 @@ type SpendRow struct {
 	Balance       *float64 `json:"balance"`
 }
 
-// Implementation note.
+// AlertingRow is one row of the balance alert list.
 type AlertingRow struct {
 	Project   string   `json:"project"`
 	Balance   *float64 `json:"balance"`
 	Threshold *float64 `json:"threshold"`
 }
 
-// Implementation note.
+// FailedRow is one row of the failed-checks list.
 type FailedRow struct {
 	Project string `json:"project"`
 	Error   string `json:"error"`
 }
 
-// Implementation note.
+// Accounts is the account overview.
 type Accounts struct {
 	Total    int `json:"total"`
 	Alerting int `json:"alerting"`
 	Failed   int `json:"failed"`
 }
 
-// Implementation note.
+// Period is the reporting window.
 type Period struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
 }
 
-// Implementation note.
+// MailboxStats is the mailbox scan overview.
 type MailboxStats struct {
 	Total  int `json:"total"`
 	Failed int `json:"failed"`
 	Alerts int `json:"alerts"`
 }
 
-// Implementation note.
+// Summary is one week's data, the intermediate structure before render.
 type Summary struct {
 	Period                Period                     `json:"period"`
 	Accounts              Accounts                   `json:"accounts"`
@@ -81,7 +84,7 @@ type Summary struct {
 	Mailboxes             MailboxStats               `json:"mailboxes"`
 }
 
-// Implementation note.
+// Build aggregates the week. Empty runways mean no history, in which case only the balance part reports.
 func Build(results []model.CheckResult, subs []model.SubscriptionResult,
 	mailboxes []model.MailboxResult, totalAlerts int, runways map[string]model.Runway, now time.Time) Summary {
 
@@ -130,7 +133,7 @@ func Build(results []model.CheckResult, subs []model.SubscriptionResult,
 	return summary
 }
 
-// Implementation note.
+// spendRows turns spend profiles into chart rows; accounts without history stay off the chart.
 func spendRows(results []model.CheckResult, runways map[string]model.Runway) []SpendRow {
 	var rows []SpendRow
 	for _, r := range results {
@@ -150,7 +153,7 @@ func spendRows(results []model.CheckResult, runways map[string]model.Runway) []S
 	return rows
 }
 
-// Implementation note.
+// upcomingSubscriptions lists subscriptions renewing within a month that were not renewed this cycle, sorted by urgency.
 func upcomingSubscriptions(subs []model.SubscriptionResult) []model.SubscriptionResult {
 	var due []model.SubscriptionResult
 	for _, s := range subs {
@@ -228,7 +231,7 @@ func mailboxStats(mailboxes []model.MailboxResult, totalAlerts int) MailboxStats
 	return stats
 }
 
-// Implementation note.
+// Render produces the Markdown body; per-platform message wrapping belongs to notify.
 func Render(s Summary) string {
 	lines := headline(s)
 	lines = append(lines, section("Shortest runway", runwayLines(s.ShortestRunway))...)
@@ -258,7 +261,7 @@ func headline(s Summary) []string {
 	return lines
 }
 
-// Implementation note.
+// section omits empty sections entirely so the card is not a pile of blank titles.
 func section(title string, rows []string) []string {
 	if len(rows) == 0 {
 		return nil
@@ -315,7 +318,7 @@ func problemLines(s Summary) []string {
 	return out
 }
 
-// Implementation note.
+// fmtNum formats card numbers: empty shows a dash, the rest get thousands separators and two decimals.
 func fmtNum(value *float64) string {
 	if value == nil {
 		return "-"
@@ -344,8 +347,9 @@ func thousands(value float64, decimals int) string {
 	return sign + grouped.String() + "." + frac
 }
 
-// Implementation note.
-// Implementation note.
+// round2 uses banker's rounding to match runway's convention: the report's totals
+// must agree with the dashboard and history — different rounding on each side
+// shows up as off-by-a-cent.
 func round2(value float64) float64 {
 	return math.RoundToEven(value*100) / 100
 }

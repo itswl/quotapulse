@@ -1,4 +1,5 @@
-/* Implementation note. */
+/** Smoke tests for formatting, runway wording and status classification — these
+ *  functions decide how every number on the dashboard reads. */
 
 import './stub-dom.js';
 
@@ -22,7 +23,7 @@ import {
   typeLabel,
 } from '../src/format.js';
 
-/* Implementation note. */
+/** Build a runway data object covering only the fields this case cares about */
 function runway(overrides: Partial<Runway>): Runway {
   return {
     project_id: 'id',

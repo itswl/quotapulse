@@ -1,7 +1,9 @@
-// Package timeutil provides the package implementation.
+// Package timeutil parses schedule-time expressions for jobs and computes
+// the next trigger time.
 //
-// Implementation note.
-// Implementation note.
+// Pure functions with no dependencies inside the project (config and
+// scheduler both use it — no cycles allowed). Weekdays always use ISO
+// numbers: 1=Monday … 7=Sunday.
 package timeutil
 
 import (
@@ -13,7 +15,7 @@ import (
 	"time"
 )
 
-// Implementation note.
+// ClockTime is a time of day.
 type ClockTime struct {
 	Hour   int
 	Minute int
@@ -25,14 +27,14 @@ func (c ClockTime) before(other ClockTime) bool {
 	return c.Hour < other.Hour || (c.Hour == other.Hour && c.Minute < other.Minute)
 }
 
-// Implementation note.
+// These values mean "disable the task".
 var offValues = map[string]bool{
 	"off": true, "none": true, "disabled": true, "false": true, "0": true, "-": true,
 }
 
 var timePattern = regexp.MustCompile(`^(\d{1,2}):(\d{2})$`)
 
-// Implementation note.
+// Weekday spellings; values are ISO numbers.
 var weekdayNames = map[string]int{
 	"mon": 1, "monday": 1, "周一": 1, "一": 1,
 	"tue": 2, "tues": 2, "tuesday": 2, "周二": 2, "二": 2,
@@ -43,8 +45,9 @@ var weekdayNames = map[string]int{
 	"sun": 7, "sunday": 7, "周日": 7, "周天": 7, "日": 7, "天": 7,
 }
 
-// Implementation note.
-// Implementation note.
+// ParseDailyTimes parses "09:00,15:30" into a deduplicated, sorted time list;
+// off / none mean disabled. Malformed input errors, so a bad config fails at
+// startup.
 func ParseDailyTimes(text string) ([]ClockTime, error) {
 	raw := strings.TrimSpace(text)
 	if raw == "" || offValues[strings.ToLower(raw)] {
@@ -77,7 +80,7 @@ func ParseDailyTimes(text string) ([]ClockTime, error) {
 	return result, nil
 }
 
-// Implementation note.
+// ParseWeekdays parses "Mon,Thu" / "周一" into {1,4}; empty means no weekday restriction.
 func ParseWeekdays(text string) (map[int]bool, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, nil
@@ -104,8 +107,10 @@ func ParseWeekdays(text string) (map[int]bool, error) {
 	return result, nil
 }
 
-// Implementation note.
-// Implementation note.
+// ParseWeeklySchedule parses "Mon 09:00" into ({1}, [09:00]); omitting the
+// weekday means daily, off means disabled. Weekdays and times are separated by a
+// space, each may list several comma-separated values, e.g. "Mon,Thu
+// 09:00,18:00".
 func ParseWeeklySchedule(text string) (map[int]bool, []ClockTime, error) {
 	raw := strings.TrimSpace(text)
 	if raw == "" || offValues[strings.ToLower(raw)] {
@@ -126,7 +131,7 @@ func ParseWeeklySchedule(text string) (map[int]bool, []ClockTime, error) {
 
 var weekdayLabels = []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
 
-// Implementation note.
+// Describe renders a schedule in plain words for the self-check output and /api/jobs.
 func Describe(times []ClockTime, weekdays map[int]bool) string {
 	if len(times) == 0 {
 		return "Disabled"
@@ -151,7 +156,7 @@ func Describe(times []ClockTime, weekdays map[int]bool) string {
 	return "Weekly " + strings.Join(labels, ", ") + " " + clock
 }
 
-// Implementation note.
+// ISOWeekday returns 1=Monday … 7=Sunday.
 func ISOWeekday(t time.Time) int {
 	if w := int(t.Weekday()); w == 0 {
 		return 7
@@ -160,8 +165,8 @@ func ISOWeekday(t time.Time) int {
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// NextOccurrence returns the first fire time strictly after now. With a non-empty
+// weekdays it fires only on those days. The result shares now's timezone.
 func NextOccurrence(now time.Time, times []ClockTime, weekdays map[int]bool) (time.Time, bool) {
 	if len(times) == 0 {
 		return time.Time{}, false
@@ -184,7 +189,7 @@ func NextOccurrence(now time.Time, times []ClockTime, weekdays map[int]bool) (ti
 	return time.Time{}, false
 }
 
-// Implementation note.
+// UTCISO renders a time as a Z-suffixed ISO string; a nil time returns nil.
 func UTCISO(t time.Time) *string {
 	if t.IsZero() {
 		return nil
@@ -193,5 +198,5 @@ func UTCISO(t time.Time) *string {
 	return &s
 }
 
-// Implementation note.
+// NowISO is the current time's UTC ISO string.
 func NowISO() string { return time.Now().UTC().Format("2006-01-02T15:04:05.999999Z") }

@@ -31,7 +31,7 @@ import (
 
 const testAPIKey = "test-key"
 
-// Implementation note.
+// newServer spins up a full Server with no optional capabilities enabled by default.
 func newServer(t *testing.T, tweak func(*config.Settings)) (*Server, http.Handler) {
 	t.Helper()
 
@@ -83,7 +83,7 @@ func decode(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
 	return payload
 }
 
-// Implementation note.
+// TestAuth: every /api/* requires auth; probes do not.
 func TestAuth(t *testing.T) {
 	_, handler := newServer(t, nil)
 
@@ -160,7 +160,7 @@ func TestLiveAndHealth(t *testing.T) {
 		t.Error("/live 应返回 alive")
 	}
 
-	// Implementation note.
+	// no data yet means not ready, so K8s keeps traffic away
 	got = request(t, handler, "GET", "/health", "", false)
 	if got.Code != http.StatusServiceUnavailable {
 		t.Errorf("没数据时 /health 应为 503，实际 %d", got.Code)
@@ -209,7 +209,7 @@ func TestCreditsWithNoProjectsAfterACheck(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestCreditsBeforeFirstCheck: before the first check completes respond 503, not an empty list that looks like "no projects".
 func TestCreditsBeforeFirstCheck(t *testing.T) {
 	s, handler := newServer(t, nil)
 
@@ -243,7 +243,7 @@ func TestCreditsBeforeFirstCheck(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestETag: read endpoints carry an ETag; polling hits get a bare 304.
 func TestETag(t *testing.T) {
 	s, handler := newServer(t, nil)
 	s.State.SetBalance([]model.CheckResult{{Project: "a", Provider: "p", Success: true}})
@@ -268,7 +268,7 @@ func TestETag(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestWritesNeedDynamicConfig: without dynamic config, reads work and writes do not.
 func TestWritesNeedDynamicConfig(t *testing.T) {
 	_, handler := newServer(t, nil)
 
@@ -291,7 +291,7 @@ func TestWritesNeedDynamicConfig(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestSubscriptionsNeedFeatureFlag: the whole subscription group 503s when the feature is off.
 func TestSubscriptionsNeedFeatureFlag(t *testing.T) {
 	_, handler := newServer(t, nil)
 	for _, path := range []string{"/api/config/subscriptions"} {
@@ -305,7 +305,7 @@ func TestSubscriptionsNeedFeatureFlag(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestHistoryRoutesAbsentWhenDisabled: history routes are not registered, so they 404.
 func TestHistoryRoutesAbsentWhenDisabled(t *testing.T) {
 	_, off := newServer(t, nil)
 	if got := request(t, off, "GET", "/api/history/balance", "", true); got.Code != http.StatusNotFound {
@@ -318,7 +318,7 @@ func TestHistoryRoutesAbsentWhenDisabled(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestHistoryParamValidation: out-of-range parameters get 400, not 500.
 func TestHistoryParamValidation(t *testing.T) {
 	_, handler := newServer(t, func(s *config.Settings) { s.EnableHistoryAPI = true })
 
@@ -353,7 +353,7 @@ func TestProviders(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestScanDaysValidation: scan days must be 1-30.
 func TestScanDaysValidation(t *testing.T) {
 	_, handler := newServer(t, nil)
 	for _, body := range []string{`{"days":0}`, `{"days":31}`, `{"days":-1}`} {
@@ -364,7 +364,7 @@ func TestScanDaysValidation(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestRefreshCooldown: manual refreshes cool down afterwards so rapid clicks cannot hammer upstreams.
 func TestRefreshCooldown(t *testing.T) {
 	_, handler := newServer(t, nil)
 
@@ -380,7 +380,7 @@ func TestRefreshCooldown(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestBadJSONIsRejected: a non-JSON body gets 400, not 500.
 func TestBadJSONIsRejected(t *testing.T) {
 	_, handler := newServer(t, func(s *config.Settings) { s.EnableDynamicConfig = true })
 	got := request(t, handler, "POST", "/api/config/project", `{不是 JSON`, true)
@@ -389,7 +389,7 @@ func TestBadJSONIsRejected(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestUnknownProviderRejected: an unknown platform is rejected at save time, not at check time.
 func TestUnknownProviderRejected(t *testing.T) {
 	_, handler := newServer(t, func(s *config.Settings) { s.EnableDynamicConfig = true })
 	got := request(t, handler, "POST", "/api/config/project",
@@ -399,13 +399,14 @@ func TestUnknownProviderRejected(t *testing.T) {
 	}
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// TestTrendPathIsDecoded pins that the frontend sends
+// encodeURIComponent("provider:name") and project names may contain Chinese or even
+// slashes. Flask decoded it automatically and so does Go's PathValue — this keeps
+// anyone from switching to manual r.URL.Path slicing and getting it wrong.
 func TestTrendPathIsDecoded(t *testing.T) {
 	_, handler := newServer(t, func(s *config.Settings) { s.EnableHistoryAPI = true })
 
-	// Implementation note.
+	// without a database there is no data; a 404 proves the route matched and the parameter parsed
 	for _, path := range []string{
 		"/api/history/trend/583276a5396571565636ca419969f306",
 		"/api/history/trend/deepseek%3Adeepseek",
@@ -507,14 +508,14 @@ func TestPushEndpoints(t *testing.T) {
 		t.Fatalf("push config 应带 publicKey 字段: %s", rec.Body.String())
 	}
 
-	// 本地假推送服务：订阅确认会真的投递一条 Web Push 到这里
+	// Local fake push service: the subscription confirmation really delivers a Web Push here
 	var pushServiceHits int32
 	pushService := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&pushServiceHits, 1)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer pushService.Close()
-	// webpush 加密会校验 p256dh 是合法的 P256 曲线点，测试用真实生成的客户端密钥
+	// webpush encryption validates that p256dh is a real P256 curve point; use genuinely generated client keys
 	clientKey, keyErr := ecdh.P256().GenerateKey(rand.Reader)
 	if keyErr != nil {
 		t.Fatalf("generate client key: %v", keyErr)
@@ -535,7 +536,7 @@ func TestPushEndpoints(t *testing.T) {
 		t.Fatalf("缺 endpoint 应拒绝: %d", rec.Code)
 	}
 
-	// 用真实存储验证订阅确实被持久化
+	// Verify with a real store that the subscription was actually persisted
 	realStore, storeErr := store.Open(context.Background(), store.Options{DatabaseURL: "sqlite://" + filepath.Join(t.TempDir(), "push.db")})
 	if storeErr != nil {
 		t.Fatalf("open store: %v", storeErr)

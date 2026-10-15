@@ -1,4 +1,5 @@
-/* Implementation note. */
+/** Smoke tests for the render functions: card HTML, filters, top overview; runs
+ *  on the stub DOM. */
 
 import './stub-dom.js';
 

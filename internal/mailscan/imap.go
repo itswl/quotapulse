@@ -14,32 +14,35 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// defaultPort is the IMAPS port: an unset (zero) port means 993.
 const defaultPort = 993
 
-// Implementation note.
+// mailConn is every IMAP capability needed to scan one mailbox.
 //
-// Implementation note.
-// Implementation note.
+// It exists as an interface so the scan flow tests without a real server —
+// protocol details stay locked in this file and the layer above only knows
+// "give me recent message numbers" and "fetch these raw messages".
 type mailConn interface {
-	// Implementation note.
+	// Search returns the message numbers since a date, ordered by the server (oldest first).
 	Search(since time.Time) ([]uint32, error)
-	// Implementation note.
+	// Fetch fetches raw messages in bulk. Fewer may return than requested: the server simply has no more.
 	Fetch(nums []uint32) ([][]byte, error)
 	Close() error
 }
 
-// Implementation note.
+// dialFunc establishes a logged-in connection with INBOX selected. Scanner swaps in a fake for tests.
 type dialFunc func(ctx context.Context, m model.Mailbox, timeout time.Duration) (mailConn, error)
 
 type imapConn struct {
 	client *imapclient.Client
 }
 
-// Implementation note.
+// dialIMAP connects, logs in and selects INBOX; any failure closes the
+// connection before returning the error.
 //
-// Implementation note.
-// Implementation note.
+// The timeout only covers through "INBOX selected" and is then dropped: a
+// mailbox may pull thousands of mails, and holding one HTTP-request-sized
+// timeout over a whole scan means big mailboxes never finish.
 func dialIMAP(ctx context.Context, m model.Mailbox, timeout time.Duration) (mailConn, error) {
 	addr := net.JoinHostPort(m.Host, strconv.Itoa(mailboxPort(m)))
 
@@ -48,7 +51,7 @@ func dialIMAP(ctx context.Context, m model.Mailbox, timeout time.Duration) (mail
 		return nil, fmt.Errorf("Failed to connect to %s: %w", addr, err)
 	}
 	if timeout > 0 {
-		// Implementation note.
+		// avoid hanging in the handshake when the port answers but the server stays silent
 		_ = conn.SetDeadline(time.Now().Add(timeout))
 	}
 	if m.UseSSL {
@@ -74,7 +77,7 @@ func dialIMAP(ctx context.Context, m model.Mailbox, timeout time.Duration) (mail
 }
 
 func (c *imapConn) Search(since time.Time) ([]uint32, error) {
-	// Implementation note.
+	// SINCE compares dates only; the server ignores time and timezone
 	data, err := c.client.Search(&imap.SearchCriteria{Since: since}, nil).Wait()
 	if err != nil {
 		return nil, err
@@ -87,8 +90,8 @@ func (c *imapConn) Fetch(nums []uint32) ([][]byte, error) {
 		return nil, nil
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// BODY.PEEK[] fetches the whole raw message. PEEK instead of a plain fetch keeps
+	// the user's mail unread — a monitoring scan must not touch inbox state.
 	section := &imap.FetchItemBodySection{Peek: true}
 	messages, err := c.client.Fetch(
 		imap.SeqSetNum(nums...),
@@ -107,7 +110,7 @@ func (c *imapConn) Fetch(nums []uint32) ([][]byte, error) {
 	return raws, nil
 }
 
-// Implementation note.
+// Close sends LOGOUT before dropping the connection so the server does not record an abnormal disconnect (some providers throttle for it).
 func (c *imapConn) Close() error {
 	err := c.client.Logout().Wait()
 	c.client.Close()

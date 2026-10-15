@@ -3,36 +3,36 @@
 *.test
 *.out
 
-# Implementation note.
+# Frontend deps and test artifacts; ui/dist is committed — the binary embeds it
 ui/node_modules/
 ui/dist-test/
 
-# Implementation note.
+# Environment variables (including secrets)
 .env
 .env.local
 .env.*.local
 *.env.backup*
 
-# Implementation note.
+# Data and logs
 data/
 logs/
 *.db
 *.sqlite
 *.sqlite3
 
-# Implementation note.
-# Implementation note.
-# Implementation note.
+# But test fixtures belong in the repo: the testdata database proves we can open
+# existing production data directly. Blocked by *.db above, the test would be green
+# locally and data-less in CI. It contains only fabricated data (AK:SK / sk-old / pw).
 !**/testdata/*.db
 
-# Implementation note.
+# Legacy config file, no longer read; kept so historical files are not committed by accident
 config.json
 
 # Kubernetes secrets
 k8s/secret.yaml
 k8s/*-secret.yaml
 
-# Implementation note.
+# Editors and OS
 .vscode/
 .idea/
 *.swp

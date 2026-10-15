@@ -9,8 +9,8 @@ import (
 	gen "github.com/itswl/quotapulse/internal/store/sqlc/mysql"
 )
 
-// Implementation note.
-// Implementation note.
+// mysqlQuerier adapts the mysql generated package onto querier.
+// The three engine adapters correspond line by line; change one, check the other two.
 type mysqlQuerier struct{ q *gen.Queries }
 
 func newMySQLQuerier(db *sql.DB) querier { return mysqlQuerier{q: gen.New(db)} }

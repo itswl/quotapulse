@@ -10,7 +10,7 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// Hour offsets in the baseline data are relative to this instant; change it and all of testdata/baseline_cases.json desyncs.
 var baselineNow = time.Date(2026, 9, 16, 20, 0, 0, 0, time.Local)
 
 type baselineCase struct {
@@ -33,8 +33,10 @@ type baselineCase struct {
 	Daily []model.DailySpend `json:"daily"`
 }
 
-// Implementation note.
-// Implementation note.
+// TestMatchesBaseline pins this package's behavior contract: 12 realistically
+// shaped balance series compared field by field. Spend, top-ups, confidence,
+// runway and spike ratio all live here — any algorithm regression blows up in
+// this test.
 func TestMatchesBaseline(t *testing.T) {
 	raw, err := os.ReadFile("testdata/baseline_cases.json")
 	if err != nil {
@@ -94,7 +96,7 @@ func buildPoints(raw [][]float64) []model.BalancePoint {
 	return points
 }
 
-// Implementation note.
+// TestConfidenceBoundaries: the three confidence boundaries that gate whether an estimate may alert.
 func TestConfidenceBoundaries(t *testing.T) {
 	tests := []struct {
 		points    int
@@ -117,7 +119,7 @@ func TestConfidenceBoundaries(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestToppedUpNotCountedAsConsumption: a top-up jumps the balance up and must never count as negative consumption.
 func TestToppedUpNotCountedAsConsumption(t *testing.T) {
 	points := buildPoints([][]float64{{-48, 100}, {-36, 60}, {-24, 500}, {-12, 460}, {0, 420}})
 	got := Compute(points, 7, baselineNow)
@@ -130,7 +132,7 @@ func TestToppedUpNotCountedAsConsumption(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestZeroBurnHasNoRunway: with zero consumption there must be no runway days.
 func TestZeroBurnHasNoRunway(t *testing.T) {
 	points := buildPoints([][]float64{{-72, 200}, {-48, 200}, {-24, 200}, {0, 200}})
 	got := Compute(points, 7, baselineNow)

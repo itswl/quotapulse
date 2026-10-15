@@ -13,9 +13,10 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Volcengine reports the account's available balance (CNY).
+// Signing is Volcengine V4 (HMAC-SHA256), isomorphic to AWS SigV4:
+// canonicalize the request, then sign with a key derived through the
+// date/region/service/request ladder.
 const (
 	volcService     = "billing"
 	volcAction      = "QueryBalanceAcct"
@@ -28,15 +29,16 @@ const (
 	volcBaseURL     = "https://" + volcHost
 )
 
-// Implementation note.
-// Implementation note.
+// volcSignedHeaders lists the headers that participate in the signature, in
+// signing order. The canonical request's header list and the Authorization's
+// SignedHeaders must match — hence this single definition.
 var volcSignedHeaders = []string{"content-type", "host", "x-content-sha256", "x-date"}
 
 type volcProvider struct {
 	ak, sk  string
 	client  *Client
 	baseURL string
-	// Implementation note.
+	// now is pulled out separately so tests can pin time — signatures change with it and would be unassertable otherwise
 	now func() time.Time
 }
 
@@ -63,7 +65,7 @@ func (p *volcProvider) Fetch(ctx context.Context) (float64, error) {
 		return 0, errors.New("API returned an empty response")
 	}
 
-	// Implementation note.
+	// Volcengine puts business errors in ResponseMetadata.Error while the HTTP status stays 200
 	if info := Dig(data, "ResponseMetadata", "Error"); truthy(info) {
 		return 0, fmt.Errorf("API returned an error: %s", formatValue(info))
 	}
@@ -83,8 +85,8 @@ func (p *volcProvider) request(ctx context.Context) (map[string]any, error) {
 	}
 	for name, value := range p.buildHeaders(p.now(), "") {
 		if name == "Host" {
-			// Implementation note.
-			// Implementation note.
+			// host participates in the signature, so the Host header must match what was
+			// signed; Go forbids setting Host via Header, so write req.Host
 			req.Host = value
 			continue
 		}
@@ -105,7 +107,7 @@ func (p *volcProvider) query() map[string]string {
 	return map[string]string{"Action": volcAction, "Version": volcVersion}
 }
 
-// Implementation note.
+// buildHeaders builds the signed headers. body is the raw request body, empty for GET queries.
 func (p *volcProvider) buildHeaders(now time.Time, body string) map[string]string {
 	xDate := now.UTC().Format("20060102T150405Z")
 	shortDate := xDate[:8]
@@ -113,7 +115,7 @@ func (p *volcProvider) buildHeaders(now time.Time, body string) map[string]strin
 	credentialScope := strings.Join([]string{shortDate, volcRegion, volcService, "request"}, "/")
 	signedHeaders := strings.Join(volcSignedHeaders, ";")
 
-	// Implementation note.
+	// canonical request: method / path / query / headers / blank line / signed header list / body digest
 	canonicalRequest := strings.Join([]string{
 		volcMethod,
 		volcPath,
@@ -131,8 +133,9 @@ func (p *volcProvider) buildHeaders(now time.Time, body string) map[string]strin
 		"HMAC-SHA256", xDate, credentialScope, volcSHA256(canonicalRequest),
 	}, "\n")
 
-	// Implementation note.
-	// Implementation note.
+	// derive the signing key: starting from the SK, HMAC level by level through
+	// date, region, service, request — leaking an intermediate key then only
+	// compromises that one day and service
 	signingKey := []byte(p.sk)
 	for _, part := range []string{shortDate, volcRegion, volcService, "request"} {
 		signingKey = volcHMAC(signingKey, part)
@@ -151,7 +154,7 @@ func (p *volcProvider) buildHeaders(now time.Time, body string) map[string]strin
 	}
 }
 
-// Implementation note.
+// volcNormQuery normalizes query parameters: sorted keys, RFC 3986 encoding — the signature and the real request share the same string.
 func volcNormQuery(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for key := range params {

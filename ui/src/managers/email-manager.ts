@@ -1,8 +1,11 @@
 /**
- * Implementation note.
+/**
+ * Mailbox scanning page: scan overview, mailbox accounts, this scan's alert
+ * mails, historical alert mails, plus mailbox config CRUD.
  *
- * Implementation note.
- * Implementation note.
+ * Scan results live in the backend's process memory and vanish on restart, so
+ * "not scanned yet" and "scanned, nothing hit" need different wording —
+ * showing both as 0 would make scanning look ineffective.
  */
 
 import { mutate } from '../api/client.js';
@@ -47,7 +50,7 @@ interface AlertCardOptions {
   muted?: boolean;
 }
 
-/* Implementation note. */
+/** Live scan results and database history rows look almost alike; only the keyword field name and timestamp differ */
 type AnyAlert = (EmailAlert | EmailAlertRecord) & { keywords?: string[]; matched_keywords?: string[]; timestamp?: string };
 
 export const EmailManager = {
@@ -110,13 +113,13 @@ export const EmailManager = {
       const result = await getEmailHistory(30, 100);
       return result.data || [];
     } catch (error) {
-      // Implementation note.
+      // the history endpoint returns 503 while the database is disabled; the page keeps rendering the rest
       console.warn('Email alert history unavailable:', error);
       return [];
     }
   },
 
-  // Implementation note.
+// ---------- Scheduled jobs ----------
 
   renderAll(): void {
     this.renderSummary();
@@ -246,7 +249,7 @@ export const EmailManager = {
     container.innerHTML = muted.map(renderSuppressionRow).join('');
   },
 
-  // Implementation note.
+// ---------- Scheduled jobs ----------
 
   async runScan(): Promise<void> {
     const btn = byId<HTMLButtonElement>('email-scan-btn');
@@ -284,7 +287,7 @@ export const EmailManager = {
   },
 };
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
 export function renderMailboxCard(mailbox: MailboxConfig, stat: MailboxResult | undefined): string {
   const name = mailbox.name || mailbox.username || t('email.unnamed');
@@ -355,7 +358,7 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
     badge = `<span class="status-badge danger">${escapeHTML(t('email.badge_not_sent'))}</span>`;
   }
 
-  // Implementation note.
+  // live scans give keywords, database history gives matched_keywords
   const keywords = alert.keywords ?? alert.matched_keywords ?? [];
   const keywordTags = (Array.isArray(keywords) ? keywords : [keywords])
     .map((kw) => `<span class="keyword-tag">${escapeHTML(kw)}</span>`)
@@ -392,7 +395,7 @@ export function renderAlertCard(alert: AnyAlert, options: AlertCardOptions = {})
         `;
 }
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
 export function openEmailModal(mailbox: MailboxConfig | null = null): void {
   byId<HTMLFormElement>('email-form')?.reset();

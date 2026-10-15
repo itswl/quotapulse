@@ -23,21 +23,24 @@ import (
 	_ "modernc.org/sqlite"             // sqlite
 )
 
-// Implementation note.
+// Options is every external input needed to open the database.
 //
-// Implementation note.
-// Implementation note.
+// It deliberately avoids depending on internal/config: store wants only
+// these three values, the dependency direction stays one-way, and tests
+// construct a database without touching environment variables.
 type Options struct {
-	DatabaseURL string // operation URL operation,operation ParseURL operation DSN
-	// Implementation note.
+	DatabaseURL string // URL-style connection string, translated into a driver DSN by ParseURL
+	// An empty EncryptionKey means no encryption; api_key and password pass through as-is.
 	EncryptionKey string
-	// Implementation note.
-	// Implementation note.
+	// AutoEncryptOnRead mirrors AUTO_ENCRYPT_ON_READ (default true in config):
+	// legacy plaintext read is encrypted and rewritten in passing. Callers pass it
+	// explicitly; the struct zero value is false.
 	AutoEncryptOnRead bool
 }
 
-// Implementation note.
-// Implementation note.
+// Default windows and row caps for the queries: callers passing 0 mean
+// unspecified and fall back to these. The values are an established API
+// contract; changing them changes what parameterless callers receive.
 const (
 	defaultBalanceDays    = 7
 	defaultBalanceLimit   = 100
@@ -48,7 +51,7 @@ const (
 	defaultEmailDays      = 30
 	defaultEmailLimit     = 100
 	defaultTopProjects    = 10
-	defaultBalanceKindTag = model.TypeCredits // balance_type operation
+	defaultBalanceKindTag = model.TypeCredits // the balance_type column default
 )
 
 type sqlStore struct {
@@ -59,14 +62,14 @@ type sqlStore struct {
 	autoEncrypt bool
 }
 
-// Implementation note.
+// Open connects, creates tables, and returns the persistent Store.
 func Open(ctx context.Context, opts Options) (Store, error) {
 	target, err := ParseURL(opts.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// Implementation note.
+	// SQLite database files live under ./data; create the directory first so the very first Open does not fail
 	if target.FilePath != "" {
 		if dir := filepath.Dir(target.FilePath); dir != "" && dir != "." {
 			if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -117,14 +120,14 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 func (s *sqlStore) Enabled() bool { return true }
 func (s *sqlStore) Close() error  { return s.db.Close() }
 
-// Implementation note.
+// ---------- Project config ----------
 
 func (s *sqlStore) ListProjects(ctx context.Context) ([]model.Project, error) {
 	rows, err := s.q.listProjectConfigs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// Implementation note.
+	// AUTO_ENCRYPT_ON_READ: legacy plaintext keys are encrypted and rewritten in passing on this read
 	for _, row := range rows {
 		if s.shouldEncryptOnRead(row.ApiKey) {
 			if err := s.q.updateProjectAPIKey(ctx, row.Name, s.cipher.encrypt(row.ApiKey)); err != nil {
@@ -167,7 +170,7 @@ func (s *sqlStore) DeleteProject(ctx context.Context, name string) error {
 	return s.q.deleteProjectConfig(ctx, name)
 }
 
-// Implementation note.
+// ---------- Subscription config ----------
 
 func (s *sqlStore) ListSubscriptions(ctx context.Context) ([]model.Subscription, error) {
 	rows, err := s.q.listSubscriptionConfigs(ctx)
@@ -213,7 +216,7 @@ func (s *sqlStore) DeleteSubscription(ctx context.Context, name string) error {
 	return s.q.deleteSubscriptionConfig(ctx, name)
 }
 
-// Implementation note.
+// ---------- Mailbox config ----------
 
 func (s *sqlStore) ListMailboxes(ctx context.Context) ([]model.Mailbox, error) {
 	rows, err := s.q.listEmailConfigs(ctx)
@@ -262,17 +265,17 @@ func (s *sqlStore) DeleteMailbox(ctx context.Context, name string) error {
 	return s.q.deleteEmailConfig(ctx, name)
 }
 
-// Implementation note.
+// shouldEncryptOnRead decides whether this field is legacy plaintext needing in-place re-encryption.
 func (s *sqlStore) shouldEncryptOnRead(value string) bool {
 	return s.autoEncrypt && s.cipher.enabled() && value != "" && !isEncrypted(value)
 }
 
-// Implementation note.
+// ---------- Balance history ----------
 
 func (s *sqlStore) SaveBalance(ctx context.Context, rec BalanceRecord) error {
 	balanceType := rec.BalanceType
 	if balanceType == "" {
-		balanceType = defaultBalanceKindTag // operation balance_type operation
+		balanceType = defaultBalanceKindTag // align with the balance_type column default
 	}
 	return s.q.insertBalance(ctx, insertBalanceParams{
 		ProjectID:   rec.ProjectID,
@@ -337,7 +340,7 @@ func (s *sqlStore) BalanceTrend(ctx context.Context, projectID string, days int)
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, nil // operation:operation nil,operation 404
+		return nil, nil // API contract: no data at all returns nil, mapped to 404 upstairs
 	}
 
 	first, last := rows[0], rows[len(rows)-1]
@@ -363,14 +366,14 @@ func (s *sqlStore) BalanceTrend(ctx context.Context, projectID string, days int)
 		MinBalance:     minBalance,
 		MaxBalance:     maxBalance,
 		AvgBalance:     sum / float64(len(rows)),
-		Threshold:      last.Threshold.Float64, // operation 0 operation,operation
+		Threshold:      last.Threshold.Float64, // no threshold reads as 0 per the established API contract
 		FirstTimestamp: isoUTC(first.Timestamp),
 		LastTimestamp:  isoUTC(last.Timestamp),
 		History:        history,
 	}
 	if len(rows) >= 2 {
 		change := last.Balance - first.Balance
-		// Implementation note.
+		// a zero start makes growth meaningless; record 0 rather than Inf/NaN from division — JSON cannot encode them
 		percent := 0.0
 		if first.Balance != 0 {
 			percent = change / first.Balance * 100
@@ -381,7 +384,7 @@ func (s *sqlStore) BalanceTrend(ctx context.Context, projectID string, days int)
 	return trend, nil
 }
 
-// Implementation note.
+// ---------- Alert history ----------
 
 func (s *sqlStore) SaveAlert(ctx context.Context, rec AlertRecord) error {
 	status := rec.Status
@@ -401,11 +404,11 @@ func (s *sqlStore) SaveAlert(ctx context.Context, rec AlertRecord) error {
 }
 
 func (s *sqlStore) HasRecentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (bool, error) {
-	// Implementation note.
+	// a zero cooldown means no cooldown: always pass without querying
 	if within <= 0 {
 		return false, nil
 	}
-	// Implementation note.
+	// only sent counts: pending / failed never did go out, or one failed send would suppress all later alerts
 	n, err := s.q.countRecentAlerts(ctx, alertID, alertType, "sent", time.Now().UTC().Add(-within))
 	if err != nil {
 		return false, err
@@ -647,7 +650,7 @@ func (s *sqlStore) AlertStats(ctx context.Context, days int) (*Stats, error) {
 	return stats, nil
 }
 
-// Implementation note.
+// ---------- Email alert history ----------
 
 func (s *sqlStore) SaveEmailAlert(ctx context.Context, rec EmailAlertRecord) error {
 	keywords, err := encodeKeywords(rec.Keywords)
@@ -699,10 +702,6 @@ func (s *sqlStore) EmailAlerts(ctx context.Context, q EmailAlertQuery) ([]EmailA
 	return out, nil
 }
 
-// Implementation note.
-//
-// Implementation note.
-// Implementation note.
 // decodeKeywords reads the JSON array text keywords are stored as. A row that isn't a
 // JSON array keeps its raw text as one keyword instead of failing the whole history.
 func decodeKeywords(value sql.NullString) []string {
@@ -721,7 +720,7 @@ func decodeKeywords(value sql.NullString) []string {
 
 func encodeKeywords(keywords []string) (string, error) {
 	if keywords == nil {
-		keywords = []string{} // nil operation null,operation JSON operation
+		keywords = []string{} // nil encodes as null; this column's contract is a JSON array
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -732,9 +731,9 @@ func encodeKeywords(keywords []string) (string, error) {
 	return string(bytes.TrimRight(buf.Bytes(), "\n")), nil
 }
 
-// Implementation note.
+// ---------- Value helpers ----------
 
-// Implementation note.
+// daysOf / limitOf default the window and count: 0 means unspecified, falling back to the defaults above.
 func daysOf(days, fallback int) int {
 	if days <= 0 {
 		return fallback
@@ -775,7 +774,7 @@ func sinceDays(days int) time.Time {
 	return time.Now().UTC().AddDate(0, 0, -days)
 }
 
-// Implementation note.
+// isoUTC renders stored times as Z-suffixed ISO strings, the API's external time format.
 func isoUTC(v sql.NullTime) string {
 	if !v.Valid {
 		return ""

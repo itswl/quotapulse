@@ -1,8 +1,9 @@
 /**
- * Implementation note.
+ * HTTP client: API key handling, 401 retry, and unified write feedback.
  *
- * Implementation note.
- * Implementation note.
+ * Every /api/* request carries X-API-Key. The key lives in localStorage; the
+ * first load or a backend key rotation prompts once — the prompt shares one
+ * Promise so concurrent requests never open five dialogs.
  */
 
 import { byId } from '../dom.js';
@@ -19,7 +20,7 @@ export interface FetchResult<T> {
 
 const STORAGE_KEY = 'apiKey';
 
-/* Implementation note. */
+/** Only one API key prompt may exist at a time */
 let pendingPrompt: Promise<string | null> | null = null;
 
 export function getApiKey(): string {
@@ -36,7 +37,7 @@ function authHeaders(): Record<string, string> {
   return key ? { 'X-API-Key': key } : {};
 }
 
-/* Implementation note. */
+/** Dig a human-readable error message out of any response body */
 function errorMessage(data: unknown, fallback: string): string {
   if (data && typeof data === 'object') {
     const payload = data as Partial<ErrorResponse> & { error?: string };
@@ -48,8 +49,10 @@ function errorMessage(data: unknown, fallback: string): string {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Prompt for the API key. The missing cancel button is deliberate: without a
+ * key the page can fetch nothing, and a "cancel" would just strand the user
+ * in front of an empty dashboard.
  */
 export function promptForApiKey(message = ''): Promise<string | null> {
   if (pendingPrompt) return pendingPrompt;
@@ -60,7 +63,7 @@ export function promptForApiKey(message = ''): Promise<string | null> {
     const input = byId<HTMLInputElement>('auth-api-key');
     const error = byId('auth-error');
 
-    // Implementation note.
+    // fall back to the browser's native input when the template is trimmed away; still usable
     if (!modal || !form || !input) {
       const value = window.prompt(message || t('auth.title'), getApiKey());
       if (value !== null) setApiKey(value);
@@ -95,7 +98,7 @@ export function promptForApiKey(message = ''): Promise<string | null> {
     form.addEventListener('submit', onSubmit);
   });
 
-  // Implementation note.
+  // clear the shared promise whether it succeeded or failed, or later requests keep awaiting a finished prompt
   return pendingPrompt.finally(() => {
     pendingPrompt = null;
   });
@@ -108,8 +111,10 @@ async function ensureApiKey(): Promise<string | null> {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Send one request and try hard to parse the body as JSON.
+ * When it will not parse, data is null — exactly what a proxy returning an
+ * HTML error page produces; callers must tolerate it.
  */
 export async function fetchJson<T>(
   endpoint: string,
@@ -144,7 +149,7 @@ export async function fetchJson<T>(
   return { response, data };
 }
 
-/* Implementation note. */
+/** Reads: throw on failure; callers decide how to surface it */
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const { response, data } = await fetchJson<T>(endpoint, options);
   if (!response.ok) {
@@ -162,8 +167,10 @@ export interface MutateOptions {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Writes: POST JSON, toast once for success and once for failure, null on
+ * failure. Toasting uniformly here keeps managers from each deciding
+ * differently.
  */
 export async function mutate(
   endpoint: string,

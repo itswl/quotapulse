@@ -13,7 +13,7 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// The six tables are cleared in dependency-free order so cases do not pollute each other.
 var allTables = []string{
 	"balance_history",
 	"alert_history",
@@ -25,20 +25,20 @@ var allTables = []string{
 
 type backend struct {
 	name string
-	// Implementation note.
+	// dsn must hand out a fresh empty database per call (sqlite via temp file; the other two share one server database).
 	dsn func(t *testing.T) string
 }
 
-// Implementation note.
+// testBackends lists the engines that can actually run this time.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// sqlite always runs on a temp-file database; postgres and mysql need real
+// servers and run only with STORE_TEST_POSTGRES_URL / STORE_TEST_MYSQL_URL
+// set — go test ./... must not depend on local database installs.
 func testBackends() []backend {
 	backends := []backend{{
 		name: "sqlite",
 		dsn: func(t *testing.T) string {
-			// Implementation note.
+			// t.TempDir() is absolute; absolute paths in the connection string take four slashes
 			return "sqlite:///" + filepath.Join(t.TempDir(), "store_test.db")
 		},
 	}}
@@ -51,8 +51,8 @@ func testBackends() []backend {
 	return backends
 }
 
-// Implementation note.
-// Implementation note.
+// fixture is a per-case empty database. The same database can be reopened with
+// different Options, which is how tests see the on-disk bytes before decryption.
 type fixture struct {
 	t   *testing.T
 	url string
@@ -82,7 +82,7 @@ func (f *fixture) open(opts Options) *sqlStore {
 	return s.(*sqlStore)
 }
 
-// Implementation note.
+// eachBackend runs the same assertions on every available engine.
 func eachBackend(t *testing.T, name string, run func(t *testing.T, f *fixture)) {
 	t.Helper()
 	for _, b := range testBackends() {
@@ -92,7 +92,7 @@ func eachBackend(t *testing.T, name string, run func(t *testing.T, f *fixture)) 
 	}
 }
 
-// Implementation note.
+// ---------- Dynamic config ----------
 
 func TestProjectConfigCRUD(t *testing.T) {
 	eachBackend(t, "project", func(t *testing.T, f *fixture) {
@@ -129,7 +129,7 @@ func TestProjectConfigCRUD(t *testing.T) {
 			t.Fatalf("期望 1 条项目，得到 %d 条", len(got))
 		}
 		if got[0] != project {
-			// Implementation note.
+			// OwnerProject is a pointer; compare the pointed-to value separately
 			if got[0].Name != project.Name || got[0].Provider != project.Provider ||
 				got[0].APIKey != project.APIKey || got[0].Threshold != project.Threshold ||
 				got[0].Type != project.Type || got[0].Enabled != project.Enabled {
@@ -140,7 +140,7 @@ func TestProjectConfigCRUD(t *testing.T) {
 			t.Errorf("owner_project = %v，期望 %q", got[0].OwnerProject, owner)
 		}
 
-		// Implementation note.
+		// Upsert overwrites wholly; writing the same name again must update, not add a row
 		project.Threshold = 99
 		project.Enabled = false
 		project.OwnerProject = nil
@@ -171,7 +171,7 @@ func TestProjectConfigCRUD(t *testing.T) {
 		if len(got) != 0 {
 			t.Fatalf("删除后应当没有项目，却有 %d 条", len(got))
 		}
-		// Implementation note.
+		// deleting a nonexistent row is not an error; delete stays idempotent
 		if err := s.DeleteProject(ctx, "根本不存在"); err != nil {
 			t.Errorf("删除不存在的项目不该报错: %v", err)
 		}
@@ -280,7 +280,7 @@ func TestMailboxConfigCRUD(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// ---------- Encryption ----------
 
 func TestSecretsAreEncryptedAtRest(t *testing.T) {
 	eachBackend(t, "encrypt-at-rest", func(t *testing.T, f *fixture) {
@@ -300,7 +300,7 @@ func TestSecretsAreEncryptedAtRest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Implementation note.
+		// read back with the key: plaintext expected
 		projects, err := s.ListProjects(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -316,7 +316,7 @@ func TestSecretsAreEncryptedAtRest(t *testing.T) {
 			t.Fatalf("带密钥读回的 password = %q，期望 %q", boxes[0].Password, password)
 		}
 
-		// Implementation note.
+		// opening the same database without the key shows ciphertext — proof it is encrypted at rest
 		plain := f.open(Options{})
 		stored, err := plain.ListProjects(ctx)
 		if err != nil {
@@ -341,7 +341,7 @@ func TestAutoEncryptOnRead(t *testing.T) {
 		const apiKey = "legacy-plaintext-key"
 		const password = "legacy-plaintext-password"
 
-		// Implementation note.
+		// write via an instance without a key first, simulating plaintext left by an older install
 		legacy := f.open(Options{})
 		if err := legacy.UpsertProject(ctx, model.Project{
 			Name: "p1", Provider: "openrouter", APIKey: apiKey, Enabled: true,
@@ -354,7 +354,7 @@ func TestAutoEncryptOnRead(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Implementation note.
+		// the first read with the key encrypts and rewrites the plaintext in passing
 		s := f.open(Options{EncryptionKey: sampleFernetKey, AutoEncryptOnRead: true})
 		projects, err := s.ListProjects(ctx)
 		if err != nil {
@@ -430,10 +430,11 @@ func TestNoKeyStoresPlaintext(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// ---------- Balance history ----------
 
-// Implementation note.
-// Implementation note.
+// seedBalance writes a record with a chosen timestamp straight through the
+// generated code. SaveBalance only writes time.Now(), and window tests need
+// arbitrary times.
 func seedBalance(t *testing.T, s *sqlStore, at time.Time, projectID, name, provider string, balance float64, threshold *float64) {
 	t.Helper()
 	if err := s.q.insertBalance(t.Context(), insertBalanceParams{
@@ -488,12 +489,12 @@ func TestSaveAndQueryBalance(t *testing.T) {
 		if row.ID == 0 {
 			t.Error("自增主键没有回来")
 		}
-		// Implementation note.
+		// timestamps are Z-suffixed ISO strings the frontend feeds straight to new Date()
 		if _, err := time.Parse(time.RFC3339Nano, row.Timestamp); err != nil {
 			t.Errorf("timestamp %q 不是合法 RFC3339: %v", row.Timestamp, err)
 		}
 
-		// Implementation note.
+		// thresholds are nullable and serialize as null, not 0
 		if err := s.SaveBalance(ctx, BalanceRecord{
 			ProjectID: "pid-2", ProjectName: "无阈值", Provider: "glm", Balance: 1,
 		}); err != nil {
@@ -506,7 +507,7 @@ func TestSaveAndQueryBalance(t *testing.T) {
 		if rows[0].Threshold != nil {
 			t.Errorf("没传阈值时应当是 nil，得到 %v", *rows[0].Threshold)
 		}
-		// Implementation note.
+		// an empty balance_type defaults to the schema default credits
 		if rows[0].BalanceType != model.TypeCredits {
 			t.Errorf("balance_type = %q，期望补成 %q", rows[0].BalanceType, model.TypeCredits)
 		}
@@ -531,7 +532,7 @@ func TestBalanceHistoryFilters(t *testing.T) {
 		if len(all) != 3 {
 			t.Fatalf("7 天窗口内应当有 3 条，得到 %d 条", len(all))
 		}
-		// Implementation note.
+		// default order is time-descending, newest first
 		if all[0].Balance != 100 || all[2].Balance != 80 {
 			t.Errorf("没有按时间倒序: %v %v %v", all[0].Balance, all[1].Balance, all[2].Balance)
 		}
@@ -597,7 +598,7 @@ func TestBalanceSeries(t *testing.T) {
 		if len(series) != 3 {
 			t.Fatalf("期望 3 个快照，得到 %d 个", len(series))
 		}
-		// Implementation note.
+		// runway analysis wants time-ascending, earliest first
 		if series[0].Balance != 50 || series[1].Balance != 90 || series[2].Balance != 100 {
 			t.Errorf("没有按时间升序: %v", []float64{series[0].Balance, series[1].Balance, series[2].Balance})
 		}
@@ -619,7 +620,7 @@ func TestBalanceSeries(t *testing.T) {
 		if series[1].Threshold != nil {
 			t.Errorf("没有阈值的点应当是 nil，得到 %v", *series[1].Threshold)
 		}
-		// Implementation note.
+		// timestamps are UTC Unix seconds
 		if delta := now.Unix() - last.Timestamp; delta < 3000 || delta > 4200 {
 			t.Errorf("时间戳看起来不是 UTC Unix 秒，距今 %d 秒", delta)
 		}
@@ -632,7 +633,7 @@ func TestBalanceTrend(t *testing.T) {
 		ctx := t.Context()
 		now := time.Now().UTC()
 
-		// Implementation note.
+		// no data at all returns nil, nil, mapped to 404 upstairs
 		trend, err := s.BalanceTrend(ctx, "pid-missing", 30)
 		if err != nil {
 			t.Fatal(err)
@@ -675,7 +676,7 @@ func TestBalanceTrend(t *testing.T) {
 		if len(trend.History) != 3 {
 			t.Fatalf("history 应当有 3 个点，得到 %d 个", len(trend.History))
 		}
-		// Implementation note.
+		// history is time-ascending
 		if trend.History[0].Balance != 100 || trend.History[2].Balance != 60 {
 			t.Errorf("history 没有按时间升序: %+v", trend.History)
 		}
@@ -708,18 +709,18 @@ func TestBalanceTrendSinglePointHasNoChange(t *testing.T) {
 		if trend.DataPoints != 1 {
 			t.Fatalf("data_points = %d，期望 1", trend.DataPoints)
 		}
-		// Implementation note.
+		// a single point yields no delta; the field is omitted entirely, not recorded as 0
 		if trend.Change != nil || trend.ChangePercent != nil {
 			t.Errorf("单点趋势不该有 change/change_percent: %v %v", trend.Change, trend.ChangePercent)
 		}
-		// Implementation note.
+		// no threshold reads as 0 per the established API contract
 		if trend.Threshold != 0 {
 			t.Errorf("threshold = %v，期望 0", trend.Threshold)
 		}
 	})
 }
 
-// Implementation note.
+// A zero start balance cannot divide, or change_percent becomes Inf or NaN and JSON serialization fails outright.
 func TestBalanceTrendZeroStartDoesNotDivide(t *testing.T) {
 	eachBackend(t, "trend-zero-start", func(t *testing.T, f *fixture) {
 		s := f.open(Options{})
@@ -745,7 +746,7 @@ func TestBalanceTrendZeroStartDoesNotDivide(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// ---------- Alert history ----------
 
 func seedAlert(t *testing.T, s *sqlStore, at time.Time, projectID, name, alertType, status string) {
 	t.Helper()
@@ -789,7 +790,7 @@ func TestSaveAndQueryAlerts(t *testing.T) {
 		if row.ProjectID != "pid-1" || row.ProjectName != "生产账户" || row.AlertType != "low_balance" {
 			t.Errorf("告警字段不对: %+v", row)
 		}
-		// Implementation note.
+		// an empty Status counts as sent per the Store contract
 		if row.Status != "sent" {
 			t.Errorf("status = %q，期望补成 sent", row.Status)
 		}
@@ -914,7 +915,7 @@ func TestHasRecentAlert(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// cooldown recognizes only status='sent': one failed send must not suppress later alerts
 func TestHasRecentAlertOnlyCountsSent(t *testing.T) {
 	eachBackend(t, "cooldown-status", func(t *testing.T, f *fixture) {
 		s := f.open(Options{})
@@ -961,7 +962,7 @@ func TestAlertStats(t *testing.T) {
 		if empty.TotalAlerts != 0 || len(empty.ByType) != 0 || len(empty.TopProjects) != 0 {
 			t.Errorf("空库统计应当全为空: %+v", empty)
 		}
-		// Implementation note.
+		// serialize as {} and [], never null
 		if empty.ByType == nil || empty.TopProjects == nil {
 			t.Error("by_type 与 top_projects 不该是 nil")
 		}
@@ -979,7 +980,7 @@ func TestAlertStats(t *testing.T) {
 		if stats.Days != 30 {
 			t.Errorf("days = %d，期望 30", stats.Days)
 		}
-		// Implementation note.
+		// stats ignore status; failed sends count toward totals per the established API semantics
 		if stats.TotalAlerts != 4 {
 			t.Errorf("total_alerts = %d，期望 4", stats.TotalAlerts)
 		}
@@ -989,7 +990,7 @@ func TestAlertStats(t *testing.T) {
 		if len(stats.TopProjects) != 2 {
 			t.Fatalf("top_projects 应当有 2 项，得到 %d 项", len(stats.TopProjects))
 		}
-		// Implementation note.
+		// ordered by count, descending
 		if stats.TopProjects[0].Project != "A" || stats.TopProjects[0].Count != 3 {
 			t.Errorf("top_projects[0] = %+v，期望 A/3", stats.TopProjects[0])
 		}
@@ -1005,7 +1006,7 @@ func TestAlertStatsTopProjectsCapped(t *testing.T) {
 		ctx := t.Context()
 		now := time.Now().UTC()
 
-		// Implementation note.
+		// 12 projects with decreasing alert counts; only the top 10 survive
 		for i := range 12 {
 			name := string(rune('A' + i))
 			for range i + 1 {
@@ -1031,7 +1032,7 @@ func TestAlertStatsTopProjectsCapped(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// ---------- Email alert history ----------
 
 func TestSaveAndQueryEmailAlerts(t *testing.T) {
 	eachBackend(t, "email", func(t *testing.T, f *fixture) {
@@ -1078,7 +1079,7 @@ func TestSaveAndQueryEmailAlerts(t *testing.T) {
 			t.Errorf("matched_keywords = %q，期望 %q", row.MatchedKeywords, want)
 		}
 
-		// Implementation note.
+		// no keywords stores an empty array, not null
 		if err := s.SaveEmailAlert(ctx, EmailAlertRecord{
 			Mailbox: "m2", Sender: "s", Subject: "无关键词", Date: "d",
 		}); err != nil {
@@ -1137,7 +1138,7 @@ func TestHasRecentEmailAlert(t *testing.T) {
 			})
 		}
 
-		// Implementation note.
+		// no keywords stores an empty array, not null
 		if err := s.SaveEmailAlert(ctx, EmailAlertRecord{
 			Mailbox: "m2", Sender: sender, Subject: subject, Date: date, AlertSent: false,
 		}); err != nil {
@@ -1204,10 +1205,10 @@ func TestEmailAlertsFilters(t *testing.T) {
 	})
 }
 
-// Implementation note.
+// ---------- Miscellaneous ----------
 
 func TestOpenCreatesSQLiteDirectory(t *testing.T) {
-	// Implementation note.
+	// SQLite database files usually live under ./data; Open creates the directory on first start
 	dir := filepath.Join(t.TempDir(), "nested", "data")
 	s, err := Open(t.Context(), Options{DatabaseURL: "sqlite:///" + filepath.Join(dir, "app.db")})
 	if err != nil {
@@ -1223,7 +1224,7 @@ func TestOpenCreatesSQLiteDirectory(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Table creation must be repeatable: every process start runs it again.
 func TestCreateTablesIsIdempotent(t *testing.T) {
 	eachBackend(t, "create-tables", func(t *testing.T, f *fixture) {
 		s := f.open(Options{})
@@ -1231,7 +1232,7 @@ func TestCreateTablesIsIdempotent(t *testing.T) {
 		if err := s.UpsertProject(ctx, model.Project{Name: "p1", Provider: "openrouter", Enabled: true}); err != nil {
 			t.Fatal(err)
 		}
-		// Implementation note.
+		// reopening reruns the DDL; data must survive
 		again := f.open(Options{})
 		got, err := again.ListProjects(ctx)
 		if err != nil {
@@ -1249,15 +1250,18 @@ func TestOpenRejectsBadURL(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// ---------- Compatibility with existing data ----------
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// legacyTimeLayout is the format the pre-rewrite implementation wrote into SQLite
+// time columns; historical production rows all look like this. SQLite has no
+// real time type — the column is text, and timestamp >= ? compares strings — so
+// newly written rows must interoperate with historical ones or history queries
+// misalign wholesale after an upgrade.
 const legacyTimeLayout = "2006-01-02 15:04:05.000000"
 
-// Implementation note.
-// Implementation note.
+// old rows were written before the rewrite, new rows now; both formats must
+// compare and sort correctly inside one time window. legacy_test.go verifies
+// "readable"; this verifies "correct when reads and writes mix".
 func TestLegacyAndNewTimestampsCompareCorrectly(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "legacy.db")
@@ -1266,7 +1270,7 @@ func TestLegacyAndNewTimestampsCompareCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Implementation note.
+	// the DDL is copied verbatim from a production database's sqlite_master
 	if _, err := legacy.ExecContext(ctx, `CREATE TABLE balance_history (
 	id INTEGER NOT NULL, 
 	project_id VARCHAR(200) NOT NULL, 
@@ -1317,7 +1321,7 @@ func TestLegacyAndNewTimestampsCompareCorrectly(t *testing.T) {
 		t.Errorf("读回的时刻偏了 %v：%v vs %v", diff, got, written)
 	}
 
-	// Implementation note.
+	// thresholds are nullable and serialize as null, not 0
 	if err := s.SaveBalance(ctx, BalanceRecord{
 		ProjectID: "f4c50bfa74c0cf0c11cfb68aed887252", ProjectName: "glm", Provider: "glm", Balance: 97.2,
 	}); err != nil {
@@ -1330,15 +1334,16 @@ func TestLegacyAndNewTimestampsCompareCorrectly(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("新旧两条都该在 7 天窗口里，得到 %d 条", len(rows))
 	}
-	// Implementation note.
+	// descending; newest first
 	if rows[0].Balance != 97.2 {
 		t.Errorf("新旧行没有按时间正确排序: %+v", rows)
 	}
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Times written into SQLite must remain the historical ISO text. The driver
+// default writes time.Time.String() ("... +0000 UTC"), which neither matches
+// historical rows nor compares predictably as text — hence the pinned
+// _time_format=sqlite in the DSN.
 func TestSQLiteTimestampStaysLegacyReadable(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "format.db")
@@ -1364,7 +1369,7 @@ func TestSQLiteTimestampStaysLegacyReadable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Implementation note.
+	// historical DATETIME text looks like 2026-09-14 03:09:37.277711; match this shape from the start
 	matched, err := regexp.MatchString(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?`, stored)
 	if err != nil {
 		t.Fatal(err)

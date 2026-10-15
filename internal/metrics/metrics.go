@@ -1,10 +1,13 @@
-// Package metrics provides the package implementation.
+// Package metrics translates every check round into Prometheus metrics.
 //
-// Implementation note.
-// Implementation note.
+// Metric and label names are external contracts (see grafana/README.md):
+// existing panels, alert rules and scrape configs hardcode these names — one
+// changed character turns live dashboards into No Data, so no "drive-by
+// polishing" of the string literals here.
 //
-// Implementation note.
-// Implementation note.
+// Metrics update only in the process running the scheduled jobs; results from
+// manual command-line runs never enter them — otherwise one human
+// investigation would leave a fake check spike on the curves.
 package metrics
 
 import (
@@ -19,7 +22,7 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// Label order equals the argument order of WithLabelValues / DeleteLabelValues; swapping writes series to wrong slots.
 var (
 	balanceLabels      = []string{"project", "provider", "type"}
 	subscriptionLabels = []string{"name", "cycle_type"}
@@ -27,15 +30,16 @@ var (
 	taskLabels         = []string{"task"}
 )
 
-// Implementation note.
+// Series groups: Gauges in one group share a label set and a lifecycle and
+// are pruned together.
 const (
-	groupBalance      = "balance" // operation, operation, operation, operation, operation, operation
-	groupCheck        = "check"   // operation,operation:operation,operation
+	groupBalance      = "balance" // balance, threshold, ratio, status, spend, runway
+	groupCheck        = "check"   // check success/failure, a separate group: a failed project updates it while the balance family stays as-is
 	groupSubscription = "subscription"
 	groupMailbox      = "mailbox"
 )
 
-// Implementation note.
+// Label count per group. labelValues is a fixed array; the first n are the group's real values.
 var groupArity = map[string]int{
 	groupBalance:      len(balanceLabels),
 	groupCheck:        len(balanceLabels),
@@ -43,23 +47,26 @@ var groupArity = map[string]int{
 	groupMailbox:      len(mailboxLabels),
 }
 
-// Implementation note.
-// Implementation note.
+// labelValues is a fixed-size array, not a slice: slices are not comparable and
+// cannot be map keys, and each group's label count is fixed (balance 3,
+// subscription 2, mailbox 1); spare slots stay empty.
 type labelValues [3]string
 
-// Implementation note.
+// Fallback for missing label values, avoiding series like project="" that no panel could identify.
 const unknown = "unknown"
 
-// Implementation note.
+// Series groups: Gauges in one group share a label set and a lifecycle and
+// are pruned together.
 const (
 	statusSuccess = "success"
 	statusFailed  = "failed"
 )
 
-// Implementation note.
-// Implementation note.
+// Collector owns all metrics and remembers each group's live label combinations,
+// so stale series disappear after a project / subscription / mailbox is deleted
+// or renamed.
 type Collector struct {
-	// Implementation note.
+	// balances
 	balance     *prometheus.GaugeVec
 	threshold   *prometheus.GaugeVec
 	ratio       *prometheus.GaugeVec
@@ -68,40 +75,41 @@ type Collector struct {
 	burnRate    *prometheus.GaugeVec
 	runwayDays  *prometheus.GaugeVec
 
-	// Implementation note.
+	// subscription renewals
 	subDays   *prometheus.GaugeVec
 	subAmount *prometheus.GaugeVec
 	subStatus *prometheus.GaugeVec
 
-	// Implementation note.
+	// mailbox scans
 	mailboxStatus  *prometheus.GaugeVec
 	lastScanEmails *prometheus.GaugeVec
 	lastScanAlerts *prometheus.GaugeVec
 	scanTotal      *prometheus.CounterVec
 	alertsTotal    *prometheus.CounterVec
 
-	// Implementation note.
+	// scheduled jobs
 	jobLastRun      *prometheus.GaugeVec
 	jobLastSuccess  *prometheus.GaugeVec
 	jobLastStatus   *prometheus.GaugeVec
 	jobLastDuration *prometheus.GaugeVec
 	jobRuns         *prometheus.CounterVec
 
-	// Implementation note.
+	// last-update timestamps for notifications and each check kind
 	notifications *prometheus.CounterVec
 	lastCheck     *prometheus.GaugeVec
 
 	gatherer prometheus.Gatherer
 
-	// Implementation note.
-	// Implementation note.
+	// The Vecs are concurrency-safe; this lock only guards the series registry
+	// below: the scheduler thread and HTTP handlers both update, and the registry
+	// is a plain map needing serialized access.
 	mu     sync.Mutex
 	series map[string]map[labelValues]struct{}
 
-	now func() time.Time // operation
+	now func() time.Time // replaced with a fixed clock in tests
 }
 
-// Implementation note.
+// New registers every metric. Pass nil reg for the default registry.
 func New(reg prometheus.Registerer) *Collector {
 	if reg == nil {
 		reg = prometheus.DefaultRegisterer
@@ -138,7 +146,7 @@ func New(reg prometheus.Registerer) *Collector {
 		scanTotal:      counter("quotapulse_email_scan_total", "Total emails scanned", mailboxLabels),
 		alertsTotal:    counter("quotapulse_email_alerts_total", "Total alert emails found", mailboxLabels),
 
-		// Implementation note.
+		// The label is task, not job: at scrape time Prometheus renames a label colliding with its built-in job label to exported_job.
 		jobLastRun:      gauge("quotapulse_job_last_run_timestamp", "Unix time of the last run", taskLabels),
 		jobLastSuccess:  gauge("quotapulse_job_last_success_timestamp", "Unix time of the last successful run", taskLabels),
 		jobLastStatus:   gauge("quotapulse_job_last_status", "Result of the last run (1=success, 0=failed)", taskLabels),
@@ -153,8 +161,9 @@ func New(reg prometheus.Registerer) *Collector {
 		now:    time.Now,
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// Handler wants a Gatherer. The default registry and *prometheus.Registry both
+	// qualify; for a wrapper that only implements Registerer, fall back to the
+	// default so /metrics still comes up.
 	if g, ok := reg.(prometheus.Gatherer); ok {
 		c.gatherer = g
 	} else {
@@ -163,14 +172,12 @@ func New(reg prometheus.Registerer) *Collector {
 	return c
 }
 
-// Implementation note.
+// Handler exposes /metrics.
 func (c *Collector) Handler() http.Handler {
 	return promhttp.HandlerFor(c.gatherer, promhttp.HandlerOpts{})
 }
 
-// Implementation note.
-
-// Implementation note.
+// set writes a Gauge and records the label combination in the group's registry for the next prune. Callers must hold the lock.
 func (c *Collector) set(vec *prometheus.GaugeVec, group string, lv labelValues, value float64) {
 	vec.WithLabelValues(lv[:groupArity[group]]...).Set(value)
 	set, ok := c.series[group]
@@ -181,12 +188,16 @@ func (c *Collector) set(vec *prometheus.GaugeVec, group string, lv labelValues, 
 	set[lv] = struct{}{}
 }
 
-// Implementation note.
-// Implementation note.
+// prune deletes from the group's Gauges the label combinations missing from
+// keep — after a project is renamed or retired the panel must not keep a
+// series that no longer exists, or statistics like count() stay inflated
+// forever.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Vec.Reset() cannot be used here: Reset clears the whole Vec including
+// series that were not updated this round but must stay — the last-known
+// balance kept on a failed check is exactly that kind. So delete by exact
+// labels. Cumulative Counters (mailbox scan totals and friends) are not
+// deleted either: restarting from 0 would show increase() a false reset.
 func (c *Collector) prune(group string, keep map[labelValues]struct{}, vecs ...*prometheus.GaugeVec) {
 	n := groupArity[group]
 	for lv := range c.series[group] {
@@ -200,9 +211,7 @@ func (c *Collector) prune(group string, keep map[labelValues]struct{}, vecs ...*
 	c.series[group] = keep
 }
 
-// Implementation note.
-
-// Implementation note.
+// UpdateBalance updates the balance metric family. An empty slice means "no projects at all" and clears every old series.
 func (c *Collector) UpdateBalance(results []model.CheckResult) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -220,9 +229,11 @@ func (c *Collector) UpdateBalance(results []model.CheckResult) {
 			continue
 		}
 
-		// Implementation note.
-		// Implementation note.
-		// Implementation note.
+		// when the balance is unknown, only check_status drops to 0 and the balance
+		// family stays byte-for-byte: the panel should show "last known balance + this
+		// check failed", not a balance vanishing into thin air. Matching by
+		// project+provider prefix because a failed result's type need not equal the
+		// last successful one.
 		c.set(c.checkStatus, groupCheck, lv, 0)
 		for old := range c.series[groupBalance] {
 			if old[0] == lv[0] && old[1] == lv[1] {
@@ -245,7 +256,7 @@ func (c *Collector) recordBalance(lv labelValues, r model.CheckResult) {
 	c.set(c.balance, groupBalance, lv, credits)
 	c.set(c.threshold, groupBalance, lv, threshold)
 
-	// Implementation note.
+	// a zero threshold writes ratio 0: division by zero yields +Inf and blows up gauge panels
 	ratio := 0.0
 	if threshold > 0 {
 		ratio = credits / threshold
@@ -258,8 +269,9 @@ func (c *Collector) recordBalance(lv labelValues, r model.CheckResult) {
 	}
 	c.set(c.status, groupBalance, lv, ok)
 
-	// Implementation note.
-	// Implementation note.
+	// spend profiles need enough history; without it these two are simply not
+	// written, which renders as "no data" rather than 0 — 0 would trip
+	// runway_days < 3 style alerts as "about to run out".
 	if r.Runway != nil {
 		if r.Runway.BurnPerDay != nil {
 			c.set(c.burnRate, groupBalance, lv, *r.Runway.BurnPerDay)
@@ -270,9 +282,7 @@ func (c *Collector) recordBalance(lv labelValues, r model.CheckResult) {
 	}
 }
 
-// Implementation note.
-
-// Implementation note.
+// UpdateSubscriptions updates renewal metrics. When the feature is off the caller passes an empty slice and old series are cleared.
 func (c *Collector) UpdateSubscriptions(results []model.SubscriptionResult) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -281,8 +291,8 @@ func (c *Collector) UpdateSubscriptions(results []model.SubscriptionResult) {
 	for _, r := range results {
 		lv := labelValues{orUnknown(r.Name), orDefault(r.CycleType, model.CycleMonthly)}
 
-		// Implementation note.
-		// Implementation note.
+		// -1 means "renewed this cycle", distinct from 0 (due now): neither is 1 on
+		// the panel, but a renewed one must not alert again.
 		status := 1.0
 		switch {
 		case r.AlreadyRenewed:
@@ -301,9 +311,7 @@ func (c *Collector) UpdateSubscriptions(results []model.SubscriptionResult) {
 	c.lastCheck.WithLabelValues("subscription").Set(unixSeconds(c.now()))
 }
 
-// Implementation note.
-
-// Implementation note.
+// UpdateEmailScan updates mailbox metrics: Gauges reflect the last scan, Counters only grow.
 func (c *Collector) UpdateEmailScan(result model.ScanResult) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -329,11 +337,12 @@ func (c *Collector) UpdateEmailScan(result model.ScanResult) {
 	c.lastCheck.WithLabelValues("email").Set(unixSeconds(c.now()))
 }
 
-// Implementation note.
+// ---------- Scheduled jobs / notifications ----------
 
-// Implementation note.
+// RecordJobRun records one task run. A zero startedAt counts as now.
 //
-// Implementation note.
+// The job family does no series pruning: the task list is hardcoded, unlike
+// projects, which get deleted or renamed.
 func (c *Collector) RecordJobRun(task string, success bool, startedAt time.Time, duration time.Duration) {
 	ts := unixSeconds(startedAt)
 	if startedAt.IsZero() {
@@ -351,13 +360,15 @@ func (c *Collector) RecordJobRun(task string, success bool, startedAt time.Time,
 	c.jobLastStatus.WithLabelValues(task).Set(result)
 	c.jobRuns.WithLabelValues(task, status).Inc()
 
-	// Implementation note.
+	// failures leave last_success untouched: alert rules rely on time() - last_success to flag stale jobs
 	if success {
 		c.jobLastSuccess.WithLabelValues(task).Set(ts)
 	}
 }
 
-// Implementation note.
+// RecordNotification records one webhook notification. kind values are
+// documented in grafana/README.md: balance / subscription / email /
+// mailbox_error / runway / spend_spike / weekly_report.
 // balance / subscription / email / mailbox_error / runway / spend_spike / weekly_report。
 func (c *Collector) RecordNotification(kind string, ok bool) {
 	status := statusFailed
@@ -367,7 +378,7 @@ func (c *Collector) RecordNotification(kind string, ok bool) {
 	c.notifications.WithLabelValues(kind, status).Inc()
 }
 
-// Implementation note.
+// ---------- Small helpers ----------
 
 func orUnknown(s string) string { return orDefault(s, unknown) }
 
@@ -378,7 +389,7 @@ func orDefault(s, fallback string) string {
 	return s
 }
 
-// Implementation note.
+// deref folds "no value" into 0: balance metrics must be numbers; pointer semantics only exist in API responses.
 func deref(v *float64) float64 {
 	if v == nil {
 		return 0
@@ -386,8 +397,9 @@ func deref(v *float64) float64 {
 	return *v
 }
 
-// Implementation note.
-// Implementation note.
+// unixSeconds converts to fractional Unix seconds. Sub-second precision matters
+// because a check round often takes under a second; integer seconds would make
+// "time since last check" panels all zero.
 func unixSeconds(t time.Time) float64 {
 	return float64(t.Unix()) + float64(t.Nanosecond())/1e9
 }

@@ -11,7 +11,7 @@ import (
 
 func ptr[T any](v T) *T { return &v }
 
-// Implementation note.
+// buildFixture is the input matching the baseline data; change it and testdata/baseline_case.json must change in lockstep.
 func buildFixture() Summary {
 	results := []model.CheckResult{
 		{Project: "deepseek", Provider: "deepseek", Success: true, Credits: ptr(100.0), Threshold: ptr(50.0)},
@@ -39,8 +39,9 @@ func buildFixture() Summary {
 	return Build(results, subs, mailboxes, 3, runways, now)
 }
 
-// Implementation note.
-// Implementation note.
+// TestRenderMatchesBaseline pins the whole weekly card byte for byte: the baseline
+// is the fully rendered text, and any layout, field-order or number format change
+// breaks here. Users are used to this format in their Feishu group.
 func TestRenderMatchesBaseline(t *testing.T) {
 	raw, err := os.ReadFile("testdata/baseline_case.json")
 	if err != nil {
@@ -69,7 +70,7 @@ func TestRenderMatchesBaseline(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestUpcomingExcludesRenewedAndDistant: renewed and beyond-a-month entries stay out of upcoming renewals.
 func TestUpcomingExcludesRenewedAndDistant(t *testing.T) {
 	summary := buildFixture()
 	if len(summary.UpcomingSubscriptions) != 2 {
@@ -80,7 +81,7 @@ func TestUpcomingExcludesRenewedAndDistant(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestTopNIsCapped: each chart takes the top three no matter how many accounts exist.
 func TestTopNIsCapped(t *testing.T) {
 	summary := buildFixture()
 	if len(summary.TopSpend) != TopN {
@@ -89,7 +90,7 @@ func TestTopNIsCapped(t *testing.T) {
 	if summary.TopSpend[0].Project != "volc" {
 		t.Errorf("消耗最多的应是 volc，实际 %s", summary.TopSpend[0].Project)
 	}
-	// Implementation note.
+	// aliyun has no runway days and must not appear in "runs out first"
 	for _, row := range summary.ShortestRunway {
 		if row.Project == "aliyun" {
 			t.Error("没有跑道估算的账户不该上见底榜")
@@ -97,7 +98,7 @@ func TestTopNIsCapped(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestEmptySectionsAreOmitted: sections without content disappear entirely; no piles of blank titles.
 func TestEmptySectionsAreOmitted(t *testing.T) {
 	now := time.Date(2026, 9, 16, 12, 0, 0, 0, time.Local)
 	summary := Build(

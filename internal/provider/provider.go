@@ -1,7 +1,8 @@
-// Package provider provides the package implementation.
+// Package provider is the adapter layer for platform balance queries.
 //
-// Implementation note.
-// Implementation note.
+// Most platforms are "one GET, read one number from JSON" and are declared
+// with a Spec — a few lines add a new platform; the signed ones (Volcengine,
+// Aliyun) implement the Provider interface themselves.
 package provider
 
 import (
@@ -19,22 +20,22 @@ import (
 	"time"
 )
 
-// Implementation note.
+// DefaultTimeout is the per-request timeout; retries belong to Client.
 const DefaultTimeout = 15 * time.Second
 
-// Implementation note.
+// MaxRetries is the retry count after failure.
 const MaxRetries = 3
 
-// Implementation note.
+// Provider queries one account's current balance.
 type Provider interface {
-	// Implementation note.
+	// Fetch returns the current balance. The semantics are the platform's: currency amount, credits, or remaining percent.
 	Fetch(ctx context.Context) (float64, error)
 }
 
-// Implementation note.
+// Factory builds an adapter from an API key; malformed keys return an error.
 type Factory func(apiKey string, client *Client) (Provider, error)
 
-// Implementation note.
+// Info is one platform's metadata in the registry, feeding /api/providers and the page dropdown.
 type Info struct {
 	Key         string `json:"value"`
 	Name        string `json:"label"`
@@ -46,7 +47,7 @@ var registry = map[string]struct {
 	factory Factory
 }{}
 
-// Implementation note.
+// Register adds a platform; called from each adapter's init.
 func Register(key, name, defaultType string, factory Factory) {
 	registry[key] = struct {
 		info    Info
@@ -54,7 +55,7 @@ func Register(key, name, defaultType string, factory Factory) {
 	}{Info{Key: key, Name: name, DefaultType: defaultType}, factory}
 }
 
-// Implementation note.
+// New creates an adapter by platform name.
 func New(key, apiKey string, client *Client) (Provider, error) {
 	entry, ok := registry[key]
 	if !ok {
@@ -66,7 +67,7 @@ func New(key, apiKey string, client *Client) (Provider, error) {
 	return entry.factory(apiKey, client)
 }
 
-// Implementation note.
+// Keys returns all registered platform names, sorted.
 func Keys() []string {
 	keys := make([]string, 0, len(registry))
 	for k := range registry {
@@ -76,7 +77,7 @@ func Keys() []string {
 	return keys
 }
 
-// Implementation note.
+// All returns every platform's metadata, sorted by name.
 func All() []Info {
 	out := make([]Info, 0, len(registry))
 	for _, k := range Keys() {
@@ -85,13 +86,13 @@ func All() []Info {
 	return out
 }
 
-// Implementation note.
+// Lookup returns one platform's metadata.
 func Lookup(key string) (Info, bool) {
 	entry, ok := registry[key]
 	return entry.info, ok
 }
 
-// Implementation note.
+// DisplayName returns the platform's display name, or the input unchanged when unregistered.
 func DisplayName(key string) string {
 	if info, ok := Lookup(key); ok {
 		return info.Name
@@ -101,12 +102,12 @@ func DisplayName(key string) string {
 
 // ---------- HTTP ----------
 
-// Implementation note.
+// Client is an HTTP client with retries, shared by adapters so pooling pays off.
 type Client struct {
 	http *http.Client
 }
 
-// Implementation note.
+// NewClient creates a client with a timeout.
 func NewClient(timeout time.Duration) *Client {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
@@ -121,11 +122,12 @@ func NewClient(timeout time.Duration) *Client {
 	}}
 }
 
-// Implementation note.
+// These status codes may succeed on retry.
 var retriableStatus = map[int]bool{429: true, 500: true, 502: true, 503: true, 504: true}
 
-// Implementation note.
-// Implementation note.
+// Do sends the request, retrying with backoff on retryable statuses and network
+// errors. Only idempotent methods retry: a non-idempotent request may already
+// have taken effect server-side, and resending duplicates it.
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	idempotent := req.Method == http.MethodGet || req.Method == http.MethodHead || req.Method == http.MethodOptions
 
@@ -151,7 +153,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		if !idempotent || !retriableStatus[resp.StatusCode] || attempt == MaxRetries {
 			return resp, nil
 		}
-		// Implementation note.
+		// drain the body so the connection can be reused
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
 		resp.Body.Close()
 		lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -159,7 +161,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	return nil, classify(lastErr)
 }
 
-// Implementation note.
+// GetJSON sends a GET and parses the response into a map.
 func (c *Client) GetJSON(ctx context.Context, rawURL string, headers map[string]string, params map[string]string) (map[string]any, error) {
 	if len(params) > 0 {
 		q := url.Values{}
@@ -201,8 +203,9 @@ func (c *Client) GetJSON(ctx context.Context, rawURL string, headers map[string]
 	return data, nil
 }
 
-// Implementation note.
-// Implementation note.
+// classify translates low-level network errors into user-facing messages:
+// timeouts say "request timed out", HTTP statuses pass through, everything else
+// becomes "network connection error".
 func classify(err error) error {
 	if err == nil {
 		return nil
@@ -220,34 +223,34 @@ func classify(err error) error {
 	return fmt.Errorf("Network connection error: %w", err)
 }
 
-// Implementation note.
+// ---------- Declarative adapters ----------
 
-// Implementation note.
+// AuthMode decides where the API key goes.
 type AuthMode int
 
 const (
 	AuthBearer AuthMode = iota // Authorization: Bearer <key>
-	AuthQuery                  // operation
+	AuthQuery                  // appended to the query string
 )
 
-// Implementation note.
+// Spec declares a "one GET, read one number from JSON" balance API.
 type Spec struct {
-	Key         string // operation,operation deepseek
-	Name        string // operation,operation DeepSeek
-	DefaultType string // operation:balance / credits / quota
+	Key         string // registry name, e.g. deepseek
+	Name        string // display name, e.g. DeepSeek
+	DefaultType string // balance type: balance / credits / quota
 	URL         string
 	Auth        AuthMode
-	AuthParam   string // Auth operation AuthQuery operation
+	AuthParam   string // parameter name when Auth is AuthQuery
 	Headers     map[string]string
 	Params      map[string]string
 
-	// Implementation note.
+	// Check validates business-level success; an error means the query failed. Optional.
 	Check func(data map[string]any) error
-	// Implementation note.
+	// Extract pulls the balance from the response, erroring when absent.
 	Extract func(data map[string]any) (float64, error)
 }
 
-// Implementation note.
+// RegisterSpec registers a platform declaratively via Spec.
 func RegisterSpec(spec Spec) {
 	Register(spec.Key, spec.Name, spec.DefaultType, func(apiKey string, client *Client) (Provider, error) {
 		return &specProvider{spec: spec, apiKey: apiKey, client: client}, nil
@@ -287,9 +290,9 @@ func (p *specProvider) Fetch(ctx context.Context) (float64, error) {
 	return p.spec.Extract(data)
 }
 
-// Implementation note.
+// ---------- JSON access helpers ----------
 
-// Implementation note.
+// Dig walks a path into nested fields; any non-object level returns nil.
 func Dig(data map[string]any, path ...string) any {
 	var current any = data
 	for _, key := range path {
@@ -302,13 +305,13 @@ func Dig(data map[string]any, path ...string) any {
 	return current
 }
 
-// Implementation note.
+// Object asserts a value into an object, nil on failure.
 func Object(v any) map[string]any {
 	obj, _ := v.(map[string]any)
 	return obj
 }
 
-// Implementation note.
+// Num converts a JSON number (float64 or a thousands-separated string) into float64.
 func Num(v any) (float64, bool) {
 	switch value := v.(type) {
 	case float64:
@@ -327,20 +330,20 @@ func Num(v any) (float64, bool) {
 	return 0, false
 }
 
-// Implementation note.
+// Str reads the value as a string; non-strings return empty.
 func Str(v any) string {
 	s, _ := v.(string)
 	return s
 }
 
-// Implementation note.
+// ---------- Log masking ----------
 
 var sensitiveQueryKeys = map[string]bool{
 	"access_token": true, "ak": true, "api_key": true, "authorization": true,
 	"key": true, "secret": true, "signature": true, "sk": true, "token": true,
 }
 
-// Implementation note.
+// MaskURL masks keys and webhook tokens in URLs for logging.
 func MaskURL(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -363,8 +366,8 @@ func MaskURL(raw string) string {
 			if hasTail {
 				parsed.Path += "/" + tail
 			}
-			// Implementation note.
-			// Implementation note.
+			// String() escapes * into %2A by default, making log entries like
+			// abcd%2A%2A%2A7890 unreadable; RawPath keeps the raw form
 			parsed.RawPath = parsed.Path
 		}
 		break
@@ -391,8 +394,9 @@ func MaskURL(raw string) string {
 	return parsed.String()
 }
 
-// Implementation note.
-// Implementation note.
+// SplitKeyPair splits an "ID:Secret" key, used by Volcengine and Aliyun. label is
+// the platform name and format the key's notation (e.g. "AK:SK"); both go into
+// the user-facing hint.
 func SplitKeyPair(apiKey, label, format string) (string, string, error) {
 	id, secret, ok := strings.Cut(apiKey, ":")
 	if !ok || id == "" || secret == "" {

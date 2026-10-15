@@ -11,11 +11,13 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Each expected payload below is the external contract for the four platforms
+// (Feishu / custom / DingTalk / WeCom), byte-pinned to each platform's documented
+// format. Their only job when touching this package: stop "drive-by" format
+// tweaks — a wrong payload means the group receives nothing, or something nobody
+// can read.
 
-// Implementation note.
+// Custom payloads embed a timestamp; pin the clock for byte-exact comparison.
 var pinnedNow = time.Date(2026, 9, 16, 23, 50, 26, 26504000, time.Local)
 
 type payloadCase struct {
@@ -82,7 +84,7 @@ func payloadCases() []payloadCase {
 				TypeFeishu:   `{"msg_type":"interactive","card":{"header":{"title":{"tag":"plain_text","content":"balance跑道不足: TestProject"},"template":"orange"},"elements":[{"tag":"markdown","content":"**账户**: TestProject\n**Owner project**: 核心业务\n**Provider**: OpenRouter\n**Current balance**: 1,234.50\n**日均消耗**: 120.00（最近 7 天）"}]}}`,
 				TypeDingTalk: `{"msgtype":"markdown","markdown":{"title":"balance跑道不足: TestProject","text":"### balance跑道不足: TestProject\n\n**账户**: TestProject\n**Owner project**: 核心业务\n**Provider**: OpenRouter\n**Current balance**: 1,234.50\n**日均消耗**: 120.00（最近 7 天）"}}`,
 				TypeWeCom:    `{"msgtype":"markdown","markdown":{"content":"### balance跑道不足: TestProject\n\n**账户**: TestProject\n**Owner project**: 核心业务\n**Provider**: OpenRouter\n**Current balance**: 1,234.50\n**日均消耗**: 120.00（最近 7 天）"}}`,
-				// Implementation note.
+				// the timestamp is local time without a zone; its value is pinned by pinnedNow
 				TypeCustom: `{"title":"balance跑道不足: TestProject","content":"**账户**: TestProject\n**Owner project**: 核心业务\n**Provider**: OpenRouter\n**Current balance**: 1,234.50\n**日均消耗**: 120.00（最近 7 天）","source":"credit-monitor","timestamp":"2026-09-16T23:50:26.026504"}`,
 			},
 		},
@@ -97,8 +99,9 @@ func TestSendPayloadMatchesContract(t *testing.T) {
 				want := tc.want[typ]
 
 				if typ == TypeCustom && tc.msg.envelope != nil {
-					// Implementation note.
-					// Implementation note.
+					// the envelope carries raw numbers where 10000 and 10000.0 are the same
+					// value; byte comparison false-flags them, so compare token streams —
+					// field order changes still surface
 					assertSameJSON(t, want, got)
 					return
 				}
@@ -110,7 +113,7 @@ func TestSendPayloadMatchesContract(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Mail alerts go the rich-text route; this pins the Feishu card only, other platforms are covered above.
 func TestSendEmailPayload(t *testing.T) {
 	service := "OpenAI"
 	amount := 20.0
@@ -124,7 +127,7 @@ func TestSendEmailPayload(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Externally assembled Messages carry no structured fields; the custom type must degrade to the generic payload, not send an empty envelope.
 func TestSendCustomFallsBackWithoutEnvelope(t *testing.T) {
 	msg := Message{Title: "Balance alert", Lines: []string{"API call: P"}, Kind: KindBalance}
 
@@ -142,7 +145,7 @@ func TestSendSetsJSONContentType(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// sendCaptured starts a fake bot endpoint and returns the actual payload and headers.
 func sendCaptured(t *testing.T, webhookType string, msg Message) (string, http.Header) {
 	t.Helper()
 
@@ -167,8 +170,9 @@ func sendCaptured(t *testing.T, webhookType string, msg Message) (string, http.H
 	return string(body), header
 }
 
-// Implementation note.
-// Implementation note.
+// assertSameJSON compares two JSON documents as token streams: hierarchy, field
+// order and values must all match, with numbers compared numerically — 10000 and
+// 10000.0 are the same number and not a difference.
 func assertSameJSON(t *testing.T, want, got string) {
 	t.Helper()
 

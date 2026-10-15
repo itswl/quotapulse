@@ -13,9 +13,7 @@ import (
 	"time"
 )
 
-// Implementation note.
-
-// Implementation note.
+// recorded stores what the test server received, to assert auth headers, query parameters and retry counts.
 type recorded struct {
 	mu      sync.Mutex
 	count   int
@@ -43,7 +41,7 @@ func (r *recorded) requests() int {
 	return r.count
 }
 
-// Implementation note.
+// serveJSON starts a test server returning a fixed response. status 0 means 200.
 func serveJSON(t *testing.T, status int, body string) (*httptest.Server, *recorded) {
 	t.Helper()
 	if status == 0 {
@@ -60,14 +58,15 @@ func serveJSON(t *testing.T, status int, body string) (*httptest.Server, *record
 	return srv, rec
 }
 
-// Implementation note.
-// Implementation note.
+// specProviderAt swaps a Spec's URL for the test server's address, keeping the
+// rest — so what is tested is the production declaration itself, not a copy in
+// the test.
 func specProviderAt(spec Spec, rawURL, apiKey string) Provider {
 	spec.URL = rawURL
 	return &specProvider{spec: spec, apiKey: apiKey, client: NewClient(2 * time.Second)}
 }
 
-// Implementation note.
+// specCase is one "given a response, expect a balance or an error" case.
 type specCase struct {
 	name   string
 	status int
@@ -106,10 +105,10 @@ func assertFloat(t *testing.T, got, want float64) {
 	}
 }
 
-// Implementation note.
+// ---------- Registry ----------
 
 func TestRegistry(t *testing.T) {
-	// Implementation note.
+	// display names and default balance types enter the database and page dropdowns; changes strand existing data
 	want := []Info{
 		{Key: "aliyun", Name: "Alibaba Cloud", DefaultType: "balance"},
 		{Key: "deepseek", Name: "DeepSeek", DefaultType: "balance"},
@@ -142,13 +141,13 @@ func TestDisplayName(t *testing.T) {
 	if got := DisplayName("volc"); got != "Volcengine" {
 		t.Errorf("DisplayName(volc) = %q", got)
 	}
-	// Implementation note.
+	// unregistered names pass through; the page at least shows who it is
 	if got := DisplayName("mystery"); got != "mystery" {
 		t.Errorf("DisplayName(mystery) = %q", got)
 	}
 }
 
-// Implementation note.
+// ---------- HTTP client ----------
 
 func TestClientRetriesAfterTooManyRequests(t *testing.T) {
 	var hits int
@@ -176,7 +175,7 @@ func TestClientRetriesAfterTooManyRequests(t *testing.T) {
 }
 
 func TestClientDoesNotRetryNonIdempotent(t *testing.T) {
-	// Implementation note.
+	// POST retries could double-charge; 429 also goes out only once
 	srv, rec := serveJSON(t, http.StatusTooManyRequests, `{"error":"slow down"}`)
 
 	req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader("{}"))
@@ -201,7 +200,7 @@ func TestClientExhaustsRetries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("退避要等 3.5 秒")
 	}
-	// Implementation note.
+	// persistent 503: after MaxRetries retries the last response is handed back; the caller reports by status
 	srv, rec := serveJSON(t, http.StatusServiceUnavailable, `{"error":"down"}`)
 
 	_, err := NewClient(2*time.Second).GetJSON(context.Background(), srv.URL, nil, nil)
@@ -250,7 +249,7 @@ func TestGetJSONErrors(t *testing.T) {
 func TestGetJSONMergesParams(t *testing.T) {
 	srv, rec := serveJSON(t, http.StatusOK, `{}`)
 
-	// Implementation note.
+	// an existing query string needs & continuation, not another ?
 	_, err := NewClient(time.Second).GetJSON(context.Background(), srv.URL+"?fixed=1",
 		map[string]string{"Accept": "application/json"}, map[string]string{"unit": "usd"})
 	if err != nil {
@@ -267,10 +266,10 @@ func TestGetJSONMergesParams(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// ---------- Log masking ----------
 
 func TestMaskURL(t *testing.T) {
-	// Implementation note.
+	// full keys must never hit the logs: each case below pins the masked form; read these before touching MaskURL
 	cases := []struct {
 		name string
 		in   string
@@ -302,14 +301,14 @@ func TestMaskURL(t *testing.T) {
 			want: "https://api.example.com/v1/x",
 		},
 		{
-			// Implementation note.
-			// Implementation note.
+			// url.URL.String() re-encodes spaces so output may differ from input; it only
+			// affects how an already-invalid URL prints in logs, not the masking itself
 			name: "不是 URL 也不能炸",
 			in:   "not a url",
 			want: "not%20a%20url",
 		},
 		{
-			// Implementation note.
+			// url.Values.Encode() sorts by key name, so query order may differ from the input
 			name: "多个敏感参数",
 			in:   "https://api.example.com/x?token=1234567890abcdef&foo=bar",
 			want: "https://api.example.com/x?foo=bar&token=1234%2A%2A%2Acdef",
@@ -331,7 +330,7 @@ func TestSplitKeyPair(t *testing.T) {
 		t.Fatalf("拆出 (%q, %q, %v)", id, secret, err)
 	}
 
-	// Implementation note.
+	// half a key is no key at all: fail here instead of signing a doomed request
 	for _, bad := range []string{"AKLTxxx", "", ":SK", "AK:"} {
 		if _, _, err := SplitKeyPair(bad, "Volcengine", "AK:SK"); err == nil {
 			t.Errorf("%q 应该被判为formaterror", bad)

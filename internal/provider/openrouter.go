@@ -2,14 +2,14 @@ package provider
 
 import "errors"
 
-// Implementation note.
+// OpenRouter only reports cumulative top-ups and spend; net the two ourselves.
 var openRouterSpec = Spec{
 	Key:         "openrouter",
 	Name:        "OpenRouter",
 	DefaultType: "credits",
 	URL:         "https://openrouter.ai/api/v1/credits",
 	Extract: func(data map[string]any) (float64, error) {
-		// Implementation note.
+		// both response shapes have been seen: fields under data, or flat at the top level
 		scope := data
 		if nested, ok := data["data"]; ok {
 			scope = Object(nested)

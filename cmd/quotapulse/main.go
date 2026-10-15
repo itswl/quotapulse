@@ -1,6 +1,9 @@
-// Implementation note.
+// QuotaPulse monitors balances or quotas across platforms, estimates how many
+// days remain, and sends webhooks when an account is about to run dry or spend
+// suddenly spikes.
 //
-// Implementation note.
+// By default it runs the web service and in-process scheduled jobs; flags like
+// -check run once and exit, for command-line troubleshooting.
 package main
 
 import (
@@ -17,8 +20,9 @@ import (
 	"syscall"
 	"time"
 
-	// Implementation note.
-	// Implementation note.
+	// Bake the timezone database into the binary: scheduled times are interpreted
+	// per TZ and the runtime image therefore needs no tzdata, running directly on
+	// scratch. A system tzdata still wins when present.
 	_ "time/tzdata"
 
 	"github.com/itswl/quotapulse/internal/app"
@@ -30,7 +34,7 @@ import (
 func main() {
 	opts := parseFlags()
 
-	// Implementation note.
+	// .env enters the environment first; every later config read uses os.Environ only
 	if err := config.LoadEnvFile(".env"); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to load .env:", err)
 		os.Exit(1)
@@ -41,8 +45,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// The health check sends one HTTP request and needs no database or notifier
+	// dependencies, so it returns before assembly. The image is scratch-based with
+	// no curl available — the program handles this itself.
 	if opts.healthcheck {
 		os.Exit(probe(settings.WebPort))
 	}
@@ -94,7 +99,7 @@ func parseFlags() options {
 	return opts
 }
 
-// Implementation note.
+// run returns the process exit code.
 func run(ctx context.Context, instance *app.App, opts options) int {
 	switch {
 	case opts.showConfig:
@@ -156,7 +161,7 @@ func serve(ctx context.Context, instance *app.App) int {
 	return 0
 }
 
-// Implementation note.
+// probe checks the local liveness endpoint and returns the process exit code.
 func probe(port int) int {
 	client := &http.Client{Timeout: 5 * time.Second}
 	url := fmt.Sprintf("http://127.0.0.1:%d/live", port)
@@ -174,7 +179,7 @@ func probe(port int) int {
 	return 0
 }
 
-// Implementation note.
+// assets returns the embedded frontend; unbuilt means nil and the page shows a hint instead of a 500.
 func assets(log *slog.Logger) fs.FS {
 	dist, err := ui.Assets()
 	if err != nil {
@@ -184,8 +189,8 @@ func assets(log *slog.Logger) fs.FS {
 	return dist
 }
 
-// Implementation note.
-// Implementation note.
+// newLogger builds the logger per LOG_FORMAT / LOG_LEVEL / LOG_FILE.
+// File output also mirrors to stdout so both container logs and the file see it.
 func newLogger(settings *config.Settings) (*slog.Logger, func(), error) {
 	level := slog.LevelInfo
 	switch strings.ToUpper(settings.LogLevel) {

@@ -1,4 +1,4 @@
-/* Implementation note. */
+/** Subscription management: create / edit / delete / mark renewed. */
 
 import { mutate, request } from '../api/client.js';
 import { ENDPOINTS, getSubscriptionsConfig } from '../api/endpoints.js';
@@ -15,7 +15,7 @@ import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'subscription-modal';
 
-/* Implementation note. */
+/** The optional "owning project" takes its options from group names seen on the dashboard */
 function populateProjectOptions(selectedProject = ''): void {
   const select = byId<HTMLSelectElement>('sub-owner-project');
   if (!select) return;
@@ -36,7 +36,7 @@ function populateProjectOptions(selectedProject = ''): void {
     select.appendChild(option);
   }
 
-  // Implementation note.
+  // a project tied to an existing subscription may no longer be on the dashboard; add the option or editing silently clears it
   if (selectedProject && !known.includes(selectedProject)) {
     const option = document.createElement('option');
     option.value = selectedProject;
@@ -46,7 +46,7 @@ function populateProjectOptions(selectedProject = ''): void {
   }
 }
 
-/* Implementation note. */
+/** Renewal-day ranges follow the period: weekly 1-7, monthly 1-31, yearly MMDD */
 function updateRenewalDayInputForCycle(): void {
   const cycle = byId<HTMLSelectElement>('sub-cycle')?.value || 'monthly';
   const input = byId<HTMLInputElement>('sub-renewal-day');
@@ -138,7 +138,7 @@ async function saveSubscription(event: Event): Promise<void> {
   let endpoint: string = ENDPOINTS.addSubscription;
   if (isEdit) {
     endpoint = ENDPOINTS.updateSubscription;
-    // Implementation note.
+    // the name is the locator: renaming passes the old name in name and the new one in new_name
     if (data.name !== originalName) {
       data.new_name = data.name;
       data.name = originalName;
@@ -154,7 +154,7 @@ async function saveSubscription(event: Event): Promise<void> {
   }
 }
 
-/* Implementation note. */
+/** Dashboard subscription status lacks alert_days_before; fetch the full config before editing */
 export async function editSubscription(name: string): Promise<void> {
   try {
     // Look in the configuration first: a disabled subscription isn't in the checked results.

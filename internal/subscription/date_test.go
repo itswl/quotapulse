@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
+// baselineCase is one date-math expectation: given period, renewal day, today
+// and last renewal, what the next renewal date is, how many days remain, and
+// whether this cycle already renewed.
 type baselineCase struct {
 	Cycle          string  `json:"cycle"`
 	RenewalDay     int     `json:"renewal_day"`
@@ -163,14 +164,14 @@ func TestCoerceRenewalDay(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestMonthEndClamping watches month-end fallback alone — the easiest part to break.
 func TestMonthEndClamping(t *testing.T) {
-	// Implementation note.
+	// subscribed Jan 31, viewed Feb 1: next lands on Feb 28/29, not Mar 3
 	_, next := NextRenewal("monthly", 31, mustDate(t, "2026-02-01"), nil)
 	if got := next.Format("2006-01-02"); got != "2026-02-28" {
 		t.Errorf("31 号的月付在 2 月应回退到 2026-02-28，实际 %s", got)
 	}
-	// Implementation note.
+	// a Feb-29 yearly subscription lands on Feb 28 in common years
 	last := mustDate(t, "2024-02-29")
 	_, next = NextRenewal("yearly", 229, mustDate(t, "2026-01-01"), &last)
 	if got := next.Format("2006-01-02"); got != "2026-02-28" {
@@ -178,7 +179,7 @@ func TestMonthEndClamping(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestRenewalDayIsNotOffByOne: renewal day must count as 0 days, not -1, or the reminder never arrives that day.
 func TestRenewalDayIsNotOffByOne(t *testing.T) {
 	today := time.Date(2026, 3, 15, 14, 30, 0, 0, time.Local) // 故意带上时分秒
 	days, next := NextRenewal("monthly", 15, today, nil)

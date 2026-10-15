@@ -1,4 +1,5 @@
-/* Implementation note. */
+/** Project balance section: card rendering, the search / provider / view filter,
+ *  and the provider dropdown. */
 
 import { byId, requireById, selectById } from '../dom.js';
 import {
@@ -18,14 +19,17 @@ import { emptyState } from './empty.js';
 import { ICON_ARROW_RIGHT, ICON_DELETE, ICON_EDIT, ICON_PLUS } from './icons.js';
 
 /**
- * Implementation note.
+/**
+ * One project card.
  *
- * Implementation note.
- * Implementation note.
+ * features arrives as an argument rather than read from AppState: this
+ * keeps the function pure, and the smoke test feeds data and compares
+ * output directly.
  */
 export function renderProjectCard(project: CheckResult, features: Features): string {
-  // Implementation note.
-  // Implementation note.
+  // projects without a readable balance get their own shape. The old version
+  // rendered credits null as 0 with a null threshold, making an expired key look
+  // exactly like a healthy balance — the worst mistake a monitor can make.
   if (!project.success) {
     return renderFailedCard(project, features);
   }
@@ -150,7 +154,7 @@ export function renderDisabledProjectCard(project: ProjectConfig, features: Feat
         `;
 }
 
-/* Implementation note. */
+/** Projects whose balance cannot be read: no balance or progress bar, the error text goes in verbatim */
 function renderFailedCard(project: CheckResult, features: Features): string {
   const projectName = project.project || t('projects.unknown');
   const provider = project.provider || 'unknown';
@@ -191,7 +195,7 @@ function renderFailedCard(project: CheckResult, features: Features): string {
         `;
 }
 
-/* Implementation note. */
+/** Search term / provider / current view, a three-way filter in the original order */
 export function filterProjects(
   projects: CheckResult[],
   { search, provider, alertsOnly }: { search: string; provider: string; alertsOnly: boolean },

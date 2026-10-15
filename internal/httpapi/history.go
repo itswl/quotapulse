@@ -9,7 +9,7 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// Default values and ranges for history queries, matching the legacy version.
 func (s *Server) handleBalanceHistory(w http.ResponseWriter, r *http.Request) {
 	days, err := intParam(r, "days", 7, 1, 365)
 	if err != nil {
@@ -38,8 +38,8 @@ func (s *Server) handleBalanceHistory(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"count": len(rows), "data": rows})
 }
 
-// Implementation note.
-// Implementation note.
+// handleBalanceTrend returns one account's balance trend. The frontend may pass the
+// raw "provider:name"; translate it into the stored project ID.
 func (s *Server) handleBalanceTrend(w http.ResponseWriter, r *http.Request) {
 	days, err := intParam(r, "days", 30, 1, 365)
 	if err != nil {

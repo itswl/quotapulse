@@ -8,9 +8,10 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Without a database, upper layers call Store directly with no branching. These
+// cases pin the degradation behavior: writes drop silently, queries return
+// empty, cooldowns always pass; only "persisting dynamic config to the
+// database" returns ErrDisabled (the HTTP layer maps it to 503).
 func TestNullStoreDegrades(t *testing.T) {
 	s := Null()
 
@@ -56,7 +57,7 @@ func TestNullStoreQueriesReturnEmpty(t *testing.T) {
 		t.Errorf("EmailAlerts = %v, %v", emails, err)
 	}
 
-	// Implementation note.
+	// trends and stats return nil, which the upper layer maps to 404 or "database disabled".
 	trend, err := s.BalanceTrend(ctx, "pid", 30)
 	if err != nil || trend != nil {
 		t.Errorf("BalanceTrend = %v, %v，期望 nil, nil", trend, err)
@@ -71,7 +72,7 @@ func TestNullStoreWritesAreDiscarded(t *testing.T) {
 	s := Null()
 	ctx := t.Context()
 
-	// Implementation note.
+	// history recording is optional; without a database nothing records, but the main flow must not fail
 	if err := s.SaveBalance(ctx, BalanceRecord{ProjectID: "pid", Balance: 1}); err != nil {
 		t.Errorf("SaveBalance 不该报错: %v", err)
 	}
@@ -87,7 +88,7 @@ func TestNullStoreNeverCoolsDown(t *testing.T) {
 	s := Null()
 	ctx := t.Context()
 
-	// Implementation note.
+	// no history means no cooldown basis — always pass: alerts still go out, that is the product requirement
 	for _, within := range []time.Duration{0, time.Minute, 24 * time.Hour} {
 		got, err := s.HasRecentAlert(ctx, "pid", "low_balance", within)
 		if err != nil {
@@ -110,7 +111,7 @@ func TestNullStoreRejectsDynamicConfigWrites(t *testing.T) {
 	s := Null()
 	ctx := t.Context()
 
-	// Implementation note.
+	// these cannot be dropped silently: the user pressed save and deserves to hear the database is off
 	cases := []struct {
 		name string
 		call func() error

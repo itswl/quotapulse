@@ -8,16 +8,16 @@ logs/
 *.db
 *.db-journal
 
-# Implementation note.
+# Frontend deps and local artifacts; the image rebuilds them
 ui/node_modules/
 ui/dist-test/
 
-# Implementation note.
+# Docs and deploy manifests stay out of the image
 docs/
 grafana/
 k8s/
 *.md
 LICENSE
 
-# Implementation note.
+# Test data
 **/testdata/

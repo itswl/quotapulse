@@ -18,7 +18,7 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// fakeStore records what was written and makes cooldown state controllable.
 type fakeStore struct {
 	store.Store
 	mu       sync.Mutex
@@ -47,7 +47,7 @@ func (f *fakeStore) LastSentAlert(context.Context, string, string, time.Duration
 	return f.lastSent, nil
 }
 
-// Implementation note.
+// fakeNotifier records sent messages and can simulate failures.
 type fakeNotifier struct {
 	mu       sync.Mutex
 	messages []notify.Message
@@ -70,18 +70,18 @@ func (f *fakeNotifier) count() int {
 	return len(f.messages)
 }
 
-// Implementation note.
+// newTestMonitor builds a monitor against a fake HTTP service; balance is what the upstream returns.
 func newTestMonitor(t *testing.T, projects []model.Project, balance string) (*Monitor, *fakeStore, *fakeNotifier) {
 	t.Helper()
 
-	// Implementation note.
+	// deepseek's response shape, keeping tests off the real upstream
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"balance_infos":[{"currency":"CNY","total_balance":"` + balance + `"}]}`))
 	}))
 	t.Cleanup(upstream.Close)
 
-	// Implementation note.
+	// a platform registered only in tests points at the fake service
 	provider.RegisterSpec(provider.Spec{
 		Key: "testupstream", Name: "测试平台", DefaultType: model.TypeBalance,
 		URL: upstream.URL,
@@ -155,7 +155,7 @@ func TestCheckProjectNeedsAlarm(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestDryRunSendsNothing: in dry-run everything runs except notifications.
 func TestDryRunSendsNothing(t *testing.T) {
 	m, st, notifier := newTestMonitor(t, nil, "8.5")
 	result := m.CheckProject(context.Background(), testProject(50), true)
@@ -174,7 +174,7 @@ func TestDryRunSendsNothing(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestCooldownSkipsDuplicate: within the cooldown window, no repeat pings.
 func TestCooldownSkipsDuplicate(t *testing.T) {
 	m, st, notifier := newTestMonitor(t, nil, "8.5")
 	now := time.Now()
@@ -189,7 +189,8 @@ func TestCooldownSkipsDuplicate(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// A failed send is still recorded so dedup works, but it does not start a
+// cooldown, so the next round can retry.
 func TestFailedSendIsRecordedButDoesNotBlockRetries(t *testing.T) {
 	m, st, notifier := newTestMonitor(t, nil, "8.5")
 	notifier.err = errors.New("webhook 超时")
@@ -223,7 +224,7 @@ func TestUnknownProviderFails(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestResponseCache: the same key hits upstream once per TTL so page hammering cannot drain quota.
 func TestResponseCache(t *testing.T) {
 	var hits int
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

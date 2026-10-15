@@ -1,10 +1,13 @@
-// Package scheduler provides the package implementation.
+// Package scheduler is the in-process job scheduler, replacing cron in the
+// container.
 //
-// Implementation note.
-// Implementation note.
+// Why not cron: metrics accumulate in-process. Jobs running in another
+// process would leave Prometheus forever scraping an idle one.
 //
-// Implementation note.
-// Implementation note.
+// Two trigger kinds: fixed intervals (dashboard refresh) and fixed daily
+// times (alert checks, mailbox scans, the weekly report). All jobs run
+// sequentially in one goroutine, never concurrently; one failing task only
+// records a failure and never affects the others.
 package scheduler
 
 import (
@@ -19,11 +22,11 @@ import (
 	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
-// Implementation note.
+// Task is one scheduled job. Interval or DailyTimes, never both; neither means disabled.
 type Task struct {
 	Name        string
 	Description string
-	// Implementation note.
+	// Run's detail is passed along the run record to OnResult, displayed by /api/jobs.
 	Run        func(ctx context.Context) (any, error)
 	Interval   time.Duration
 	DailyTimes []timeutil.ClockTime
@@ -36,10 +39,10 @@ type Task struct {
 	nextRun time.Time
 }
 
-// Implementation note.
+// Enabled reports whether the task actually fires.
 func (t *Task) Enabled() bool { return t.Interval > 0 || len(t.DailyTimes) > 0 }
 
-// Implementation note.
+// ScheduleText is the human-readable trigger description.
 func (t *Task) ScheduleText() string {
 	if t.Interval > 0 {
 		return fmt.Sprintf("Every %d seconds", int(t.Interval.Seconds()))
@@ -47,7 +50,7 @@ func (t *Task) ScheduleText() string {
 	return timeutil.Describe(t.DailyTimes, t.Weekdays)
 }
 
-// Implementation note.
+// NextRun is the next fire time; the zero value means it never fires.
 func (t *Task) NextRun() time.Time { return t.nextRun }
 
 func (t *Task) initialNextRun(now time.Time) time.Time {
@@ -69,7 +72,7 @@ func (t *Task) followingRun(now time.Time) time.Time {
 	return next
 }
 
-// Implementation note.
+// Result is one task run's outcome.
 type Result struct {
 	Name      string
 	Success   bool
@@ -80,21 +83,21 @@ type Result struct {
 	NextRun   time.Time
 }
 
-// Implementation note.
+// Scheduler runs due tasks sequentially.
 type Scheduler struct {
 	tasks    []*Task
 	onResult func(Result)
 	log      *slog.Logger
 	maxWait  time.Duration
 
-	runMu sync.Mutex // operation
+	runMu sync.Mutex // manual triggers never race the background loop
 	done  chan struct{}
 	stop  chan struct{}
 	once  sync.Once
 }
 
-// Implementation note.
-// Implementation note.
+// New creates the scheduler. onResult is optional; it hands run records to the
+// state manager and metrics — the scheduler itself depends on neither.
 func New(tasks []*Task, onResult func(Result), log *slog.Logger) *Scheduler {
 	if log == nil {
 		log = slog.Default()
@@ -109,16 +112,16 @@ func New(tasks []*Task, onResult func(Result), log *slog.Logger) *Scheduler {
 		tasks:    tasks,
 		onResult: onResult,
 		log:      log,
-		maxWait:  time.Minute, // operation:operation
+		maxWait:  time.Minute, // one-minute cap: clock jumps get picked up promptly
 		done:     make(chan struct{}),
 		stop:     make(chan struct{}),
 	}
 }
 
-// Implementation note.
+// Tasks returns all tasks for startup-time registration.
 func (s *Scheduler) Tasks() []*Task { return s.tasks }
 
-// Implementation note.
+// Start runs the scheduling loop in a background goroutine.
 func (s *Scheduler) Start(ctx context.Context) {
 	descriptions := make([]string, 0, len(s.tasks))
 	for _, t := range s.tasks {
@@ -143,7 +146,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	}()
 }
 
-// Implementation note.
+// Stop halts the loop, waiting at most timeout.
 func (s *Scheduler) Stop(timeout time.Duration) {
 	s.once.Do(func() { close(s.stop) })
 	select {
@@ -152,7 +155,7 @@ func (s *Scheduler) Stop(timeout time.Duration) {
 	}
 }
 
-// Implementation note.
+// sleepFor is the time until the next task, clamped to [0.1s, maxWait].
 func (s *Scheduler) sleepFor(now time.Time) time.Duration {
 	wait := s.maxWait
 	for _, t := range s.tasks {
@@ -166,7 +169,7 @@ func (s *Scheduler) sleepFor(now time.Time) time.Duration {
 	return max(100*time.Millisecond, min(s.maxWait, wait))
 }
 
-// Implementation note.
+// RunPending executes every due task and returns this round's results.
 func (s *Scheduler) RunPending(ctx context.Context, now time.Time) []Result {
 	var results []Result
 	for _, t := range s.tasks {
@@ -178,7 +181,7 @@ func (s *Scheduler) RunPending(ctx context.Context, now time.Time) []Result {
 	return results
 }
 
-// Implementation note.
+// RunTask executes one task immediately and advances its next time. Manual triggers go through here too, so they never race the loop.
 func (s *Scheduler) RunTask(ctx context.Context, t *Task) Result {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
@@ -227,7 +230,7 @@ func (s *Scheduler) RunTask(ctx context.Context, t *Task) Result {
 	return result
 }
 
-// Implementation note.
+// Lookup finds a task by name; the HTTP layer uses it for manual triggers.
 func (s *Scheduler) Lookup(name string) *Task {
 	for _, t := range s.tasks {
 		if t.Name == name {

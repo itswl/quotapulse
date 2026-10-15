@@ -1,7 +1,9 @@
-// Package model provides the package implementation.
+// Package model defines the domain types shared across modules.
 //
-// Implementation note.
-// Implementation note.
+// These types double as HTTP API response structures; their JSON tags must
+// match the existing frontend contract: values that may be absent use
+// pointers and serialize as null rather than 0, so the frontend never reads
+// "no data" as "zero balance".
 package model
 
 import (
@@ -10,14 +12,15 @@ import (
 	"strings"
 )
 
-// Implementation note.
+// Balance types: display units differ, so cross-project comparison should
+// look at ratios, not absolute values.
 const (
-	TypeBalance = "balance" // operation
-	TypeCredits = "credits" // operation
-	TypeQuota   = "quota"   // operation
+	TypeBalance = "balance" // monetary balance
+	TypeCredits = "credits" // platform credits
+	TypeQuota   = "quota"   // plan quota as remaining percent
 )
 
-// Implementation note.
+// Project is one monitored account.
 type Project struct {
 	Name         string  `json:"name"`
 	Provider     string  `json:"provider"`
@@ -29,9 +32,10 @@ type Project struct {
 	FromEnv      bool    `json:"from_env,omitempty"` // auto-discovered from environment variables; read-only on the dashboard
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// ID is the project's stable identity across history tables and alert cooldowns.
+// Stored history uses exactly this algorithm; changing it treats all existing
+// data as a different set of projects: balance curves break, runway restarts
+// from zero, cooldown state is lost.
 func (p Project) ID() string { return ProjectID(p.Provider, p.Name) }
 
 // ProjectID = md5("provider:name")。
@@ -40,18 +44,18 @@ func ProjectID(provider, name string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Implementation note.
+// SubscriptionID = md5("subscription:name"), likewise a stable identity of existing data; do not change.
 func SubscriptionID(name string) string {
 	sum := md5.Sum([]byte("subscription:" + name))
 	return hex.EncodeToString(sum[:])
 }
 
-// Implementation note.
+// Subscription is one renewal reminder.
 type Subscription struct {
 	Name            string  `json:"name"`
 	OwnerProject    *string `json:"owner_project"`
 	CycleType       string  `json:"cycle_type"`  // weekly / monthly / yearly / lunar_yearly
-	RenewalDay      int     `json:"renewal_day"` // operation 1-7,operation 1-31,operation MMDD
+	RenewalDay      int     `json:"renewal_day"` // weekly 1-7, monthly 1-31, yearly MMDD
 	AlertDaysBefore int     `json:"alert_days_before"`
 	Amount          float64 `json:"amount"`
 	Enabled         bool    `json:"enabled"`
@@ -61,7 +65,8 @@ type Subscription struct {
 	WebhookURL      string  `json:"-"`
 }
 
-// Implementation note.
+// Balance types: display units differ, so cross-project comparison should
+// look at ratios, not absolute values.
 const (
 	CycleWeekly  = "weekly"
 	CycleMonthly = "monthly"
@@ -70,7 +75,7 @@ const (
 	CycleLunarYearly = "lunar_yearly"
 )
 
-// Implementation note.
+// Mailbox is one scanned IMAP inbox.
 type Mailbox struct {
 	Name     string `json:"name"`
 	Host     string `json:"host"`
@@ -82,14 +87,14 @@ type Mailbox struct {
 	FromEnv  bool   `json:"from_env,omitempty"`
 }
 
-// Implementation note.
+// Config is the three business inventories, merged from environment auto-discovery and database dynamic config.
 type Config struct {
 	Projects      []Project      `json:"projects"`
 	Subscriptions []Subscription `json:"subscriptions"`
 	Mailboxes     []Mailbox      `json:"email"`
 }
 
-// Implementation note.
+// Filters like EnabledProjects keep only enabled entries; disabled entries stay in the inventory for the page to show.
 func (c Config) EnabledProjects() []Project {
 	out := make([]Project, 0, len(c.Projects))
 	for _, p := range c.Projects {
@@ -120,9 +125,11 @@ func (c Config) EnabledMailboxes() []Mailbox {
 	return out
 }
 
-// Implementation note.
+// CheckResult is one balance check's outcome and an element of projects[] in
+// /api/credits.
 //
-// Implementation note.
+// On failure Credits / Threshold / NeedAlarm / Cached are nil and serialize
+// as null.
 type CheckResult struct {
 	Project      string   `json:"project"`
 	OwnerProject *string  `json:"owner_project"`
@@ -142,7 +149,7 @@ type CheckResult struct {
 	LatencyMs *int64  `json:"latency_ms,omitempty"`
 }
 
-// Implementation note.
+// BalanceSummary is the dashboard header count.
 type BalanceSummary struct {
 	Total     int `json:"total"`
 	Success   int `json:"success"`
@@ -150,7 +157,7 @@ type BalanceSummary struct {
 	NeedAlarm int `json:"need_alarm"`
 }
 
-// Implementation note.
+// SummarizeBalance aggregates a batch of check results.
 func SummarizeBalance(results []CheckResult) BalanceSummary {
 	s := BalanceSummary{Total: len(results)}
 	for _, r := range results {
@@ -166,13 +173,14 @@ func SummarizeBalance(results []CheckResult) BalanceSummary {
 	return s
 }
 
-// Implementation note.
+// DailySpend is spend grouped by local date for runway analysis.
 type DailySpend struct {
 	Date     string  `json:"date"` // YYYY-MM-DD
 	Consumed float64 `json:"consumed"`
 }
 
-// Implementation note.
+// Balance types: display units differ, so cross-project comparison should
+// look at ratios, not absolute values.
 const (
 	ConfidenceNone   = "none"
 	ConfidenceLow    = "low"
@@ -180,7 +188,7 @@ const (
 	ConfidenceHigh   = "high"
 )
 
-// Implementation note.
+// Runway is one account's spend profile. Field names double as API JSON keys; the frontend and dashboard read these names.
 type Runway struct {
 	ProjectID         string       `json:"project_id"`
 	ProjectName       string       `json:"project_name"`
@@ -203,17 +211,17 @@ type Runway struct {
 	MonthlyProjection *float64     `json:"monthly_projection,omitempty"`
 }
 
-// Implementation note.
+// HasEstimate reports whether the profile's daily average spend is usable.
 func (r *Runway) HasEstimate() bool {
 	return r != nil && r.BurnPerDay != nil && r.Confidence != ConfidenceNone
 }
 
-// Implementation note.
+// Alertable reports whether confidence suffices for alerting (spans under a day do not count).
 func (r *Runway) Alertable() bool {
 	return r != nil && (r.Confidence == ConfidenceMedium || r.Confidence == ConfidenceHigh)
 }
 
-// Implementation note.
+// SubscriptionResult is one subscription's check result and an element of /api/subscriptions.
 type SubscriptionResult struct {
 	Name             string  `json:"name"`
 	OwnerProject     *string `json:"owner_project"`
@@ -232,7 +240,7 @@ type SubscriptionResult struct {
 	SnoozedUntil     *string `json:"snoozed_until,omitempty"`
 }
 
-// Implementation note.
+// MailboxResult is one mailbox's connection and stats for a scan.
 type MailboxResult struct {
 	Name        string  `json:"name"`
 	Host        string  `json:"host"`
@@ -244,7 +252,7 @@ type MailboxResult struct {
 	Error       *string `json:"error"`
 }
 
-// Implementation note.
+// EmailAlert is one mail that hit a keyword.
 type EmailAlert struct {
 	Mailbox     string   `json:"mailbox"`
 	Subject     string   `json:"subject"`
@@ -254,12 +262,12 @@ type EmailAlert struct {
 	ServiceName *string  `json:"service_name"`
 	Amount      *float64 `json:"amount"`
 	AlertSent   bool     `json:"alert_sent"`
-	// Implementation note.
-	// Implementation note.
+	// Duplicate means this mail already notified recently and is skipped. The
+	// dashboard shows an "already notified" badge so nobody thinks it was missed.
 	Duplicate bool `json:"duplicate,omitempty"`
 }
 
-// Implementation note.
+// ScanResult is the complete result of one mailbox scan.
 type ScanResult struct {
 	Days      int             `json:"days"`
 	DryRun    bool            `json:"dry_run"`
@@ -267,7 +275,7 @@ type ScanResult struct {
 	Alerts    []EmailAlert    `json:"alerts"`
 }
 
-// Implementation note.
+// BalancePoint is one snapshot in balance history, the runway analysis input.
 type BalancePoint struct {
 	ProjectID   string
 	ProjectName string
@@ -276,10 +284,10 @@ type BalancePoint struct {
 	Balance     float64
 	Threshold   *float64
 	NeedAlarm   bool
-	Timestamp   int64 // Unix operation,UTC
+	Timestamp   int64 // Unix seconds, UTC
 }
 
-// Implementation note.
+// NormalizeProject fills omitted fields: provider lowercased, name defaults to the provider, type derived from the provider.
 func NormalizeProject(p *Project) {
 	p.Provider = strings.ToLower(strings.TrimSpace(p.Provider))
 	if p.Name == "" {
@@ -293,7 +301,7 @@ func NormalizeProject(p *Project) {
 	}
 }
 
-// Implementation note.
+// DefaultBalanceType derives the display balance type from the provider.
 func DefaultBalanceType(provider string) string {
 	switch provider {
 	case "openrouter", "uniapi", "wxrank":
@@ -305,10 +313,10 @@ func DefaultBalanceType(provider string) string {
 	}
 }
 
-// Implementation note.
+// Ptr takes the address of an optional field without temporary variables everywhere.
 func Ptr[T any](v T) *T { return &v }
 
-// Implementation note.
+// OwnerProjectOf normalizes empty strings (whitespace-only included) to nil; "no owning project" has exactly one representation.
 func OwnerProjectOf(s string) *string {
 	if strings.TrimSpace(s) == "" {
 		return nil

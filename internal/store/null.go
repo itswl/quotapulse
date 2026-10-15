@@ -7,10 +7,13 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// Null returns a Store that persists nothing, for the core build without a
+// database.
 //
-// Implementation note.
-// Implementation note.
+// Writes drop silently, queries return empty, cooldown checks always pass.
+// Upper layers therefore never branch on whether the database is on: without
+// one it is "no cooldown, no records, no history", and alerts still go
+// out.
 func Null() Store { return nullStore{} }
 
 type nullStore struct{}

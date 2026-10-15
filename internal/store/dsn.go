@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Implementation note.
+// Engine is the detected database kind, deciding which generated code and DDL to use.
 type Engine string
 
 const (
@@ -17,18 +17,19 @@ const (
 	EngineMySQL    Engine = "mysql"
 )
 
-// Implementation note.
+// Target is what a DATABASE_URL translates into.
 //
-// Implementation note.
-// Implementation note.
+// The config carries a URL-style connection string
+// (scheme://user:password@host:port/database?params); this renders the DSN
+// each Go driver understands.
 type Target struct {
 	Engine     Engine
-	DriverName string // database/sql operation
+	DriverName string // database/sql registration name
 	DSN        string
-	FilePath   string // operation SQLite:operation,Open operation
+	FilePath   string // SQLite only: database file path; Open creates the parent directory first
 }
 
-// Implementation note.
+// ParseURL translates a URL-style DATABASE_URL into the Go driver's DSN.
 func ParseURL(databaseURL string) (Target, error) {
 	raw := strings.TrimSpace(databaseURL)
 	if raw == "" {
@@ -39,8 +40,9 @@ func ParseURL(databaseURL string) (Target, error) {
 	if !ok {
 		return Target{}, fmt.Errorf("DATABASE_URL is missing \"://\": %q", databaseURL)
 	}
-	// Implementation note.
-	// Implementation note.
+	// the scheme may be written dialect+driver (mysql+pymysql,
+	// postgresql+psycopg2): the part after + is a driver name; we take only the
+	// database half and pick the driver ourselves
 	dialect, _, _ := strings.Cut(strings.ToLower(scheme), "+")
 
 	switch dialect {
@@ -55,7 +57,7 @@ func ParseURL(databaseURL string) (Target, error) {
 	}
 }
 
-// Implementation note.
+// urlParts is a connection string taken apart: scheme://user:password@host:port/database?params.
 type urlParts struct {
 	User     string
 	Password string
@@ -66,14 +68,17 @@ type urlParts struct {
 	Query    string
 }
 
-// Implementation note.
+// parseConnURL splits the connection string with its own regex instead of
+// net/url.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// The difference is fatal: net/url treats # as a fragment start and ? as a
+// query start, and both are common in database passwords. Production hit
+// this — a single # in a password truncated the string there and surfaced as
+// "invalid port". This regex treats only the first @ as the credentials
+// boundary; # and ? inside the password are ordinary characters.
 var connURLPattern = regexp.MustCompile(
-	`^(?:(?P<user>[^:/@]*)(?::(?P<pass>[^@]*))?@)?` + // operation,operation @ operation
-		`(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^/:@]*))?` + // operation,operation [::1] operation
+	`^(?:(?P<user>[^:/@]*)(?::(?P<pass>[^@]*))?@)?` + // credentials; password runs to the first @
+		`(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^/:@]*))?` + // host, [::1] form supported
 		`(?::(?P<port>[0-9]*))?` +
 		`(?:/(?P<db>[^?]*))?` +
 		`(?:\?(?P<query>.*))?$`)
@@ -98,7 +103,7 @@ func parseConnURL(rest string) (urlParts, error) {
 		Database: group("db"),
 		Query:    group("query"),
 	}
-	// Implementation note.
+	// distinguish absent from present-but-empty passwords: they are different things
 	if idx := strings.Index(rest, "@"); idx >= 0 {
 		credentials := rest[:idx]
 		if _, pass, ok := strings.Cut(credentials, ":"); ok {
@@ -108,9 +113,9 @@ func parseConnURL(rest string) (urlParts, error) {
 	return parts, nil
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// unescapeLenient undoes percent-encoding in user and password. Invalid escape
+// sequences pass through unchanged instead of erroring — a lone % in a password
+// is common and nobody adds an extra escape layer for it.
 func unescapeLenient(value string) string {
 	decoded, err := url.PathUnescape(value)
 	if err != nil {
@@ -119,31 +124,34 @@ func unescapeLenient(value string) string {
 	return decoded
 }
 
-// Implementation note.
+// sqliteTarget parses the path after sqlite:///.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Three versus four slashes is relative versus absolute: sqlite:///./data/x.db
+// means ./data/x.db under the working directory, sqlite:////var/lib/x.db
+// means /var/lib/x.db. As a string it is "drop :// then one more slash", so
+// net/url is avoided to keep it from normalizing the path.
 func sqliteTarget(rest string) (Target, error) {
 	path, query, _ := strings.Cut(rest, "?")
 	path = strings.TrimPrefix(path, "/")
 	if path == "" {
-		path = ":memory:" // sqlite:// operation sqlite:///:memory: operation
+		path = ":memory:" // both sqlite:// and sqlite:///:memory: are in-memory
 	}
 
 	params, err := url.ParseQuery(query)
 	if err != nil {
 		return Target{}, fmt.Errorf("Invalid query parameters in the sqlite connection string: %w", err)
 	}
-	// Implementation note.
-	// Implementation note.
-	// Implementation note.
-	// Implementation note.
+	// the time format written back must be pinned: the driver default
+	// (time.Time.String()) produces "2026-09-14 03:09:37.277711 +0000 UTC", which
+	// neither matches existing rows nor compares sanely in SQLite's textual
+	// timestamp >= ?. _time_format=sqlite writes ISO-8601, the same format as
+	// existing data, so old and new rows compare and sort together.
 	if !params.Has("_time_format") {
 		params.Set("_time_format", "sqlite")
 	}
-	// Implementation note.
-	// Implementation note.
+	// SQLite's default busy_timeout is 0: the first write-lock collision returns
+	// SQLITE_BUSY immediately. Five seconds of lock waiting keeps scheduled jobs
+	// and page writes from erroring into each other.
 	if !params.Has("_pragma") {
 		params.Set("_pragma", "busy_timeout(5000)")
 	}
@@ -160,9 +168,10 @@ func sqliteTarget(rest string) (Target, error) {
 	}, nil
 }
 
-// Implementation note.
+// postgresTarget rebuilds a correctly escaped URL before handing it to pgx.
 //
-// Implementation note.
+// The original cannot be passed through: pgx uses net/url internally too,
+// and a # or ? in the password truncates it just the same.
 func postgresTarget(rest string) (Target, error) {
 	parts, err := parseConnURL(rest)
 	if err != nil {
@@ -190,7 +199,7 @@ func postgresTarget(rest string) (Target, error) {
 	return Target{Engine: EnginePostgres, DriverName: "pgx", DSN: target.String()}, nil
 }
 
-// Implementation note.
+// mysqlTarget reassembles the URL into go-sql-driver's user:pass@tcp(host:port)/db?params form.
 func mysqlTarget(rest string) (Target, error) {
 	parts, err := parseConnURL(rest)
 	if err != nil {
@@ -206,7 +215,7 @@ func mysqlTarget(rest string) (Target, error) {
 		port = "3306"
 	}
 
-	// Implementation note.
+	// go-sql-driver DSNs skip percent-decoding; use the unescaped originals
 	var credentials string
 	if parts.User != "" {
 		credentials = parts.User
@@ -220,11 +229,11 @@ func mysqlTarget(rest string) (Target, error) {
 	if err != nil {
 		return Target{}, fmt.Errorf("Invalid query parameters in the mysql connection string: %w", err)
 	}
-	// Implementation note.
+	// time columns must come back as time.Time, not []byte, or every timestamp needs manual parsing
 	if !params.Has("parseTime") {
 		params.Set("parseTime", "true")
 	}
-	// Implementation note.
+	// UTC timestamps everywhere is a global convention; pin it here against driver default drift or edits
 	if !params.Has("loc") {
 		params.Set("loc", "UTC")
 	}

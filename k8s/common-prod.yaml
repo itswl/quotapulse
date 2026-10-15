@@ -1,11 +1,11 @@
-# Implementation note.
+# Production deployment manifest (namespace: common-prod)
 #
-# Implementation note.
-# Implementation note.
-# Implementation note.
+# Replace two placeholders before applying:
+#   YOUR_REGISTRY  image registry, e.g. registry.<region>.aliyuncs.com/<namespace>
+#   YOUR_DOMAIN    public domain; appears once as the Ingress host and once as the TLS Secret name
 #
-# Implementation note.
-# Implementation note.
+# Also confirm .env carries WEB_API_KEY, DATABASE_URL and the provider credentials
+# the project_config rows need, then create the Secret:
 #
 # kubectl create secret generic quotapulse-secret \
 #   --from-env-file=.env \
@@ -58,18 +58,18 @@ spec:
               value: "true"
             - name: BALANCE_REFRESH_INTERVAL_SECONDS
               value: "3600"
-            # Implementation note.
+            # In-process scheduled jobs (per the TZ timezone): real alert checks and mailbox scan times
             - name: ALERT_SCHEDULE
               value: "09:00,15:00"
             - name: EMAIL_SCAN_SCHEDULE
               value: "10:00"
-            # Implementation note.
+            # The prometheus.io/scrape annotation requires actually exposing the metrics port
             - name: ENABLE_PROMETHEUS
               value: "true"
             - name: MAX_CONCURRENT_CHECKS
               value: "5"
-            # Implementation note.
-            # Implementation note.
+            # Keep serving 15s after SIGTERM so endpoints drain. The image is scratch-based
+            # with no shell for a preStop sleep; the program handles it itself.
             - name: SHUTDOWN_DELAY_SECONDS
               value: "15"
             - name: WEB_API_KEY

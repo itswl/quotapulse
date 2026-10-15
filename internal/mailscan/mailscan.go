@@ -1,10 +1,15 @@
-// Package mailscan provides the package implementation.
+// Package mailscan scans IMAP mailboxes and turns "arrears / renewal /
+// suspension" reminder mails into alerts.
 //
-// Implementation note.
-// Implementation note.
+// Many bills only reach the inbox, and by the time someone reads them the
+// service is already down — so somebody has to read mail for the on-call.
+// Mailboxes scan concurrently; one being unreachable does not affect the
+// others: it records an error and sends its own system alert.
 //
-// Implementation note.
-// Implementation note.
+// Dedup has two layers: within one scan the same mail (Message-ID) is handled
+// once, a set shared across mailboxes because one notification is often cc'd
+// to several scanned inboxes; across scans the store is asked whether the same
+// mail notified within recent days.
 package mailscan
 
 import (
@@ -19,36 +24,36 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// A few caps for the scanning process.
 const (
-	maxMailboxWorkers = 5    // operation
-	batchSize         = 100  // operation IMAP FETCH operation
-	defaultMaxEmails  = 1000 // MaxEmails operation,operation MAX_EMAILS_TO_SCAN operation
+	maxMailboxWorkers = 5    // mailboxes scanned concurrently
+	batchSize         = 100  // mails per IMAP FETCH
+	defaultMaxEmails  = 1000 // cap when MaxEmails is unset; the MAX_EMAILS_TO_SCAN default
 
-	// Implementation note.
-	// Implementation note.
+	// Connection retry cadence: three attempts with two 4-second waits.
+	// Network blips and provider throttling are common; a retry usually passes.
 	connectAttempts   = 3
 	connectRetryDelay = 4 * time.Second
 )
 
-// Implementation note.
+// Scanner scans a batch of mailboxes. The zero value is unusable: at minimum set Store (store.Null() without a database).
 type Scanner struct {
 	Store     store.Store
 	Notifier  notify.Notifier
 	Log       *slog.Logger
-	Keywords  []string      // operation DefaultAlertKeywords
-	MaxEmails int           // operation,operation,operation defaultMaxEmails
-	Timeout   time.Duration // operation,operation
+	Keywords  []string      // fallback keyword list when unset
+	MaxEmails int           // mails per mailbox; zero means unset, use defaultMaxEmails
+	Timeout   time.Duration // connect and login timeout; never caps a whole scan
 
-	// Implementation note.
+	// OnNotify fires once per notification, for metrics. Optional.
 	OnNotify func(kind string, ok bool)
 
-	// Implementation note.
+	// The two below exist so tests can swap implementations; production uses the defaults.
 	dial      dialFunc
 	retryWait time.Duration
 }
 
-// Implementation note.
+// scanState holds what one scan shares across mailboxes.
 type scanState struct {
 	matcher *matcher
 	seen    seenSet
@@ -56,10 +61,11 @@ type scanState struct {
 	dryRun  bool
 }
 
-// Implementation note.
+// Scan scans the given mailboxes, returning per-mailbox stats and alert mails.
 //
-// Implementation note.
-// Implementation note.
+// A single mailbox failure affects only its own MailboxResult; dry-run runs
+// everything but neither dedupes nor notifies — the page's "try a scan"
+// button relies on that.
 func (s *Scanner) Scan(ctx context.Context, mailboxes []model.Mailbox, days int, dryRun bool) model.ScanResult {
 	result := model.ScanResult{
 		Days:      days,
@@ -75,7 +81,7 @@ func (s *Scanner) Scan(ctx context.Context, mailboxes []model.Mailbox, days int,
 	s.log().Info("Starting mailbox scan", "mailboxes", len(mailboxes), "days", days, "dry_run", dryRun)
 	state := &scanState{matcher: newMatcher(s.keywords()), days: days, dryRun: dryRun}
 
-	// Implementation note.
+	// results are written back in input order so the page's mailbox order never shuffles between scans
 	results := make([]model.MailboxResult, len(mailboxes))
 	alerts := make([][]model.EmailAlert, len(mailboxes))
 	workers := min(len(mailboxes), maxMailboxWorkers)
@@ -105,8 +111,9 @@ func (s *Scanner) Scan(ctx context.Context, mailboxes []model.Mailbox, days int,
 	return result
 }
 
-// Implementation note.
-// Implementation note.
+// scanMailbox scans one mailbox. Any failure lands in MailboxResult.Error and is
+// never thrown: mails and alerts already found are kept — a partial result beats
+// losing it all.
 func (s *Scanner) scanMailbox(ctx context.Context, m model.Mailbox, state *scanState) (model.MailboxResult, []model.EmailAlert) {
 	name := displayName(m)
 	out := model.MailboxResult{
@@ -137,8 +144,9 @@ func (s *Scanner) scanMailbox(ctx context.Context, m model.Mailbox, state *scanS
 	return out, alerts
 }
 
-// Implementation note.
-// Implementation note.
+// scanInbox connects and inspects mails from the last days in batches. On error
+// the counts and alerts so far are returned so the caller can keep the partial
+// result.
 func (s *Scanner) scanInbox(ctx context.Context, m model.Mailbox, name string, state *scanState) (int, []model.EmailAlert, error) {
 	conn, err := s.connect(ctx, m)
 	if err != nil {
@@ -150,7 +158,7 @@ func (s *Scanner) scanInbox(ctx context.Context, m model.Mailbox, name string, s
 		}
 	}()
 
-	// Implementation note.
+	// step back days in the local timezone; IMAP SINCE compares dates only
 	since := time.Now().Add(-time.Duration(state.days) * 24 * time.Hour)
 	nums, err := conn.Search(since)
 	if err != nil {
@@ -170,7 +178,7 @@ func (s *Scanner) scanInbox(ctx context.Context, m model.Mailbox, name string, s
 
 	var alerts []model.EmailAlert
 	for start := 0; start < total; start += batchSize {
-		// Implementation note.
+		// stop fetching when the page cancels the request; the rest waits for the next round
 		if err := ctx.Err(); err != nil {
 			return total, alerts, err
 		}
@@ -187,8 +195,8 @@ func (s *Scanner) scanInbox(ctx context.Context, m model.Mailbox, name string, s
 	return total, alerts, nil
 }
 
-// Implementation note.
-// Implementation note.
+// fetchBatch fetches a batch in bulk, degrading to per-mail fetches when the whole
+// batch fails — one malformed mail must not cost the other 99.
 func (s *Scanner) fetchBatch(conn mailConn, nums []uint32, name string) [][]byte {
 	raws, err := conn.Fetch(nums)
 	if err == nil {
@@ -208,11 +216,11 @@ func (s *Scanner) fetchBatch(conn mailConn, nums []uint32, name string) [][]byte
 	return raws
 }
 
-// Implementation note.
+// inspect decides whether a mail is an alert; if so it (optionally) notifies and returns the details.
 func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state *scanState) (model.EmailAlert, bool) {
 	msg, err := parseMessage(raw)
 	if err != nil {
-		// Implementation note.
+		// mails that fail to parse are not dropped; scan the raw text and just log a note
 		s.log().Warn("Malformed message; scanning the raw text", "mailbox", mailbox, "error", err)
 	}
 	if !state.seen.mark(msg.ID) {
@@ -248,7 +256,7 @@ func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state
 	case state.dryRun:
 		s.log().Info("Dry run; skipping alert delivery", "mailbox", mailbox, "subject", msg.Subject)
 	case s.duplicated(ctx, alert, state.days):
-		// Implementation note.
+		// flag it instead of skipping silently: the dashboard must distinguish "already notified" from "no match"
 		alert.Duplicate = true
 		s.log().Info("Email alert was already sent; skipping the duplicate", "mailbox", mailbox, "subject", msg.Subject)
 	default:
@@ -257,8 +265,9 @@ func (s *Scanner) inspect(ctx context.Context, raw []byte, mailbox string, state
 	return alert, true
 }
 
-// Implementation note.
-// Implementation note.
+// duplicated asks the database whether this mail notified recently. On lookup
+// failure treat it as "not notified": better a duplicate alert than a missed
+// billing warning because the database hiccuped.
 func (s *Scanner) duplicated(ctx context.Context, alert model.EmailAlert, days int) bool {
 	recent, err := s.Store.HasRecentEmailAlert(ctx, alert.Mailbox, alert.Sender, alert.Subject, alert.Date, max(days, 1))
 	if err != nil {
@@ -268,8 +277,9 @@ func (s *Scanner) duplicated(ctx context.Context, alert model.EmailAlert, days i
 	return recent
 }
 
-// Implementation note.
-// Implementation note.
+// send delivers a mail alert and records it. The record carries the send result:
+// failed sends are recorded too, so next time we know this mail was handled and
+// what happened.
 func (s *Scanner) send(ctx context.Context, alert model.EmailAlert) bool {
 	if s.Notifier == nil {
 		s.log().Error("Webhook URL is not configured")
@@ -326,7 +336,7 @@ func (s *Scanner) record(ctx context.Context, alert model.EmailAlert, sent bool)
 	}
 }
 
-// Implementation note.
+// sendMailboxError pushes a system alert when a mailbox is unreachable — nobody watching the inbox is itself an incident.
 func (s *Scanner) sendMailboxError(ctx context.Context, mailbox, host, reason string) {
 	if s.Notifier == nil {
 		return
@@ -341,7 +351,7 @@ func (s *Scanner) sendMailboxError(ctx context.Context, mailbox, host, reason st
 	}
 }
 
-// Implementation note.
+// connect dials with retries per connectAttempts / connectRetryDelay.
 func (s *Scanner) connect(ctx context.Context, m model.Mailbox) (mailConn, error) {
 	dial := s.dial
 	if dial == nil {
@@ -368,13 +378,13 @@ func (s *Scanner) connect(ctx context.Context, m model.Mailbox) (mailConn, error
 	}
 }
 
-// Implementation note.
+// seenSet remembers mails already handled in this scan. Concurrent mailboxes share it, so lock.
 type seenSet struct {
 	mu  sync.Mutex
 	ids map[string]struct{}
 }
 
-// Implementation note.
+// mark returns true the first time a mail appears, false afterwards.
 func (s *seenSet) mark(id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -388,7 +398,7 @@ func (s *seenSet) mark(id string) bool {
 	return true
 }
 
-// Implementation note.
+// keywords falls back to the default list when unset; configuring none would otherwise disable scanning entirely.
 func (s *Scanner) keywords() []string {
 	if len(s.Keywords) > 0 {
 		return s.Keywords
@@ -396,7 +406,7 @@ func (s *Scanner) keywords() []string {
 	return DefaultAlertKeywords
 }
 
-// Implementation note.
+// maxEmails defaults when unset; a negative setting counts as 1 to avoid a negative fetch range.
 func (s *Scanner) maxEmails() int {
 	if s.MaxEmails == 0 {
 		return defaultMaxEmails
@@ -426,7 +436,7 @@ func (s *Scanner) log() *slog.Logger {
 	return slog.Default()
 }
 
-// Implementation note.
+// displayName picks the mailbox's display name for logs and alerts: fall back to the account when no name is set.
 func displayName(m model.Mailbox) string {
 	if m.Name != "" {
 		return m.Name
@@ -437,7 +447,7 @@ func displayName(m model.Mailbox) string {
 	return "(Unnamed)"
 }
 
-// Implementation note.
+// sleep waits, returning immediately if ctx is cancelled; a scan round must not stall in retries.
 func sleep(ctx context.Context, d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()

@@ -2,7 +2,7 @@ package provider
 
 import "errors"
 
-// Implementation note.
+// UniAPI's balance is a USD prepayment; unit=usd is the API's required explicit unit.
 var uniapiSpec = Spec{
 	Key:         "uniapi",
 	Name:        "UniAPI",

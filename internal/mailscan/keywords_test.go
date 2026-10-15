@@ -62,7 +62,7 @@ func TestMatchKeywords(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// An "or" regex takes the leftmost matching branch, so a long word matches once and is not double-counted by its substrings.
 func TestMatchKeywordsTakesLongestPhrase(t *testing.T) {
 	m := newMatcher(DefaultAlertKeywords)
 
@@ -87,7 +87,7 @@ func TestMatchKeywordsCustomList(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// An empty word would match the empty string everywhere, disabling the whole list — drop it at compile time.
 func TestMatchKeywordsIgnoresEmptyWords(t *testing.T) {
 	m := newMatcher([]string{"", "欠费"})
 	if got, want := m.match("已欠费", ""), []string{"欠费"}; !slices.Equal(got, want) {

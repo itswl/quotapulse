@@ -1,8 +1,10 @@
-// Implementation note.
+// Build script: esbuild bundling plus injecting the build id into
+// index.html.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Artifacts are always named app.js / app.css with paths hardcoded in
+// index.html; the Go side just does `//go:embed all:dist` and mounts
+// dist/static at /static — no manifest file needed. Cache busting rides on
+// the ?v=<content hash> query string while file names stay stable.
 
 import { createHash } from 'node:crypto';
 import { copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
@@ -53,7 +55,7 @@ async function copyFontLicense() {
   await copyWebAssets();
 }
 
-/* Implementation note. */
+/** Replace __BUILD_ID__ with a hash of the bundle; an unchanged bundle keeps its hash and the browser cache stays valid */
 async function emitHtml() {
   const [js, css] = await Promise.all([
     readFile(join(staticDir, 'app.js')),
@@ -132,7 +134,7 @@ async function watchApp() {
   console.log('Watching for changes');
 }
 
-/* Implementation note. */
+/** Tests: bundle each test/*.test.ts into an ESM file for node --test */
 async function buildTests() {
   await rm(testOutdir, { recursive: true, force: true });
   await mkdir(testOutdir, { recursive: true });
@@ -151,7 +153,7 @@ async function buildTests() {
     platform: 'node',
     minify: false,
     sourcemap: 'inline',
-    // Implementation note.
+    // node:test is provided by the runtime; do not bundle it
     external: ['node:*'],
   });
 
@@ -165,7 +167,7 @@ if (testOnly) {
   await watchApp();
 } else {
   await buildApp();
-  // Implementation note.
+  // lets the Go side see exactly which files embed must include
   const listing = await readdir(outdir, { recursive: true });
   const files = [];
   for (const entry of listing) {

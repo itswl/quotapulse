@@ -86,8 +86,9 @@ func glmCodeOK(code any) bool {
 	return ok && value == 200
 }
 
-// Implementation note.
-// Implementation note.
+// glmRemainingPercent computes one window's remaining ratio. With totals and
+// remaining it is exact; otherwise infer from the API's used-percent. Abnormal
+// data clamps to 0-100 so no negative or over-full balances appear.
 func glmRemainingPercent(limit map[string]any) (float64, bool) {
 	usage, hasUsage := jsonNum(limit["usage"])
 	remaining, hasRemaining := jsonNum(limit["remaining"])

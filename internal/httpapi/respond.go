@@ -1,7 +1,9 @@
-// Package httpapi provides the package implementation.
+// Package httpapi serves the dashboard page and the /api/* endpoints.
 //
-// Implementation note.
-// Implementation note.
+// The response contracts live in docs/API.md and must not change: frontends,
+// scripts and monitors already depend on them. Errors are always
+// {"status":"error","message":"..."}, with an extra errors array for
+// validation failures.
 package httpapi
 
 import (
@@ -15,7 +17,7 @@ import (
 	"time"
 )
 
-// Implementation note.
+// errorBody is the uniform shape of all error responses.
 type errorBody struct {
 	Status  string   `json:"status"`
 	Message string   `json:"message,omitempty"`
@@ -43,7 +45,7 @@ func failValidation(w http.ResponseWriter, problems []string) {
 	writeJSON(w, http.StatusBadRequest, errorBody{Status: "error", Errors: problems})
 }
 
-// Implementation note.
+// ok is the generic success shape: always carries status=success; the caller adds the rest.
 func ok(w http.ResponseWriter, fields map[string]any) {
 	payload := make(map[string]any, len(fields)+1)
 	payload["status"] = "success"
@@ -53,7 +55,7 @@ func ok(w http.ResponseWriter, fields map[string]any) {
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// Implementation note.
+// etagJSON adds an ETag to read endpoints so polling clients get a bare 304 and skip the whole body.
 func etagJSON(w http.ResponseWriter, r *http.Request, payload any) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -74,7 +76,7 @@ func etagJSON(w http.ResponseWriter, r *http.Request, payload any) {
 	_, _ = w.Write(body)
 }
 
-// Implementation note.
+// decodeJSON reads the request body; anything that is not valid JSON gets a 400.
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	if r.Body == nil {
 		fail(w, http.StatusBadRequest, "The request body must be valid JSON")
@@ -88,7 +90,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
-// Implementation note.
+// intParam reads a query parameter with range validation; out of range gets a 400.
 func intParam(r *http.Request, name string, fallback, minValue, maxValue int) (int, error) {
 	raw := r.URL.Query().Get(name)
 	if raw == "" {
@@ -104,10 +106,12 @@ func intParam(r *http.Request, name string, fallback, minValue, maxValue int) (i
 	return value, nil
 }
 
-// Implementation note.
+// cooldown is a mutex-plus-cooldown for heavy operations: one at a time, and
+// none accepted for a few seconds after one completes.
 //
-// Implementation note.
-// Implementation note.
+// Manual refresh and immediate scans really hit upstream APIs; without this
+// guard a few rapid clicks drain the quota or land the IP on the provider's
+// throttle list.
 type cooldown struct {
 	seconds  int
 	mu       sync.Mutex
@@ -115,7 +119,7 @@ type cooldown struct {
 	lastDone time.Time
 }
 
-// Implementation note.
+// acquire returns an empty string when granted, otherwise a user-facing reason.
 func (c *cooldown) acquire() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -137,7 +141,7 @@ func (c *cooldown) release() {
 	c.lastDone = time.Now()
 }
 
-// Implementation note.
+// maskSecret masks a key for display.
 func maskSecret(value string, prefix, suffix int) string {
 	if value == "" {
 		return ""

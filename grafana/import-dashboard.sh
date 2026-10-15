@@ -1,7 +1,7 @@
 #!/bin/bash
-# Implementation note.
-# Implementation note.
-# Implementation note.
+# Imports (or overwrites) dashboards/balance-alert-dashboard.json into an existing Grafana; needs jq.
+# Usage: ./import-dashboard.sh [grafana-url] [username] [password]
+#        The password may also come from the GRAFANA_ADMIN_PASSWORD environment variable.
 set -euo pipefail
 cd "$(dirname "$0")"
 

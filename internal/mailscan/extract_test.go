@@ -2,8 +2,9 @@ package mailscan
 
 import "testing"
 
-// Implementation note.
-// Implementation note.
+// This table is the behavior contract for service-name and amount extraction: the
+// four bracket styles, the priority of the four amount rules, and every way
+// extraction can fail are all pinned here.
 func TestExtractServiceInfo(t *testing.T) {
 	tests := []struct {
 		name        string

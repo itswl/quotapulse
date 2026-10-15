@@ -13,17 +13,18 @@ import (
 	"github.com/itswl/quotapulse/internal/subscription"
 )
 
-// Implementation note.
+// legacyConfig is the config.json used by an even earlier version.
 //
-// Implementation note.
-// Implementation note.
+// The project itself stopped reading config files long ago; this code exists
+// only for people upgrading from that version: import the three inventories
+// from the file into database dynamic config once, then delete the file.
 type legacyConfig struct {
 	Projects      []map[string]any `json:"projects"`
 	Subscriptions []map[string]any `json:"subscriptions"`
 	Email         []map[string]any `json:"email"`
 }
 
-// Implementation note.
+// ImportLegacyConfig reads config.json into the database and returns the imported row count.
 func (a *App) ImportLegacyConfig(ctx context.Context, path string, out io.Writer) (int, error) {
 	if !a.Settings.EnableDatabase || !a.Settings.EnableDynamicConfig {
 		return 0, fmt.Errorf("Importing needs ENABLE_DATABASE=true and ENABLE_DYNAMIC_CONFIG=true")
@@ -114,7 +115,7 @@ func legacySubscription(item map[string]any) model.Subscription {
 	return sub
 }
 
-// Implementation note.
+// legacyRenewalDay: old files may store yearly renewal as "03-15" or already as 315.
 func legacyRenewalDay(value any, cycleType string) int {
 	switch v := value.(type) {
 	case float64:
@@ -143,7 +144,7 @@ func legacyMailbox(item map[string]any) model.Mailbox {
 	return mailbox
 }
 
-// Implementation note.
+// expand substitutes ${VAR} placeholders from the current environment.
 func expand(value string) string {
 	if strings.HasPrefix(value, "${") && strings.HasSuffix(value, "}") {
 		return os.Getenv(value[2 : len(value)-1])

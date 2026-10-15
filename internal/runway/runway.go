@@ -1,10 +1,14 @@
-// Package runway provides the package implementation.
+// Package runway reconstructs the burn rate from balance snapshots and
+// computes "how many days remain".
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Balance history is a series of snapshots: between adjacent points a drop
+// is consumption and a rise is a top-up. That yields the daily average burn,
+// the runway (days left at the current rate), and whether today's spend
+// suddenly ballooned. Both are earlier and sharper than static thresholds:
+// the same 430 CNY means very different things at 5/day versus 200/day.
 //
-// Implementation note.
+// Without a database there is no history, every result is empty, and callers
+// naturally fall back to plain threshold alerts.
 package runway
 
 import (
@@ -15,11 +19,11 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// Below these data sizes no conclusions: the computed rate is meaningless.
 const (
 	MinPoints      = 4
 	MinSpanHours   = 6.0
-	MinBaselineDay = 3 // operation
+	MinBaselineDay = 3 // minimum complete history days needed as the spike baseline
 )
 
 type point struct {
@@ -27,9 +31,10 @@ type point struct {
 	balance float64
 }
 
-// Implementation note.
+// Compute derives the spend profile from one account's balance snapshots.
 //
-// Implementation note.
+// records must be time-ascending; account info comes from the last record.
+// A zero now means "use the current time".
 func Compute(records []model.BalancePoint, windowDays int, now time.Time) model.Runway {
 	if now.IsZero() {
 		now = time.Now()
@@ -72,7 +77,7 @@ func Compute(records []model.BalancePoint, windowDays int, now time.Time) model.
 		return result
 	}
 
-	// Implementation note.
+	// floor the divisor at one hour so a very short window cannot blow the rate up
 	burn := round(result.Consumed/math.Max(result.SpanHours/24, 1.0/24), 4)
 	result.BurnPerDay = &burn
 	if burn > 0 && result.CurrentBalance != nil {
@@ -91,8 +96,9 @@ func Compute(records []model.BalancePoint, windowDays int, now time.Time) model.
 	return result
 }
 
-// Implementation note.
-// Implementation note.
+// validPoints drops records whose time or balance fails to parse and sorts by
+// time ascending. The database stores UTC; convert to local because "how much
+// did we spend today" splits days in the user's timezone.
 func validPoints(records []model.BalancePoint) []point {
 	points := make([]point, 0, len(records))
 	for _, r := range records {
@@ -105,7 +111,7 @@ func validPoints(records []model.BalancePoint) []point {
 	return points
 }
 
-// Implementation note.
+// splitFlows turns the balance series into income and spend: drops are consumption, rises are top-ups; spend also groups by local date.
 func splitFlows(points []point) (consumed, toppedUp float64, perDay map[string]float64) {
 	perDay = make(map[string]float64)
 	for i := 1; i < len(points); i++ {
@@ -122,7 +128,7 @@ func splitFlows(points []point) (consumed, toppedUp float64, perDay map[string]f
 	return round(consumed, 4), round(toppedUp, 4), perDay
 }
 
-// Implementation note.
+// fillDaily pads days without spend with 0 so the median reflects a true "ordinary day".
 func fillDaily(perDay map[string]float64, start, end time.Time) []model.DailySpend {
 	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
 	endDay := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, end.Location())
@@ -135,7 +141,7 @@ func fillDaily(perDay map[string]float64, start, end time.Time) []model.DailySpe
 	return daily
 }
 
-// Implementation note.
+// spike computes today's spend versus the daily norm. When the last day is not today or the baseline is thin, the last two fields are nil.
 func spike(daily []model.DailySpend, today string) (todayConsumed, baseline, ratio *float64) {
 	if len(daily) == 0 || daily[len(daily)-1].Date != today {
 		return nil, nil, nil
@@ -160,7 +166,7 @@ func spike(daily []model.DailySpend, today string) (todayConsumed, baseline, rat
 	return todayConsumed, baseline, ratio
 }
 
-// Implementation note.
+// confidence declines to conclude on too little data or too short a span; spans under a day never feed alerts.
 func confidence(points int, spanHours float64) string {
 	switch {
 	case points < MinPoints || spanHours < MinSpanHours:
@@ -174,7 +180,7 @@ func confidence(points int, spanHours float64) string {
 	}
 }
 
-// Implementation note.
+// ComputeAll groups a batch of snapshots by account and computes one profile each.
 func ComputeAll(series []model.BalancePoint, windowDays int, now time.Time) map[string]model.Runway {
 	if len(series) == 0 {
 		return nil
@@ -202,7 +208,7 @@ func containsQuota(records []model.BalancePoint) bool {
 	return false
 }
 
-// Implementation note.
+// Attach pins profiles onto balance check results for the dashboard, metrics and alerts to share.
 func Attach(results []model.CheckResult, runways map[string]model.Runway) {
 	if len(runways) == 0 {
 		return
@@ -230,11 +236,14 @@ func median(values []float64) float64 {
 	return (sorted[n/2-1] + sorted[n/2]) / 2
 }
 
-// Implementation note.
+// round keeps n decimals with banker's rounding (ties to even): 2.125 becomes
+// 2.12, not 2.13.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Do not swap in plain half-up rounding for convenience: stored history was
+// computed with this convention, and a different one makes the same data
+// produce different numbers — the dashboard curves would step on the day of
+// the switch. The 0.01 rarely matters, but when runway days sit exactly on
+// an alert threshold it decides whether the alert fires.
 func round(value float64, decimals int) float64 {
 	shift := math.Pow(10, float64(decimals))
 	return math.RoundToEven(value*shift) / shift

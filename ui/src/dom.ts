@@ -1,17 +1,18 @@
 /**
- * Implementation note.
+ * The single funnel for DOM access.
  *
- * Implementation note.
- * Implementation note.
- * Implementation note.
+ * The native-JS version scattered `document.getElementById('x').value`, and a
+ * renamed element died with "Cannot read properties of null" naming no id.
+ * Here the two classes split: guaranteed skeleton elements use require* and
+ * fail with the id; possibly-absent ones return null for the caller to check.
  */
 
-/* Implementation note. */
+/** Elements that may not exist (buttons behind capability switches) */
 export function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
-/* Implementation note. */
+/** Elements the index.html skeleton guarantees; a missing one means a broken template — fail early rather than silently mis-render */
 export function requireById<T extends HTMLElement = HTMLElement>(id: string): T {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Page is missing element #${id}`);
@@ -26,7 +27,7 @@ export function selectById(id: string): HTMLSelectElement {
   return requireById<HTMLSelectElement>(id);
 }
 
-/* Implementation note. */
+/** Read an input's value with surrounding whitespace trimmed */
 export function inputValue(id: string): string {
   return inputById(id).value.trim();
 }
@@ -48,7 +49,7 @@ export function setText(id: string, text: string): void {
   if (node) node.textContent = text;
 }
 
-/* Implementation note. */
+/** Show / hide a button per capability switch; keep the original display value or the layout collapses */
 export function toggleDisplay(id: string, visible: boolean, shown = 'inline-flex'): void {
   const node = byId(id);
   if (node) node.style.display = visible ? shown : 'none';
@@ -58,14 +59,14 @@ export function onClick(id: string, handler: (event: MouseEvent) => void): void 
   byId(id)?.addEventListener('click', handler as EventListener);
 }
 
-/* Implementation note. */
+/** A batch of same-class buttons (a dialog's "close" appears in both the title bar and footer) */
 export function onClickAll(selector: string, handler: (event: MouseEvent) => void): void {
   document.querySelectorAll<HTMLElement>(selector).forEach((node) => {
     node.addEventListener('click', handler as EventListener);
   });
 }
 
-/* Implementation note. */
+/** Fill a dropdown; the selected entry gets selected */
 export function fillSelect(
   select: HTMLSelectElement,
   options: Array<{ value: string; label: string }>,

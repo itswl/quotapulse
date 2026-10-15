@@ -33,11 +33,12 @@ var DefaultAlertKeywords = []string{
 	"balance is running low", "credits are running low", "insufficient funds", "top-up",
 }
 
-// Implementation note.
+// matcher decides whether a mail is an alert.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// The whole keyword list compiles into one "or" regex scanned over subject
+// plus body: alternation takes the leftmost matching branch, so "payment
+// overdue" matches as a whole instead of being cut short by "overdue" first.
+// Per-keyword strings.Contains cannot give that.
 type matcher struct {
 	keywords []string
 	re       *regexp.Regexp
@@ -47,7 +48,7 @@ func newMatcher(keywords []string) *matcher {
 	parts := make([]string, 0, len(keywords))
 	for _, kw := range keywords {
 		if kw == "" {
-			// Implementation note.
+			// an empty word would match the empty string everywhere, disabling the whole list
 			continue
 		}
 		parts = append(parts, regexp.QuoteMeta(strings.ToLower(kw)))
@@ -61,7 +62,7 @@ func newMatcher(keywords []string) *matcher {
 	}
 }
 
-// Implementation note.
+// match returns the hit keywords, preserving the list's original case and order.
 func (m *matcher) match(subject, body string) []string {
 	if m.re == nil {
 		return nil

@@ -179,8 +179,9 @@ func TestParseURLRejects(t *testing.T) {
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// the SQLite driver parses the DSN as a query string, so parameters must be
+// valid percent-encoding — otherwise the parentheses in busy_timeout(5000)
+// keep the pragma from being read.
 func TestSQLiteDSNQueryIsParsable(t *testing.T) {
 	target, err := ParseURL("sqlite:///./data/x.db")
 	if err != nil {
@@ -199,11 +200,14 @@ func TestSQLiteDSNQueryIsParsable(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestPasswordWithURLSpecialCharacters: # and ? in a password must not
+// truncate the connection string.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// A real production trap: an OCI-generated MySQL password contained #,
+// net/url read it as a fragment start, the string broke there, reported
+// "invalid port", and the service could not reach its database. The string
+// is therefore split by our own regex, and these cases pin that behavior
+// against anyone "simplifying" back to net/url.
 func TestPasswordWithURLSpecialCharacters(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -245,15 +249,16 @@ func TestPasswordWithURLSpecialCharacters(t *testing.T) {
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// TestPostgresPasswordIsReEncoded: the postgres DSN is re-escaped before
+// reaching pgx, because pgx internally uses net/url too and passing it through
+// raw would truncate at # just the same.
 func TestPostgresPasswordIsReEncoded(t *testing.T) {
 	got, err := ParseURL("postgresql://admin:pa#ss@db.internal:5432/quotapulse?sslmode=require")
 	if err != nil {
 		t.Fatalf("解析失败: %v", err)
 	}
 
-	// Implementation note.
+	// parse it back once more to confirm pgx receives a string that restores the original password
 	parsed, err := url.Parse(got.DSN)
 	if err != nil {
 		t.Fatalf("生成的 DSN 自己都解析不了: %v（%s）", err, got.DSN)
@@ -270,7 +275,7 @@ func TestPostgresPasswordIsReEncoded(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestIPv6Host: IPv6 addresses must be recognized and brackets kept out of the hostname.
 func TestIPv6Host(t *testing.T) {
 	got, err := ParseURL("mysql://u:p@[2001:db8::1]:3306/db")
 	if err != nil {

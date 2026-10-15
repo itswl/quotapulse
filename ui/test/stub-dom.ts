@@ -1,9 +1,10 @@
 /**
- * Implementation note.
+ * A stub DOM that is merely good enough.
  *
- * Implementation note.
- * Implementation note.
- * Implementation note.
+ * No jsdom: the dashboard only uses getElementById / createElement / innerHTML,
+ * and a multi-megabyte dependency to run a few render functions is a bad
+ * deal. The stub only guarantees the code under test does not blow up;
+ * assertions target the HTML strings it produces.
  */
 
 export interface StubElement {
@@ -71,7 +72,7 @@ export function createStubElement(tagName = 'div'): StubElement {
       el.children.push(...children);
     },
     remove() {
-      /* Implementation note. */
+      /* the stub need not really detach from a parent */
     },
     addEventListener() {},
     removeEventListener() {},
@@ -83,7 +84,7 @@ export function createStubElement(tagName = 'div'): StubElement {
 
 const registry = new Map<string, StubElement>();
 
-/* Implementation note. */
+/** Pre-register the ids the page will query; unregistered ids return null, covering the "element missing" branch */
 export function stubElement(id: string): StubElement {
   const existing = registry.get(id);
   if (existing) return existing;

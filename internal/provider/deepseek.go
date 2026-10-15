@@ -2,7 +2,7 @@ package provider
 
 import "errors"
 
-// Implementation note.
+// A DeepSeek account may hold multi-currency sub-accounts; the balance is the CNY account total.
 var deepseekSpec = Spec{
 	Key:         "deepseek",
 	Name:        "DeepSeek",
@@ -15,7 +15,7 @@ var deepseekSpec = Spec{
 			return 0, errors.New("Could not parse balance_infos field")
 		}
 
-		// Implementation note.
+		// prefer the CNY account, fall back to the first one without it
 		chosen := Object(infos[0])
 		for _, item := range infos {
 			if obj := Object(item); obj != nil && Str(obj["currency"]) == "CNY" {
@@ -24,7 +24,7 @@ var deepseekSpec = Spec{
 			}
 		}
 
-		// Implementation note.
+		// in production this field is a string amount ("430.37")
 		total, ok := Num(chosen["total_balance"])
 		if !ok {
 			return 0, errors.New("Could not parse total_balance field")

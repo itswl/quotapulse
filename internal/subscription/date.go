@@ -1,7 +1,10 @@
-// Package subscription provides the package implementation.
+// Package subscription manages subscription renewal reminders: compute the
+// days until the next renewal and remind when due.
 //
-// Implementation note.
-// Implementation note.
+// This package is almost entirely date boundaries: where a Feb-29 yearly
+// plan lands in a common year, where a 31st-day monthly plan lands in
+// February, and whether this month's renewal day has passed. One day off
+// anywhere and the reminder fails to arrive on renewal day.
 package subscription
 
 import (
@@ -14,9 +17,10 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// SplitMMDD splits a yearly MMDD integer (like 315) into month and day;
+// returns false for values that are not valid MMDD.
 //
-// Implementation note.
+// Values of 31 or below are "day only" from old configs, not MMDD.
 func SplitMMDD(renewalDay int) (month, day int, ok bool) {
 	if renewalDay <= 31 {
 		return 0, 0, false
@@ -30,10 +34,12 @@ func SplitMMDD(renewalDay int) (month, day int, ok bool) {
 
 var mmddPattern = regexp.MustCompile(`^(\d{1,2})\s*[-/月]\s*(\d{1,2})\s*日?$`)
 
-// Implementation note.
+// CoerceRenewalDay normalizes the renewal day.
 //
-// Implementation note.
-// Implementation note.
+// Yearly plans accept the intuitive "03-15" / "3-15" spellings, stored
+// internally as the MMDD integer (315); weekly and monthly accept numbers
+// or numeric strings. Anything unparseable returns false and the caller
+// reports a parameter error.
 func CoerceRenewalDay(value string, cycleType string) (int, bool) {
 	text := strings.TrimSpace(value)
 	if matched := mmddPattern.FindStringSubmatch(text); matched != nil {
@@ -50,8 +56,9 @@ func CoerceRenewalDay(value string, cycleType string) (int, bool) {
 	return 0, false
 }
 
-// Implementation note.
-// Implementation note.
+// safeMonthDate builds an in-month date, falling back to month-end when the
+// target day exceeds the month. A monthly plan on the 31st lands on Feb 28 or
+// 29, never overflowing into March.
 func safeMonthDate(year int, month time.Month, day int, loc *time.Location) time.Time {
 	maxDay := daysInMonth(year, month)
 	if day > maxDay {
@@ -64,11 +71,11 @@ func safeMonthDate(year int, month time.Month, day int, loc *time.Location) time
 }
 
 func daysInMonth(year int, month time.Month) int {
-	// Implementation note.
+	// day zero of next month is the last day of this one
 	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
-// Implementation note.
+// shiftMonth shifts months from a given date and takes that month's day (month-end fallback when exceeded).
 func shiftMonth(base time.Time, months int, day int) time.Time {
 	total := int(base.Month()) - 1 + months
 	year := base.Year() + floorDiv(total, 12)
@@ -76,12 +83,12 @@ func shiftMonth(base time.Time, months int, day int) time.Time {
 	return safeMonthDate(year, month, day, base.Location())
 }
 
-// Implementation note.
+// safeReplaceYear swaps the year; Feb 29 in a leap year falls back to Feb 28 in a common one.
 func safeReplaceYear(base time.Time, year int) time.Time {
 	return safeMonthDate(year, base.Month(), base.Day(), base.Location())
 }
 
-// Implementation note.
+// Go's / and % truncate toward zero but we need floor, or month arithmetic back one month lands wrong.
 func floorDiv(a, b int) int {
 	quotient := a / b
 	if (a%b != 0) && ((a < 0) != (b < 0)) {
@@ -92,8 +99,9 @@ func floorDiv(a, b int) int {
 
 func floorMod(a, b int) int { return a - floorDiv(a, b)*b }
 
-// Implementation note.
-// Implementation note.
+// startOfDay truncates to local midnight. Renewals are always at 00:00; without
+// truncation the renewal day computes as -1 and the reminder never fires that
+// day.
 func startOfDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }

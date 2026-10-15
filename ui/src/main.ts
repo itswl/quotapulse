@@ -1,8 +1,10 @@
 /**
- * Implementation note.
+ * Application entry: binds events, fetches capability switches, loads data,
+ * and enters the view matching the hash.
  *
- * Implementation note.
- * Implementation note.
+ * The native-JS version scattered bindings across six files' DOMContentLoaded
+ * handlers, ordered by whichever <script> loaded first. Bundled into one
+ * file, assembly happens here in a fixed order that is easy to trace.
  */
 
 import './styles/index.css';
@@ -32,8 +34,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 const NAV_TICK_MS = 30_000;
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Cards repaint wholesale via innerHTML, so per-element listeners die on
+ * every repaint. Event delegation instead: locate the target by data-* and
+ * hand it to the right manager.
  */
 function bindCardActions(): void {
   document.addEventListener('click', (event) => {
@@ -142,7 +146,7 @@ async function init(): Promise<void> {
   await loadFeatures();
   await loadData();
 
-  // Implementation note.
+  // #alerts / #subscriptions / #email in the address bar enters that view directly
   const initialView = window.location.hash.slice(1);
   if (initialView === 'alerts') {
     // Legacy hash: "Alerts only" is a projects filter now, not a view.

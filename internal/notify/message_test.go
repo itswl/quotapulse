@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
+// Message-template snapshots. Every body line's fields, order and number formatting
+// are what the on-call group expects; pinned word for word — template changes must
+// be deliberate, never accidental.
 
 func TestMessageTemplates(t *testing.T) {
 	owner := "核心业务"
@@ -103,7 +104,7 @@ func TestMessageTemplates(t *testing.T) {
 			},
 		},
 		{
-			// Implementation note.
+			// unrecognized service writes the literal None in the body; a missing amount omits the line
 			name: "邮件命中_服务未识别且无金额",
 			msg: EmailAlert("", "账单", "noreply@x.com", "2026-09-16",
 				[]string{"账单"}, nil, nil),
@@ -153,7 +154,7 @@ func TestMessageTemplates(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// A zero amount equals "unrecognized" and the line is omitted — seeing "**Amount**: 0.0" just makes people double-check.
 func TestEmailAlertSkipsZeroAmount(t *testing.T) {
 	zero := 0.0
 	msg := EmailAlert("m", "s", "from", "date", []string{"k"}, nil, &zero)
@@ -164,7 +165,7 @@ func TestEmailAlertSkipsZeroAmount(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// MailboxError takes the current time; host is caller context and never enters the body.
 func TestMailboxErrorUsesNowAndDropsHost(t *testing.T) {
 	before := time.Now().Truncate(time.Second)
 	msg := MailboxError("财务邮箱", "imap.exmail.qq.com", "[Errno 61] Connection refused")
@@ -235,7 +236,7 @@ func TestFormatDays(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Thousands separator + two fixed decimals; each case below is one boundary.
 func TestFormatAmount(t *testing.T) {
 	tests := []struct {
 		value float64
@@ -260,7 +261,7 @@ func TestFormatAmount(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Shortest round-trip form, integers padded with ".0". Subscription amounts join text exactly this way.
 func TestFormatFloat(t *testing.T) {
 	tests := []struct {
 		value float64
@@ -289,7 +290,7 @@ func TestISOLocal(t *testing.T) {
 	if got, want := isoLocal(withMicros), "2026-09-16T23:50:26.026504"; got != want {
 		t.Errorf("isoLocal = %q; 期望 %q", got, want)
 	}
-	// Implementation note.
+	// no fractional part when microseconds are zero
 	whole := time.Date(2026, 9, 16, 23, 50, 26, 0, time.Local)
 	if got, want := isoLocal(whole), "2026-09-16T23:50:26"; got != want {
 		t.Errorf("isoLocal = %q; 期望 %q", got, want)

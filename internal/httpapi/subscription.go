@@ -11,7 +11,7 @@ import (
 	"github.com/itswl/quotapulse/internal/subscription"
 )
 
-// Implementation note.
+// requireSubscriptions: subscriptions are optional; the whole group 503s when off.
 func (s *Server) requireSubscriptions(w http.ResponseWriter) bool {
 	if s.Settings.EnableSubscriptions {
 		return true
@@ -32,8 +32,8 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 	etagJSON(w, r, map[string]any{"status": "success", "subscriptions": subs})
 }
 
-// Implementation note.
-// Implementation note.
+// subscriptionRequest receives RenewalDay as json.RawMessage because yearly plans
+// may be written as the "03-15" string or the 315 number.
 type subscriptionRequest struct {
 	Name            string          `json:"name"`
 	NewName         *string         `json:"new_name"`
@@ -90,7 +90,7 @@ func (s *Server) handleAddSubscription(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"message": "Subscription [" + body.Name + "] added"})
 }
 
-// Implementation note.
+// handleUpdateSubscription updates a subscription: only provided fields change; renaming deletes the old name first, then writes the new one.
 func (s *Server) handleUpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
@@ -129,7 +129,7 @@ func (s *Server) handleUpdateSubscription(w http.ResponseWriter, r *http.Request
 	ok(w, map[string]any{"message": "Subscription [" + body.Name + "] updated"})
 }
 
-// Implementation note.
+// applySubscriptionPatch overlays the provided fields and returns validation problems.
 func applySubscriptionPatch(target *model.Subscription, body subscriptionRequest) []string {
 	var problems []string
 
@@ -210,7 +210,7 @@ func validRenewalDay(cycleType string, day int) bool {
 	return false
 }
 
-// Implementation note.
+// parseRenewalDay accepts both 315 and "03-15".
 func parseRenewalDay(raw json.RawMessage, cycleType string) (int, bool) {
 	var asNumber int
 	if err := json.Unmarshal(raw, &asNumber); err == nil {
@@ -250,7 +250,7 @@ type renewedRequest struct {
 	RenewedDate *string `json:"renewed_date"`
 }
 
-// Implementation note.
+// handleMarkRenewed marks the subscription renewed this cycle (today by default) and returns the next renewal date.
 func (s *Server) handleMarkRenewed(w http.ResponseWriter, r *http.Request) {
 	if !s.requireSubscriptions(w) || !s.requireDynamicConfig(w, "subscriptions") {
 		return
@@ -320,7 +320,7 @@ func (s *Server) handleClearRenewed(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"message": "Renewal mark cleared for subscription [" + body.Name + "]"})
 }
 
-// Implementation note.
+// refreshSubscriptions recomputes subscription state after config changes so the page shows fresh countdowns.
 func (s *Server) refreshSubscriptions(r *http.Request) {
 	cfg := s.Resolver.Load(r.Context())
 	results := s.Subs.Check(r.Context(), cfg.EnabledSubscriptions(), !s.Settings.EnableWebAlarm)

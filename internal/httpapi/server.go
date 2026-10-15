@@ -25,7 +25,7 @@ import (
 	"github.com/itswl/quotapulse/internal/subscription"
 )
 
-// Implementation note.
+// Server holds every HTTP-layer dependency.
 type Server struct {
 	Settings *config.Settings
 	Resolver *config.Resolver
@@ -36,12 +36,12 @@ type Server struct {
 	Scanner  *mailscan.Scanner
 	Log      *slog.Logger
 
-	// Implementation note.
+	// Assets is the bundled frontend, injected from the cmd layer via embed.FS.
 	Assets fs.FS
 	MCP    http.Handler
 
-	// Implementation note.
-	// Implementation note.
+	// Callbacks like OnBalanceUpdated keep metrics in sync with page actions;
+	// otherwise Grafana lags until the next scheduled job after a config edit.
 	OnBalanceUpdated      func([]model.CheckResult)
 	OnSubscriptionUpdated func([]model.SubscriptionResult)
 	OnEmailScanned        func(model.ScanResult)
@@ -59,7 +59,8 @@ type Server struct {
 // struct but the constructor forgot to set it), so startup fails loudly listing every
 // gap instead of serving requests that answer "X is not available".
 func (s *Server) ValidateWiring() error {
-	// 逐字段显式判空：指针的 typed nil 装进 any 后不等于 nil，map 遍历会漏报。
+	// Check fields one by one: a typed nil pointer inside an any does not equal
+	// nil, so a map-driven walk would under-report.
 	var missing []string
 	add := func(name string, wired bool) {
 		if !wired {
@@ -82,21 +83,21 @@ func (s *Server) ValidateWiring() error {
 	return fmt.Errorf("httpapi server is missing wired dependencies: %s", strings.Join(missing, ", "))
 }
 
-// Implementation note.
+// Cooldown after heavy page-triggered operations.
 const guardCooldownSeconds = 30
 
-// Implementation note.
+// Handler wires the routes.
 func (s *Server) Handler() http.Handler {
 	s.refreshGuard.seconds = guardCooldownSeconds
 	s.scanGuard.seconds = guardCooldownSeconds
 
 	mux := http.NewServeMux()
 
-	// Implementation note.
+	// probes: /live only proves the process is up; /health checks data and jobs
 	mux.HandleFunc("GET /live", s.handleLive)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
-	// Implementation note.
+	// core read endpoints
 	mux.HandleFunc("GET /api/features", s.handleFeatures)
 	mux.HandleFunc("GET /api/credits", s.handleCredits)
 	mux.HandleFunc("GET /api/subscriptions", s.handleSubscriptions)
@@ -113,14 +114,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subscription/timezone", s.handleSubscriptionTimezone)
 	mux.HandleFunc("POST /api/subscription/webhook", s.handleSubscriptionWebhook)
 
-	// Implementation note.
+	// project config
 	mux.HandleFunc("GET /api/providers", s.handleProviders)
 	mux.HandleFunc("GET /api/config/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/config/project", s.handleSaveProject)
 	mux.HandleFunc("POST /api/config/project/delete", s.handleDeleteProject)
 	mux.HandleFunc("POST /api/config/threshold", s.handleUpdateThreshold)
 
-	// Implementation note.
+	// subscriptions
 	mux.HandleFunc("GET /api/config/subscriptions", s.handleListSubscriptions)
 	mux.HandleFunc("POST /api/config/subscription", s.handleUpdateSubscription)
 	mux.HandleFunc("POST /api/subscription/add", s.handleAddSubscription)
@@ -129,14 +130,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subscription/mark_renewed", s.handleMarkRenewed)
 	mux.HandleFunc("POST /api/subscription/clear_renewed", s.handleClearRenewed)
 
-	// Implementation note.
+	// mailboxes
 	mux.HandleFunc("GET /api/config/emails", s.handleListMailboxes)
 	mux.HandleFunc("POST /api/config/email", s.handleSaveMailbox)
 	mux.HandleFunc("POST /api/config/email/delete", s.handleDeleteMailbox)
 	mux.HandleFunc("GET /api/email/scan", s.handleEmailScanState)
 	mux.HandleFunc("POST /api/email/scan", s.handleEmailScan)
 
-	// Implementation note.
+	// history queries: the whole group is not registered without ENABLE_HISTORY_API, so it 404s, matching the legacy version
 	if s.Settings.EnableHistoryAPI {
 		mux.HandleFunc("GET /api/history/balance", s.handleBalanceHistory)
 		mux.HandleFunc("GET /api/history/trend/{projectID}", s.handleBalanceTrend)
@@ -154,14 +155,14 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("DELETE /mcp", s.MCP)
 	}
 
-	// Implementation note.
+	// dashboard static assets, last as the fallback
 	mux.Handle("GET /", s.assetHandler())
 
 	return s.withCORS(s.withAPIKey(s.withRecovery(mux)))
 }
 
-// Implementation note.
-// Implementation note.
+// withAPIKey guards every /api/ path. Without WEB_API_KEY everything is 503:
+// far safer than defaulting to open — the keys live behind this.
 func (s *Server) withAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		protected := strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp"
@@ -296,7 +297,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 	})
 }
 
-// Implementation note.
+// withRecovery catches handler panics: one bad request must not take down the process.
 func (s *Server) withRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -309,7 +310,7 @@ func (s *Server) withRecovery(next http.Handler) http.Handler {
 	})
 }
 
-// Implementation note.
+// assetHandler serves the bundled frontend; without embedded assets it prints a hint so dev issues are obvious.
 func (s *Server) assetHandler() http.Handler {
 	if s.Assets == nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -318,7 +319,7 @@ func (s *Server) assetHandler() http.Handler {
 	}
 	files := http.FileServer(http.FS(s.Assets))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Implementation note.
+		// SPA: any non-asset path falls back to index.html; the frontend switches views by hash
 		if path := strings.TrimPrefix(r.URL.Path, "/"); path != "" {
 			if _, err := fs.Stat(s.Assets, path); err != nil {
 				r = r.Clone(r.Context())
@@ -336,7 +337,7 @@ func (s *Server) log() *slog.Logger {
 	return slog.Default()
 }
 
-// Implementation note.
+// ListenAndServe runs the server and shuts down gracefully when ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	server := &http.Server{
 		Addr:              addr,
@@ -346,8 +347,9 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 	}
 	go func() {
 		<-ctx.Done()
-		// Implementation note.
-		// Implementation note.
+		// keep serving briefly after the stop signal: K8s removes the Pod from endpoints
+		// and sends SIGTERM in parallel; closing immediately drops the last requests.
+		// No shell outside the container to sleep, so wait here.
 		if delay := s.Settings.ShutdownDelaySeconds; delay > 0 {
 			s.log().Info("Stop signal received; still serving for a moment before shutting down", "delay_seconds", delay)
 			time.Sleep(time.Duration(delay) * time.Second)

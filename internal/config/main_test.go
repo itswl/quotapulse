@@ -6,10 +6,11 @@ import (
 	"testing"
 )
 
-// Implementation note.
+// TestMain clears environment variables that would affect auto-discovery.
 //
-// Implementation note.
-// Implementation note.
+// This once bit us: a real key from the dev machine's .env leaked into a
+// test, and the case actually called the upstream platform. Tests must start
+// from a blank slate and see only what they Setenv themselves.
 func TestMain(m *testing.M) {
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")

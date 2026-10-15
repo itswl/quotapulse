@@ -1,8 +1,10 @@
 /**
- * Implementation note.
+ * Line chart smoke tests.
  *
- * Implementation note.
- * Implementation note.
+ * The chart is the only newly written rendering code (it replaced Chart.js
+ * from a CDN), so a few things are pinned: canvas size, data point counts,
+ * threshold lines drawing no points, and the divide-by-zero edges of a flat
+ * balance or a single point.
  */
 
 import './stub-dom.js';
@@ -22,7 +24,7 @@ interface DrawLog {
   transform: number[] | null;
 }
 
-/* Implementation note. */
+/** A recording 2d context: no real drawing, just what got called */
 function stubCanvas(width = 800, height = 360): { canvas: HTMLCanvasElement; log: DrawLog } {
   const log: DrawLog = { arcs: 0, strokes: 0, fills: 0, texts: [], dashes: [], transform: null };
 
@@ -107,7 +109,7 @@ describe('LineChart', () => {
     const { canvas, log } = stubCanvas();
     new LineChart(canvas, options());
 
-    // Implementation note.
+    // 3 data points + 2 legend dots
     assert.equal(log.arcs, 5);
   });
 
@@ -156,7 +158,7 @@ describe('LineChart', () => {
     const { canvas, log } = stubCanvas();
     new LineChart(canvas, options({ series: [{ label: 'Balance', values: [100, null, 60], color: '#000' }] }));
 
-    // Implementation note.
+    // 2 valid points + 1 legend dot
     assert.equal(log.arcs, 3);
   });
 

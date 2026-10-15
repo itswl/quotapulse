@@ -28,7 +28,7 @@ func TestWxRankFetch(t *testing.T) {
 			want: 1234,
 		},
 		{
-			// Implementation note.
+			// fallback fields pick by truthiness: a score of 0 falls through to credits
 			name: "后备：score 为 0 时看 credits",
 			body: `{"code":0,"msg":"查询成功","data":{"score":0,"credits":66}}`,
 			want: 66,
@@ -54,7 +54,7 @@ func TestWxRankFetch(t *testing.T) {
 			errMsg: "API returned an error: Unknown error",
 		},
 		{
-			// Implementation note.
+			// a non-string msg still gets a proper message; a failed type assertion must not leak to users
 			name:   "msg 不是字符串",
 			body:   `{"code":0,"msg":12345}`,
 			errMsg: "Could not parse balance",
@@ -68,7 +68,7 @@ func TestWxRankFetch(t *testing.T) {
 }
 
 func TestWxRankPutsKeyInQuery(t *testing.T) {
-	// Implementation note.
+	// this provider authenticates via query parameter, not Bearer
 	srv, rec := serveJSON(t, 200, `{"code":0,"msg":"剩余1余额"}`)
 	if _, err := specProviderAt(wxrankSpec, srv.URL, "wx-secret").Fetch(context.Background()); err != nil {
 		t.Fatal(err)

@@ -33,7 +33,7 @@ func TestGLMFetch(t *testing.T) {
 			want: 0,
 		},
 		{
-			// Implementation note.
+			// usage of 0 cannot divide; fall back to the API's used-percent
 			name: "usage 为 0 时用百分比反推",
 			body: `{"code":200,"success":true,"data":{"limits":[
 				{"type":"CREDIT_LIMIT","usage":0,"remaining":0,"percentage":25}]}}`,
@@ -100,8 +100,9 @@ func TestGLMSendsBearerToken(t *testing.T) {
 }
 
 func TestGLMRemainingPercentIgnoresStringNumbers(t *testing.T) {
-	// Implementation note.
-	// Implementation note.
+	// quota fields must be real numbers; the string "50" does not count.
+	// Loosening this to Num would admit strings and produce a plausible-looking
+	// wrong balance
 	if _, ok := glmRemainingPercent(map[string]any{"usage": "100", "remaining": "50"}); ok {
 		t.Error("字符串的 usage/remaining 不该被当成数字")
 	}
@@ -111,7 +112,7 @@ func TestGLMRemainingPercentIgnoresStringNumbers(t *testing.T) {
 }
 
 func TestRound2HalfToEven(t *testing.T) {
-	// Implementation note.
+	// round2's contract: exact ties go to even; the rest follow the true binary value
 	cases := []struct{ in, want float64 }{
 		{0.125, 0.12}, // 正中间，进偶数
 		{0.135, 0.14}, // 二进制里略大于 0.135

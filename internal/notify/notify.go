@@ -1,9 +1,13 @@
-// Package notify provides the package implementation.
+// Package notify delivers one alert to a group bot (Feishu / DingTalk / WeCom
+// / custom HTTP).
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Payload structure, message templates, field order and number formatting
+// are external contracts: the on-call group is used to this exact format,
+// and systems behind custom webhooks read values by field name — changing a
+// single character is a regression. payload_test.go and message_test.go pin
+// them byte for byte. This package only delivers; callers record success and
+// failure metrics — the same message may come from balance, runway, weekly
+// report and other scenarios.
 package notify
 
 import (
@@ -19,7 +23,8 @@ import (
 	"time"
 )
 
-// Implementation note.
+// Supported platforms. The order is fixed; the config self-check lists it to
+// users verbatim.
 const (
 	TypeFeishu   = "feishu"
 	TypeCustom   = "custom"
@@ -27,8 +32,9 @@ const (
 	TypeWeCom    = "wecom"
 )
 
-// Implementation note.
-// Implementation note.
+// Metric kinds. Balance and subscription go through plain-text/structured payloads,
+// the rest through rich-text cards; Send routes on Kind because their body
+// formats differ by nature.
 const (
 	KindBalance      = "balance"
 	KindSubscription = "subscription"
@@ -42,42 +48,46 @@ const (
 	KindCheckFailed  = "check_failed"
 )
 
-// Implementation note.
+// Retry cadence: three attempts total, waiting 2s then 4s after failures.
 var defaultBackoff = []time.Duration{2 * time.Second, 4 * time.Second}
 
-// Implementation note.
+// Read at most this much of the response body for error messages; bot error responses are short.
 const maxResponseBody = 4096
 
-// Implementation note.
+// Message is one alert ready to send.
 //
-// Implementation note.
-// Implementation note.
+// Lines are the body lines: rich-text alerts (runway, mail, weekly report)
+// write "**field**: value", balance and subscription use plain "field:
+// value" — DingTalk adds list markup and bolding itself.
 type Message struct {
 	Title string
 	Lines []string
 	Kind  string
 
-	// Implementation note.
-	// Implementation note.
-	// Implementation note.
+	// custom-type balance/subscription alerts send a structured envelope with raw
+	// values like CurrentValue, unrecoverable from Lines, so the constructors here
+	// attach it. Externally assembled Messages leave it nil and degrade to the
+	// generic envelope — runway and weekly reports use that envelope anyway.
 	envelope *envelope
 }
 
-// Implementation note.
+// Notifier sends one alert.
 type Notifier interface {
 	Send(ctx context.Context, msg Message) error
 }
 
-// Implementation note.
+// SupportedTypes returns the supported platform list in fixed order; the config self-check shows it to users verbatim.
 func SupportedTypes() []string {
 	return []string{TypeFeishu, TypeCustom, TypeDingTalk, TypeWeCom}
 }
 
-// Implementation note.
+// New builds a notifier from settings.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// No URL configured means this deployment sends no alerts at all: return
+// nil, nil and let callers skip sending. An unrecognized type errors instead
+// of falling back to custom: the fallback would deliver JSON nobody can
+// parse, and nobody would notice until a real alert day — better to name the
+// config problem at startup.
 func New(url, webhookType, source string, client *http.Client) (Notifier, error) {
 	if strings.TrimSpace(url) == "" {
 		return nil, nil
@@ -85,7 +95,7 @@ func New(url, webhookType, source string, client *http.Client) (Notifier, error)
 
 	typ := strings.ToLower(strings.TrimSpace(webhookType))
 	if typ == "" {
-		// Implementation note.
+		// an empty type means custom; only a genuinely wrong type name errors
 		typ = TypeCustom
 	}
 	if !supported(typ) {
@@ -121,11 +131,11 @@ type notifier struct {
 	source string
 	client *http.Client
 
-	now     func() time.Time // operation;operation
-	backoff []time.Duration  // operation,operation
+	now     func() time.Time // timestamp in custom payloads; tests must be able to pin it
+	backoff []time.Duration  // wait before each retry; length is the retry count
 }
 
-// Implementation note.
+// Send delivers one alert. Failures always return an error — no degrading here; callers record metrics and decide whether to persist.
 func (n *notifier) Send(ctx context.Context, msg Message) error {
 	body, err := json.Marshal(n.payload(msg))
 	if err != nil {
@@ -164,11 +174,11 @@ func (n *notifier) post(ctx context.Context, body []byte) error {
 	start := time.Now()
 	resp, err := n.client.Do(req)
 	if err != nil {
-		// Implementation note.
+		// timeouts, DNS and refused connections land here; waiting a beat usually fixes it
 		return retryError{fmt.Errorf("Webhook request failed: %w", err)}
 	}
 	defer resp.Body.Close()
-	// Implementation note.
+	// read the body before closing so the connection returns to the pool for reuse
 	text, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	elapsed := time.Since(start)
 
@@ -182,12 +192,11 @@ func (n *notifier) post(ctx context.Context, body []byte) error {
 	case resp.StatusCode >= 500:
 		return retryError{fmt.Errorf("Webhook server error: HTTP %d, %s", resp.StatusCode, snippet(text, 200))}
 	default:
-		// Implementation note.
+		// 4xx means a wrong address or payload; retrying never helps
 		return fmt.Errorf("Webhook returned HTTP %d: %s", resp.StatusCode, snippet(text, 500))
 	}
 }
 
-// Implementation note.
 // attemptedError records how many HTTP attempts were made before giving up; the
 // webhook HTTP status itself is already part of the underlying message.
 func attemptedError(attempts int, err error) error {
@@ -199,7 +208,7 @@ type retryError struct{ err error }
 func (e retryError) Error() string { return e.err.Error() }
 func (e retryError) Unwrap() error { return e.err }
 
-// Implementation note.
+// wait sleeps, returning immediately when ctx is cancelled; the scheduler must not stall here.
 func wait(ctx context.Context, d time.Duration) error {
 	if d <= 0 {
 		return ctx.Err()
@@ -214,11 +223,13 @@ func wait(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// Implementation note.
+// MaskURL masks the secret inside a webhook address before logging.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// Markers are tried in order hook/ then access_token= then key=, keeping the
+// first 4 characters of the secret. provider.MaskURL follows different rules
+// (path segments only) and is deliberately neither reused nor imported: notify
+// sits above provider in the layering, and a reverse dependency would loop
+// back.
 func MaskURL(raw string) string {
 	if raw == "" {
 		return ""
@@ -235,7 +246,7 @@ func MaskURL(raw string) string {
 		return prefix + marker + head(secret, 4) + "***"
 	}
 
-	// Implementation note.
+	// mask the whole thing when the key position is unrecognized; short URLs get fully covered
 	runes := []rune(raw)
 	if len(runes) <= 16 {
 		return "***"
@@ -251,7 +262,7 @@ func head(s string, n int) string {
 	return string(runes[:n])
 }
 
-// Implementation note.
+// snippet truncates by characters (not bytes) so Chinese error messages never cut mid-character.
 func snippet(b []byte, limit int) string {
 	return head(strings.TrimSpace(string(b)), limit)
 }

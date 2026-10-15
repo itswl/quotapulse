@@ -2,7 +2,7 @@ package provider
 
 import "errors"
 
-// Implementation note.
+// TikHub reports the account balance in USD.
 var tikhubSpec = Spec{
 	Key:         "tikhub",
 	Name:        "TikHub",
@@ -10,7 +10,7 @@ var tikhubSpec = Spec{
 	URL:         "https://api.tikhub.dev/api/v1/tikhub/user/get_user_info",
 	Headers:     map[string]string{"accept": "application/json"},
 	Extract: func(data map[string]any) (float64, error) {
-		// Implementation note.
+		// the API changed shape: balance may sit under user_data, data or the top level; try in this order
 		scope := data
 		if v, ok := data["user_data"]; ok {
 			scope = Object(v)

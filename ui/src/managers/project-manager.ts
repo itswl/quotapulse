@@ -1,6 +1,7 @@
 /**
- * Implementation note.
- * Implementation note.
+ * Project management: create / edit / delete.
+ * With ENABLE_DYNAMIC_CONFIG the project inventory is fully maintainable on
+ * the page.
  */
 
 import { mutate, request } from '../api/client.js';
@@ -16,7 +17,7 @@ import { showToast } from '../ui/toast.js';
 
 const MODAL_ID = 'project-modal';
 
-/* Implementation note. */
+/** The provider list rarely changes; fetch once and cache */
 let providers: ProviderOption[] = [];
 
 async function loadProviders(): Promise<ProviderOption[]> {
@@ -40,14 +41,14 @@ function fillProviderOptions(selected = ''): void {
   );
 }
 
-/* Implementation note. */
+/** Type changes the threshold's meaning: quota-type fills a remaining percent; without the hint users type amounts */
 function syncTypeHint(): void {
   const provider = byId<HTMLSelectElement>('project-provider')?.value;
   const known = providers.find((p) => p.value === provider);
   const typeSelect = byId<HTMLSelectElement>('project-type');
   const hint = byId('project-threshold-hint');
 
-  // Implementation note.
+  // stop following provider changes once the user picked a type manually
   if (known && typeSelect && !typeSelect.dataset['touched']) {
     typeSelect.value = known.default_type;
   }
@@ -83,7 +84,7 @@ export async function openProjectModal(project: ProjectConfig | null = null): Pr
   const keyHint = byId('project-api-key-hint');
   if (keyHint) keyHint.textContent = isEdit ? t('project.keep_key') : '';
 
-  // Implementation note.
+  // saving an env-discovered project here pins it into the database; say so first
   const envNote = byId('project-env-note');
   if (envNote) envNote.style.display = project?.from_env ? 'block' : 'none';
 
@@ -141,7 +142,7 @@ export async function deleteProject(name: string): Promise<void> {
   }
 }
 
-/* Implementation note. */
+/** Dashboard status carries no config fields like keys or thresholds; fetch the project config before editing */
 export async function editProject(name: string): Promise<void> {
   try {
     const result = await request<ProjectsConfigResponse>('/api/config/projects');

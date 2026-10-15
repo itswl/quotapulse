@@ -29,7 +29,7 @@ func TestBalanceSummary(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestMergeKeepsOrder: a single-project refresh must not shuffle dashboard cards the user has to refind every time.
 func TestMergeKeepsOrder(t *testing.T) {
 	m := New()
 	m.SetBalance([]model.CheckResult{result("a", true, false), result("b", true, false), result("c", true, false)})
@@ -50,7 +50,7 @@ func TestMergeKeepsOrder(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestMergeAddsUnknownProject: a newly added project appears on the dashboard after refresh.
 func TestMergeAddsUnknownProject(t *testing.T) {
 	m := New()
 	m.SetBalance([]model.CheckResult{result("a", true, false)})
@@ -71,7 +71,7 @@ func TestRemoveBalanceProject(t *testing.T) {
 		t.Errorf("删除后应只剩 b，实际 %v", projects)
 	}
 
-	// Implementation note.
+	// removing a nonexistent project must be side-effect free
 	before := m.Balance().LastUpdate
 	m.RemoveBalanceProject("不存在")
 	if m.Balance().LastUpdate != before {
@@ -79,7 +79,7 @@ func TestRemoveBalanceProject(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestReturnedStateIsACopy: callers get copies; mutating them must not touch internal state.
 func TestReturnedStateIsACopy(t *testing.T) {
 	m := New()
 	m.SetBalance([]model.CheckResult{result("a", true, false)})
@@ -124,7 +124,7 @@ func TestJobHealth(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestDisabledJobNeverBlocksHealth: disabled tasks never affect health.
 func TestDisabledJobNeverBlocksHealth(t *testing.T) {
 	m := New()
 	m.RegisterJob("weekly_report", "周报", "已关闭", false, time.Time{})
@@ -138,7 +138,7 @@ func TestDisabledJobNeverBlocksHealth(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestConcurrentAccess: the scheduler writes while HTTP reads, truly concurrently — run with -race for this to matter.
 func TestConcurrentAccess(t *testing.T) {
 	m := New()
 	var wg sync.WaitGroup

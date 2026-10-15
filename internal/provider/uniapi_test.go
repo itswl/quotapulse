@@ -36,7 +36,7 @@ func TestUniAPIFetch(t *testing.T) {
 }
 
 func TestUniAPISendsUnitParam(t *testing.T) {
-	// Implementation note.
+	// unit=usd is required by the API; dropping it fetches a number in another unit
 	srv, rec := serveJSON(t, 200, `{"success":true,"data":{"balance":1}}`)
 	if _, err := specProviderAt(uniapiSpec, srv.URL, "test-key").Fetch(context.Background()); err != nil {
 		t.Fatal(err)

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// Implementation note.
+// wxrank has no dedicated balance API; remaining credits sit inside the query API's msg text, e.g. "剩余263419余额".
 var wxrankDigits = regexp.MustCompile(`\d+`)
 
 var wxrankSpec = Spec{
@@ -24,7 +24,7 @@ var wxrankSpec = Spec{
 		return nil
 	},
 	Extract: func(data map[string]any) (float64, error) {
-		// Implementation note.
+		// grab the first number in msg
 		msg := Str(data["msg"])
 		if matched := wxrankDigits.FindString(msg); matched != "" {
 			if value, err := strconv.ParseFloat(matched, 64); err == nil {
@@ -32,7 +32,7 @@ var wxrankSpec = Spec{
 			}
 		}
 
-		// Implementation note.
+		// fallback fields when msg has no numbers, tried in order: data is a number > data.score/credits > top-level score/credits
 		switch raw := data["data"].(type) {
 		case float64:
 			return raw, nil

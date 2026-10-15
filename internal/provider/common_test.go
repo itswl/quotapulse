@@ -2,8 +2,9 @@ package provider
 
 import "testing"
 
-// Implementation note.
-// Implementation note.
+// These helpers decide which branch boundary data (0, empty string, null,
+// numeric strings) takes, so they are pinned individually rather than covered
+// incidentally by platform cases.
 
 func TestTruthy(t *testing.T) {
 	cases := []struct {
@@ -33,7 +34,7 @@ func TestTruthy(t *testing.T) {
 }
 
 func TestJSONNumRejectsStrings(t *testing.T) {
-	// Implementation note.
+	// the difference from Num is exactly this: numeric strings are not numbers
 	if _, ok := jsonNum("12"); ok {
 		t.Error(`jsonNum("12") 不该通过`)
 	}
@@ -46,7 +47,7 @@ func TestJSONNumRejectsStrings(t *testing.T) {
 }
 
 func TestOrElse(t *testing.T) {
-	// Implementation note.
+	// take the first truthy value: a falsy a takes b, even when b is falsy too
 	if got := orElse(nil, float64(5)); got != float64(5) {
 		t.Errorf("orElse(nil, 5) = %v", got)
 	}
@@ -63,14 +64,14 @@ func TestMessageOr(t *testing.T) {
 	if got := messageOr(data, "msg", "Unknown error"); got != "出错了" {
 		t.Errorf("msg = %q", got)
 	}
-	// Implementation note.
+	// an existing key with an empty value uses the empty string; only a missing key falls back to the default
 	if got := messageOr(data, "empty", "Unknown error"); got != "" {
 		t.Errorf("empty = %q", got)
 	}
 	if got := messageOr(data, "missing", "Unknown error"); got != "Unknown error" {
 		t.Errorf("missing = %q", got)
 	}
-	// Implementation note.
+	// numbers must print as 401, not 4.01e+02
 	if got := messageOr(data, "code", "Unknown error"); got != "401" {
 		t.Errorf("code = %q", got)
 	}
@@ -89,7 +90,7 @@ func TestFormatValue(t *testing.T) {
 }
 
 func TestParseJSONObject(t *testing.T) {
-	// Implementation note.
+	// empty body and null both count as an empty response; the caller reports "API returned an empty response"
 	for _, body := range []string{"", "   ", "null"} {
 		data, err := parseJSONObject(body)
 		if err != nil || len(data) != 0 {

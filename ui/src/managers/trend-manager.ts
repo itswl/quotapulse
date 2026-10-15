@@ -1,4 +1,4 @@
-/* Implementation note. */
+/** Balance trend dialog: stat cards plus the line chart; needs ENABLE_HISTORY_API. */
 
 import { getTrend } from '../api/endpoints.js';
 import type { TrendData, TrendPoint, TrendResponse } from '../api/types.js';
@@ -31,7 +31,7 @@ export async function showProjectTrend(projectName: string, provider: string): P
   try {
     const { response, data } = await getTrend(provider, projectName, TREND_DAYS);
 
-    // Implementation note.
+    // database off or no history yet: the backend returns 404; not an exception here — show an explanation
     if (!response.ok || !data || data.status !== 'success') {
       destroyChart();
       if (statsContainer) {
@@ -66,7 +66,7 @@ export async function showProjectTrend(projectName: string, provider: string): P
   }
 }
 
-/* Implementation note. */
+/** Fewer than two points means the backend sends no change; display as "stable" */
 export function trendDirection(change: number | undefined): 'up' | 'down' | 'stable' {
   if (change !== undefined && change > 0) return 'up';
   if (change !== undefined && change < 0) return 'down';
@@ -168,7 +168,7 @@ function renderTrendChart(trendData: TrendData): void {
     ],
   };
 
-  // Implementation note.
+  // one canvas toggled across dialog opens; reuse the instance so listeners do not pile up
   if (chart) chart.update(options);
   else chart = new LineChart(canvas, options);
 }

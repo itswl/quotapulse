@@ -159,7 +159,7 @@ func TestDiscoverMailboxes(t *testing.T) {
 		if got := DiscoverMailboxes([]model.Mailbox{{Name: "a@a.com"}}); len(got) != 0 {
 			t.Error("同名邮箱不该重复添加")
 		}
-		// Implementation note.
+		// mailboxes renamed in the database must still be recognized by account, or the same inbox gets scanned twice
 		if got := DiscoverMailboxes([]model.Mailbox{{Name: "别名", Username: "a@a.com"}}); len(got) != 0 {
 			t.Error("同账号不同显示名的邮箱不该重复添加")
 		}

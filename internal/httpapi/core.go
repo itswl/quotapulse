@@ -6,8 +6,9 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
+// stalenessMultiplier is how many refresh periods balance data may age before it
+// counts as stale. Three periods of slack: one failed refresh should not make the
+// readiness probe pull the container.
 const stalenessMultiplier = 3
 
 type liveBody struct {
@@ -35,7 +36,7 @@ type healthBody struct {
 	Version       string   `json:"version"`
 }
 
-// Implementation note.
+// handleHealth is the readiness probe: 200 only with data, fresh data, and all jobs last-succeeded.
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	balance := s.State.Balance()
 	jobs := s.State.Jobs()
@@ -88,7 +89,7 @@ type featureToggles struct {
 	Database bool `json:"database"`
 }
 
-// Implementation note.
+// handleFeatures tells the frontend which advanced entries to show.
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 	cfg := s.Resolver.Load(r.Context())
 	writeJSON(w, http.StatusOK, featuresBody{
@@ -129,7 +130,7 @@ type refreshRequest struct {
 	ProjectName *string `json:"project_name"`
 }
 
-// Implementation note.
+// handleRefresh checks balances immediately; with project_name it refreshes only that project and merges into existing state.
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	projectName := ""
 	if r.Method == http.MethodPost && r.ContentLength > 0 {
@@ -162,7 +163,7 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	defer s.refreshGuard.release()
 
 	started := time.Now()
-	// Implementation note.
+	// page-triggered refreshes send no real alerts unless ENABLE_WEB_ALARM is set
 	dryRun := !s.Settings.EnableWebAlarm
 
 	outcome, err := s.Monitor.Run(r.Context(), projectName, dryRun)
@@ -196,7 +197,7 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Implementation note.
+// round2 keeps two decimals using banker's rounding, matching the rounding convention used elsewhere in the project.
 func round2(value float64) float64 {
 	return math.RoundToEven(value*100) / 100
 }

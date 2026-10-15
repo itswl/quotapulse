@@ -1,7 +1,9 @@
-// Package store provides the package implementation.
+// Package store is the persistence-layer contract.
 //
-// Implementation note.
-// Implementation note.
+// The database is optional: without it use Null(), every write drops
+// silently, every query returns empty — hence "no cooldown, no records, no
+// history" — and alerts still go out. Callers therefore never branch on
+// whether the database is on.
 package store
 
 import (
@@ -11,12 +13,15 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// Store is every persistence operation. Implementations: SQL (sqlite /
+// postgres / mysql) and Null.
 //
-// Implementation note.
-// Implementation note.
+// Contract: Upsert* is a full overwrite, not a partial update. Callers
+// wanting "empty password means unchanged"-style merging read the existing
+// record, merge, and pass the whole thing — the merge rules live only in the
+// HTTP layer.
 type Store interface {
-	// Implementation note.
+	// ---------- dynamic config ----------
 
 	ListProjects(ctx context.Context) ([]model.Project, error)
 	UpsertProject(ctx context.Context, p model.Project) error
@@ -30,19 +35,19 @@ type Store interface {
 	UpsertMailbox(ctx context.Context, m model.Mailbox) error
 	DeleteMailbox(ctx context.Context, name string) error
 
-	// Implementation note.
+	// ---------- Balance history ----------
 
 	SaveBalance(ctx context.Context, rec BalanceRecord) error
-	// Implementation note.
+	// BalanceSeries returns all accounts' snapshots in the window, time-ascending, for burn rate and runway.
 	BalanceSeries(ctx context.Context, days int) ([]model.BalancePoint, error)
 	BalanceHistory(ctx context.Context, q BalanceQuery) ([]BalanceRow, error)
-	// Implementation note.
+	// BalanceTrend returns nil, nil when the project has no data at all.
 	BalanceTrend(ctx context.Context, projectID string, days int) (*Trend, error)
 
-	// Implementation note.
+	// ---------- Alert history ----------
 
 	SaveAlert(ctx context.Context, rec AlertRecord) error
-	// Implementation note.
+	// HasRecentAlert reports whether one went out within the cooldown; within <= 0 always returns false.
 	HasRecentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (bool, error)
 	LastSentAlert(ctx context.Context, alertID, alertType string, within time.Duration) (*time.Time, error)
 	Backup(ctx context.Context, dir string, keep int) (string, error)
@@ -60,20 +65,20 @@ type Store interface {
 	RecentAlerts(ctx context.Context, q AlertQuery) ([]AlertRow, error)
 	AlertStats(ctx context.Context, days int) (*Stats, error)
 
-	// Implementation note.
+	// ---------- Email alert history ----------
 
 	SaveEmailAlert(ctx context.Context, rec EmailAlertRecord) error
 	HasRecentEmailAlert(ctx context.Context, mailbox, sender, subject, date string, days int) (bool, error)
 	EmailAlerts(ctx context.Context, q EmailAlertQuery) ([]EmailAlertRow, error)
 
-	// Implementation note.
+	// Enabled reports whether this is the real persistent implementation; Null() returns false.
 	Enabled() bool
 	Close() error
 }
 
-// Implementation note.
+// ---------- Writes ----------
 
-// Implementation note.
+// BalanceRecord is one recorded balance check.
 type BalanceRecord struct {
 	ProjectID   string
 	ProjectName string
@@ -84,18 +89,18 @@ type BalanceRecord struct {
 	NeedAlarm   bool
 }
 
-// Implementation note.
+// AlertRecord is one sent alert, the basis for the next cooldown decision.
 type AlertRecord struct {
-	AlertID   string // operation ProjectID,operation SubscriptionID
+	AlertID   string // like ProjectID and SubscriptionID, a stable identity
 	Name      string
 	AlertType string // low_balance / low_runway / spend_spike / subscription_renewal / email_alert
 	Message   string
 	Value     *float64
 	Threshold *float64
-	Status    string // operation sent operation
+	Status    string // empty counts as sent
 }
 
-// Implementation note.
+// EmailAlertRecord is one scanned alert mail.
 type EmailAlertRecord struct {
 	Mailbox     string
 	Sender      string
@@ -107,9 +112,9 @@ type EmailAlertRecord struct {
 	AlertSent   bool
 }
 
-// Implementation note.
+// ---------- Queries ----------
 
-// Implementation note.
+// BalanceQuery filters balance history; empty strings do not filter.
 type BalanceQuery struct {
 	ProjectID string
 	Provider  string
@@ -117,7 +122,7 @@ type BalanceQuery struct {
 	Limit     int
 }
 
-// Implementation note.
+// AlertQuery filters alert history.
 type AlertQuery struct {
 	ProjectID string
 	AlertType string
@@ -125,14 +130,14 @@ type AlertQuery struct {
 	Limit     int
 }
 
-// Implementation note.
+// EmailAlertQuery filters mail alert history.
 type EmailAlertQuery struct {
 	Mailbox string
 	Days    int
 	Limit   int
 }
 
-// Implementation note.
+// BalanceRow is one row of /api/history/balance.
 type BalanceRow struct {
 	ID          int64    `json:"id"`
 	ProjectID   string   `json:"project_id"`
@@ -145,7 +150,7 @@ type BalanceRow struct {
 	Timestamp   string   `json:"timestamp"`
 }
 
-// Implementation note.
+// AlertRow is one row of /api/history/alerts.
 type AlertRow struct {
 	ID             int64    `json:"id"`
 	ProjectID      string   `json:"project_id"`
@@ -158,7 +163,7 @@ type AlertRow struct {
 	Timestamp      string   `json:"timestamp"`
 }
 
-// Implementation note.
+// EmailAlertRow is one row of /api/history/email-alerts.
 type EmailAlertRow struct {
 	ID              int64    `json:"id"`
 	Mailbox         string   `json:"mailbox"`
@@ -172,14 +177,14 @@ type EmailAlertRow struct {
 	Timestamp       string   `json:"timestamp"`
 }
 
-// Implementation note.
+// TrendPoint is one point on the trend chart.
 type TrendPoint struct {
 	Timestamp string  `json:"timestamp"`
 	Balance   float64 `json:"balance"`
 	NeedAlarm bool    `json:"need_alarm"`
 }
 
-// Implementation note.
+// Trend is the /api/history/trend/<project_id> response body.
 type Trend struct {
 	ProjectID      string       `json:"project_id"`
 	ProjectName    string       `json:"project_name"`
@@ -197,13 +202,13 @@ type Trend struct {
 	ChangePercent  *float64     `json:"change_percent,omitempty"`
 }
 
-// Implementation note.
+// TopProject is one entry in alert statistics.
 type TopProject struct {
 	Project string `json:"project"`
 	Count   int    `json:"count"`
 }
 
-// Implementation note.
+// Stats is the /api/history/stats response body.
 type Stats struct {
 	Days        int            `json:"days"`
 	TotalAlerts int            `json:"total_alerts"`

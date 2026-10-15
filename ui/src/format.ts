@@ -1,27 +1,28 @@
 /**
- * Implementation note.
+ * Pure formatting and status classification.
  *
- * Implementation note.
- * Implementation note.
+ * This module touches no DOM and no fetch and is the only place smoke tests
+ * call directly — every "how should this number display" decision for the
+ * dashboard lives here, so changes always have test coverage.
  */
 
 import type { BalanceType, CheckResult, Runway, SubscriptionResult } from './api/types.js';
 import { t, type MessageKey } from './i18n/index.js';
 
-/* Implementation note. */
+/** Runway display tiers, one-to-one with the .runway-* CSS classes */
 export type RunwayLevel = 'danger' | 'warning' | 'normal' | 'unknown';
 
-/* Implementation note. */
+/** Balance health relative to the threshold, matching the progress bar's .normal/.warning/.danger */
 export type BalanceStatus = 'normal' | 'warning' | 'danger';
 
 export interface RunwayDisplay {
   text: string;
   level: RunwayLevel;
-  /* Implementation note. */
+  /** Hover explanation; empty when there is nothing to explain */
   hint: string;
 }
 
-/* Implementation note. */
+/** The backend may send null or leave strings in old data; funnel everything through parseFloat semantics */
 function toNumber(value: unknown): number {
   if (typeof value === 'number') return value;
   return Number.parseFloat(String(value ?? ''));
@@ -40,12 +41,12 @@ export function formatCurrency(value: unknown): string {
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* Implementation note. */
+/** Integer with thousands separators */
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat('en-US').format(num);
 }
 
-/* Implementation note. */
+/** Balance type → display name */
 export function typeLabel(type: string | null | undefined): string {
   const keys: Record<string, MessageKey> = { credits: 'type.credits', balance: 'type.balance', quota: 'type.quota' };
   const key = type ? keys[type] : undefined;
@@ -53,8 +54,10 @@ export function typeLabel(type: string | null | undefined): string {
 }
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Format a balance by type; the result is an HTML fragment: quota type
+ * carries a `<span class="unit">%</span>`. No escaping here — the input
+ * went through parseFloat and is a bare number.
  */
 export function formatBalance(value: unknown, type: BalanceType | string | null | undefined): string {
   const num = toNumber(value);
@@ -108,12 +111,12 @@ export function formatRunway(runway: Runway | null | undefined, context: RunwayC
     return { text: t('runway.over_year'), level: 'normal', hint };
   }
   const text = days < 1 ? t('runway.under_day') : formatDays(days < 10 ? days.toFixed(1) : Math.round(days));
-  // Implementation note.
+  // the frontend only colors fixed tiers; the real alerting threshold is the backend's RUNWAY_ALERT_DAYS
   const level: RunwayLevel = days <= 3 ? 'danger' : days <= 7 ? 'warning' : 'normal';
   return { text, level, hint };
 }
 
-/* Implementation note. */
+/** HTML text escaping */
 export function escapeHTML(value: unknown): string {
   const map: Record<string, string> = {
     '&': '&amp;',
@@ -125,7 +128,7 @@ export function escapeHTML(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (char) => map[char] ?? char);
 }
 
-/* Implementation note. */
+/** HTML attribute escaping; attributes always use double quotes, so the rules match text */
 export function escapeAttr(value: unknown): string {
   return escapeHTML(value);
 }
@@ -139,7 +142,7 @@ export function formatDate(dateString: string | null | undefined): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/* Implementation note. */
+/** Relative time; past a week fall back to absolute — "8 days ago" carries no information */
 export function getRelativeTime(dateString: string | null | undefined, now: Date = new Date()): string {
   if (!dateString) return t('common.unknown');
   const date = new Date(dateString);
@@ -161,7 +164,7 @@ export function needsAttention(project: Pick<CheckResult, 'need_alarm' | 'succes
   return project.need_alarm || !project.success;
 }
 
-/* Implementation note. */
+/** Balance percentage relative to the threshold; no upper cap — above 100% means plenty */
 export function getBalancePercentage(balance: number, threshold: number): number {
   if (threshold === 0) return 100;
   return (balance / threshold) * 100;
@@ -177,7 +180,7 @@ export function getBalanceStatus(balance: number, threshold: number): BalanceSta
   return 'normal';
 }
 
-/* Implementation note. */
+/** Subscription period → display name */
 export function cycleLabel(cycle: string | null | undefined): string {
   if (cycle === 'monthly') return t('cycle.monthly');
   if (cycle === 'yearly') return t('cycle.yearly');

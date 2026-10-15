@@ -8,11 +8,12 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
+// BalanceAlert: balance is low.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// The balanceAlert helper below also takes balanceType and unit parameters,
+// but callers only ever pass "余额" and an empty string — the real balance
+// type (credits / quota) affects only the dashboard, not alert copy.
+// Keep them off the signature; extend balanceAlert when needed.
 func BalanceAlert(projectName string, ownerProject *string, provider string, currentValue, threshold float64) Message {
 	return balanceAlert(projectName, ownerProject, provider, "balance", currentValue, threshold, "")
 }
@@ -85,7 +86,7 @@ func CheckFailedAlert(projectName string, ownerProject *string, provider, reason
 	}
 }
 
-// Implementation note.
+// SubscriptionAlert: a subscription is due soon.
 func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 	renewalDay, daysUntilRenewal int, amount float64) Message {
 	cycle := FormatSubscriptionCycle(cycleType, renewalDay)
@@ -98,7 +99,7 @@ func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 		"Renewal amount: "+formatFloat(amount),
 	)
 
-	// Implementation note.
+	// today or overdue goes out as critical; a few days out is just a reminder
 	level := "warning"
 	if daysUntilRenewal <= 0 {
 		level = "critical"
@@ -126,13 +127,14 @@ func SubscriptionAlert(name string, ownerProject *string, cycleType string,
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// Custom is a rich-text alert shared by the runway-exhausted, spend-spike and
+// weekly-report paths; the caller builds the Markdown body. kind only feeds
+// metric classification, not the payload.
 func Custom(title string, lines []string, kind string) Message {
 	return Message{Title: title, Lines: lines, Kind: kind}
 }
 
-// Implementation note.
+// EmailAlert: a mail hit a keyword.
 func EmailAlert(mailbox, subject, sender, date string, keywords []string,
 	serviceName *string, amount *float64) Message {
 	if mailbox == "" {
@@ -145,7 +147,7 @@ func EmailAlert(mailbox, subject, sender, date string, keywords []string,
 		"**Date**: " + date,
 		"**Service**: " + serviceText(serviceName),
 	}
-	// Implementation note.
+	// an unrecognized amount (or 0) omits the line; an empty number in the group helps nobody
 	if amount != nil && *amount != 0 {
 		lines = append(lines, "**Amount**: "+formatFloat(*amount))
 	}
@@ -154,15 +156,16 @@ func EmailAlert(mailbox, subject, sender, date string, keywords []string,
 	return Message{Title: "📧 Email alert: " + subject, Lines: lines, Kind: KindEmail}
 }
 
-// Implementation note.
+// MailboxError: a mailbox is unreachable.
 //
-// Implementation note.
-// Implementation note.
+// host is context the caller already has, but the body never mentions it —
+// the on-call group knows these exact three lines; one more line is a
+// template change. The parameter stays so callers stay untouched.
 func MailboxError(mailbox, host, reason string) Message {
 	return mailboxError(mailbox, reason, time.Now())
 }
 
-// Implementation note.
+// mailboxError splits out the clock so tests can pin the "**time**" line.
 func mailboxError(mailbox, reason string, at time.Time) Message {
 	return Message{
 		Title: "❌ Mailbox connection failed",
@@ -175,11 +178,13 @@ func mailboxError(mailbox, reason string, at time.Time) Message {
 	}
 }
 
-// Implementation note.
+// FormatSubscriptionCycle humanizes the renewal cycle; the subscription
+// checker and the config self-check use it too.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// It returns "未知周期" for unrecognized cycle types so callers can surface
+// the config error. Do not "fix" it into a monthly fallback ("每月 15 号"):
+// a mistyped cycle would then keep sending plausible-looking reminders until
+// someone notices the renewal dates never match.
 func FormatSubscriptionCycle(cycleType string, renewalDay int) string {
 	switch cycleType {
 	case model.CycleWeekly:
@@ -192,7 +197,7 @@ func FormatSubscriptionCycle(cycleType string, renewalDay int) string {
 		if month, day, ok := splitMMDD(renewalDay); ok {
 			return fmt.Sprintf("Annually on %02d-%02d", month, day)
 		}
-		// Implementation note.
+		// not a valid MMDD: a stable label beats guessing a date
 		return "Fixed annual date"
 	case model.CycleLunarYearly:
 		if month, day, ok := splitMMDD(renewalDay); ok {
@@ -205,12 +210,13 @@ func FormatSubscriptionCycle(cycleType string, renewalDay int) string {
 	return "Unknown cycle"
 }
 
-// Implementation note.
+// splitMMDD splits a yearly MMDD integer (like 315) into month and day.
 //
-// Implementation note.
-// Implementation note.
+// Same rules as internal/subscription.SplitMMDD, rewritten here instead of
+// importing: subscription needs notify to send reminders, and depending back
+// on it would close the cycle.
 func splitMMDD(renewalDay int) (month, day int, ok bool) {
-	// Implementation note.
+	// values <= 31 are "day only" from old configs, not MMDD
 	if renewalDay <= 31 {
 		return 0, 0, false
 	}
@@ -221,7 +227,7 @@ func splitMMDD(renewalDay int) (month, day int, ok bool) {
 	return month, day, true
 }
 
-// Implementation note.
+// formatDays humanizes day counts: 0 is today, 1 is tomorrow, the rest "in N days".
 func formatDays(days int) string {
 	switch days {
 	case 0:
@@ -232,7 +238,7 @@ func formatDays(days int) string {
 	return fmt.Sprintf("In %d days", days)
 }
 
-// Implementation note.
+// appendOwner omits the whole line without an owning project, rather than an empty "Owning project: " line.
 func appendOwner(lines []string, ownerProject *string) []string {
 	if ownerProject == nil || *ownerProject == "" {
 		return lines
@@ -240,8 +246,9 @@ func appendOwner(lines []string, ownerProject *string) []string {
 	return append(lines, "Owner project: "+*ownerProject)
 }
 
-// Implementation note.
-// Implementation note.
+// serviceText writes the literal "None" when no service was recognized, so the
+// group sees "**Service**: None". It looks odd, but the on-call group knows this
+// exact word; "unknown" would be a copy change pinned by message_test.go.
 func serviceText(name *string) string {
 	if name == nil {
 		return "None"

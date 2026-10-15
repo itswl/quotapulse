@@ -10,18 +10,22 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// fixtureWindowDays：testdata/legacy.db 里的时间戳是固定的，而所有查询窗口都相对
-// 「现在」计算。7 天、30 天这样的窗口迟早滑出快照日期，让测试在某一天开始失败
-// （2026-09-28 就炸过一次）。这里统一用一个不会过期的窗口（约 100 年）：被测的是
-// 读取与折算逻辑，窗口大小只是参数。
+// fixtureWindowDays: the timestamps in testdata/legacy.db are fixed while every
+// query window is computed relative to "now". A 7- or 30-day window eventually
+// slides past the snapshot dates and the test starts failing on some future day
+// (it broke once on 2026-09-28). Use one window that never expires (~100 years):
+// what is under test is the reading and conversion logic; the window size is
+// just a parameter.
 const fixtureWindowDays = 36500
 
-// Implementation note.
+// TestReadsLegacyDatabase proves the current implementation can open a
+// database built by the previous version directly.
 //
-// Implementation note.
-// Implementation note.
+// testdata/legacy.db was really written by the pre-rewrite implementation,
+// with data in all six tables. Upgrading needs no migration script and no
+// downtime export — that premise underpins the whole rewrite.
 func TestReadsLegacyDatabase(t *testing.T) {
-	// Implementation note.
+	// work on a copy: CREATE TABLE writes to the file and testdata must stay pristine
 	source, err := os.ReadFile("testdata/legacy.db")
 	if err != nil {
 		t.Fatalf("读取旧版数据库失败: %v", err)
@@ -59,7 +63,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 		if !volc.Enabled {
 			t.Error("enabled 应为 true")
 		}
-		// Implementation note.
+		// disabled state must round-trip, or disabled accounts get revived and re-checked
 		deepseek := findByName(projects, func(p model.Project) string { return p.Name }, "deepseek")
 		if deepseek == nil || deepseek.Enabled {
 			t.Errorf("deepseek 应是停用状态，实际 %+v", deepseek)
@@ -75,7 +79,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 			t.Fatalf("应有 1 条订阅，实际 %d 条", len(subs))
 		}
 		s := subs[0]
-		// Implementation note.
+		// yearly renewal days are stored as MMDD integers in old databases; the new version must read them that way
 		if s.Name != "域名续费" || s.CycleType != "yearly" || s.RenewalDay != 315 {
 			t.Errorf("订阅字段不对: %+v", s)
 		}
@@ -109,7 +113,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 		if len(series) != 5 {
 			t.Fatalf("应有 5 条快照，实际 %d 条", len(series))
 		}
-		// Implementation note.
+		// must be time-ascending; runway analysis depends on the order
 		for i := 1; i < len(series); i++ {
 			if series[i].Timestamp < series[i-1].Timestamp {
 				t.Fatal("余额快照没有按时间升序返回")
@@ -168,7 +172,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 			t.Errorf("告警字段不对: %+v", alerts[0])
 		}
 
-		// Implementation note.
+		// the legacy balance history must also drive cooldown lookups
 		series, _ := st.BalanceSeries(ctx, fixtureWindowDays)
 		if len(series) == 0 {
 			t.Fatal("旧库里读不到任何快照，无法构造冷却输入")
@@ -204,7 +208,7 @@ func TestReadsLegacyDatabase(t *testing.T) {
 			t.Error("alert_sent 应为 true")
 		}
 
-		// Implementation note.
+		// dedup must recognize mails already notified in the old database
 		seen, err := st.HasRecentEmailAlert(ctx, "工作邮箱", "noreply@aliyun.com",
 			"【阿里云】余额不足提醒", "Mon, 01 Sep 2026 10:00:00 +0800", fixtureWindowDays)
 		if err != nil {

@@ -13,14 +13,14 @@ import (
 	"time"
 )
 
-// Implementation note.
+// Sending logs are useless in tests; they bury failure details in the output.
 func TestMain(m *testing.M) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	os.Exit(m.Run())
 }
 
 func TestNewWithoutURLReturnsNil(t *testing.T) {
-	// Implementation note.
+	// deployments without a webhook must not error; callers skip sending
 	n, err := New("", TypeFeishu, "credit-monitor", nil)
 	if err != nil {
 		t.Fatalf("未配置 URL 时不该报错: %v", err)
@@ -99,7 +99,7 @@ func TestSendRetriesServerErrors(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Failure counts only after retries still fail; recovering mid-way counts as success.
 func TestSendSucceedsAfterRetry(t *testing.T) {
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,7 @@ func TestSendSucceedsAfterRetry(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Network-layer failures must propagate, never be swallowed into "sent".
 func TestSendReportsTransportError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	client := srv.Client()
@@ -137,7 +137,7 @@ func TestSendReportsTransportError(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// A cancelled ctx must return immediately, not sit in retry waits.
 func TestSendStopsOnCanceledContext(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -174,8 +174,8 @@ func TestMaskURL(t *testing.T) {
 			"https://open.feishu.cn/open-apis/bot/v2/hook/abcd***"},
 		{"https://oapi.dingtalk.com/robot/send?access_token=deadbeefcafe",
 			"https://oapi.dingtalk.com/robot/send?access_token=dead***"},
-		// Implementation note.
-		// Implementation note.
+		// WeCom's webhook/ hits the hook/ marker first so the key= rule never runs;
+		// the outcome is still "no key in logs", as intended
 		{"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc123456",
 			"https://qyapi.weixin.qq.com/cgi-bin/webhook/send***"},
 		{"https://example.com/a", "https://exam***om/a"},
@@ -191,7 +191,7 @@ func TestMaskURL(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// sendNoWait zeroes retry waits so tests never really sleep 2 seconds.
 func sendNoWait(t *testing.T, srv *httptest.Server, msg Message) error {
 	t.Helper()
 

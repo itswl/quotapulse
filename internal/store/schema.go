@@ -8,15 +8,14 @@ import (
 	"strings"
 )
 
-// Implementation note.
-// Implementation note.
 //go:generate go tool sqlc generate -f ../../sqlc.yaml
 
 //go:embed schema/*.sql
 var schemaFS embed.FS
 
-// Implementation note.
-// Implementation note.
+// createTables creates tables at startup: all CREATE ... IF NOT EXISTS, a no-op
+// against an existing production database that never touches existing schema or
+// data.
 func createTables(ctx context.Context, db *sql.DB, engine Engine) error {
 	raw, err := schemaFS.ReadFile("schema/" + string(engine) + ".sql")
 	if err != nil {
@@ -30,10 +29,6 @@ func createTables(ctx context.Context, db *sql.DB, engine Engine) error {
 	return nil
 }
 
-// Implementation note.
-//
-// Implementation note.
-// Implementation note.
 // ensureColumns adds columns that deployments created before a schema change are
 // missing. CREATE TABLE IF NOT EXISTS only covers fresh installs, so every column added
 // to an existing table lands here as an idempotent ALTER; the "duplicate column"
@@ -58,7 +53,7 @@ func splitStatements(script string) []string {
 	var lines []string
 	for _, line := range strings.Split(script, "\n") {
 		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "--") {
-			continue // operation,operation
+			continue // comments may hold Chinese characters; keeping them feeds them to the driver as part of the statement
 		}
 		lines = append(lines, line)
 	}

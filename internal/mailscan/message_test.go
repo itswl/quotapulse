@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Implementation note.
+// rawMessage assembles an RFC822 message with protocol CRLF line endings.
 func rawMessage(headers []string, body string) []byte {
 	return []byte(strings.Join(headers, "\r\n") + "\r\n\r\n" + body)
 }
@@ -16,7 +16,7 @@ func TestParseMessageDecodesMIMEHeaders(t *testing.T) {
 		subject string
 		want    string
 	}{
-		// Implementation note.
+		// =?utf-8?B?...?= is the most common Chinese subject encoding; failing to decode it sends mojibake into keyword matching
 		{"utf-8 base64", "=?utf-8?B?5L2Z6aKd5ZGK6K2m6YCa55+l?=", "余额告警通知"},
 		{"gbk base64", "=?gbk?B?suLK1LHqzOI=?=", "测试标题"},
 		{"quoted-printable", "=?utf-8?Q?=E6=AC=A0=E8=B4=B9?=", "欠费"},
@@ -138,7 +138,7 @@ func TestParseMessageMultipart(t *testing.T) {
 	if !strings.Contains(msg.Body, "余额") || strings.Contains(msg.Body, "<b>") {
 		t.Errorf("正文 = %q, 期望 HTML 分段去掉标签后保留文字", msg.Body)
 	}
-	// Implementation note.
+	// attachment text entering the match range would false-positive on attachment words, so parsing skips it entirely
 	if strings.Contains(msg.Body, "附件内容") {
 		t.Errorf("正文 = %q, 附件不该进正文", msg.Body)
 	}
@@ -159,8 +159,9 @@ func TestParseMessageID(t *testing.T) {
 		t.Errorf("ID = %q, 期望直接用 Message-ID", withID.ID)
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// without Message-ID fall back to md5(date|subject|from).
+	// the expected value is computed independently; changing the implementation
+	// shows up here
 	fallback, err := parseMessage(rawMessage(headers, "正文"))
 	if err != nil {
 		t.Fatalf("parseMessage 报错: %v", err)
@@ -180,7 +181,7 @@ func TestParseMessageID(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Mails with broken headers must not be dropped: scan the raw message, keywords still match.
 func TestParseMessageTolerantOfJunk(t *testing.T) {
 	msg, err := parseMessage([]byte("这不是一封邮件，但里面写了欠费"))
 	if err == nil {

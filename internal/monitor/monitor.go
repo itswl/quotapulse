@@ -1,7 +1,9 @@
-// Package monitor provides the package implementation.
+// Package monitor checks platform balances and decides whether to alert.
 //
-// Implementation note.
-// Implementation note.
+// A round has two steps: first judge "is it enough right now" against static
+// thresholds, and after the whole round hand over to runway for trend
+// analysis (runway exhaustion, spend spikes). Trends depend on history, so
+// they must wait until every account is checked and stored.
 package monitor
 
 import (
@@ -23,7 +25,7 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// Monitor holds every dependency of one balance check round.
 type Monitor struct {
 	Settings *config.Settings
 	Resolver *config.Resolver
@@ -34,7 +36,7 @@ type Monitor struct {
 	Alerter  *runway.Alerter
 	Log      *slog.Logger
 
-	// Implementation note.
+	// OnNotify fires once per notification, for metrics. Optional.
 	OnNotify func(kind string, ok bool)
 
 	cache responseCache
@@ -47,15 +49,15 @@ var (
 	ErrProjectDisabled = errors.New("Project is disabled")
 )
 
-// Implementation note.
+// Outcome is the product of one round.
 type Outcome struct {
 	Results []model.CheckResult
 	Runways map[string]model.Runway
 	Sent    runway.Sent
 }
 
-// Implementation note.
-// Implementation note.
+// Run checks project balances. An empty projectName means all enabled projects.
+// In dry-run everything runs except notifications.
 func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Outcome, error) {
 	started := time.Now()
 	cfg := m.Resolver.Load(ctx)
@@ -79,8 +81,8 @@ func (m *Monitor) Run(ctx context.Context, projectName string, dryRun bool) (Out
 	return outcome, nil
 }
 
-// Implementation note.
-// Implementation note.
+// selectProjects picks the projects one round covers: every enabled project by
+// default, or only the named project when projectName is set.
 func (m *Monitor) selectProjects(cfg model.Config, projectName string) ([]model.Project, error) {
 	if projectName == "" {
 		return cfg.EnabledProjects(), nil
@@ -97,7 +99,7 @@ func (m *Monitor) selectProjects(cfg model.Config, projectName string) ([]model.
 	return nil, fmt.Errorf("%w: %s", ErrProjectNotFound, projectName)
 }
 
-// Implementation note.
+// checkAll checks concurrently, returning results in input order so dashboard cards stay stable.
 func (m *Monitor) checkAll(ctx context.Context, projects []model.Project, dryRun bool) []model.CheckResult {
 	workers := min(m.Settings.Concurrency(), len(projects))
 	m.log().Info("Concurrent checks", "workers", workers, "projects", len(projects))
@@ -123,7 +125,7 @@ func (m *Monitor) checkAll(ctx context.Context, projects []model.Project, dryRun
 	return results
 }
 
-// Implementation note.
+// CheckProject queries one account's balance and decides whether to alert.
 func (m *Monitor) CheckProject(ctx context.Context, p model.Project, dryRun bool) model.CheckResult {
 	m.log().Info("Checking project", "project", p.Name, "provider", p.Provider, "threshold", p.Threshold)
 
@@ -260,8 +262,8 @@ func (m *Monitor) recordAlert(ctx context.Context, projectID string, p model.Pro
 	}
 }
 
-// Implementation note.
-// Implementation note.
+// analyze runs trend analysis after the round: attach profiles and send runway /
+// spike alerts. Without a database there is no history and this does nothing.
 func (m *Monitor) analyze(ctx context.Context, results []model.CheckResult, dryRun bool) (map[string]model.Runway, runway.Sent) {
 	series, err := m.Store.BalanceSeries(ctx, m.Settings.BurnRateWindowDays)
 	if err != nil {
@@ -345,7 +347,7 @@ func cacheKeyFor(providerKey, apiKey string) string {
 	return providerKey + ":" + hex.EncodeToString(sum[:])
 }
 
-// Implementation note.
+// responseCache caches balance results per provider+key so rapid manual refreshes cannot hammer upstreams.
 type responseCache struct {
 	mu   sync.Mutex
 	data map[string]cacheEntry

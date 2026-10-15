@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
+// The signature must match Volcengine's documented HMAC-SHA256 algorithm; a
+// fixed key and instant pin the result here, so a broken signature turns red
+// at once — in production it only shows as a 403, and without these tests
+// pinpointing it is painful.
 const (
 	volcTestAK = "AKLTtest-access-key"
 	volcTestSK = "test-secret-key"
@@ -47,7 +49,7 @@ func TestVolcSignature(t *testing.T) {
 }
 
 func TestVolcSignatureCoversBody(t *testing.T) {
-	// Implementation note.
+	// only GET with an empty body today, but the digest must track body changes so a future POST signs correctly
 	got := volcProviderAt(volcBaseURL).buildHeaders(volcTestTime, `{"Limit":1}`)
 	if want := "55522f708dcfebccb7bd3e8d0001a53ecaf2beca9ca801f1e9161e24215faa99"; got["X-Content-Sha256"] != want {
 		t.Errorf("X-Content-Sha256 = %q，expected %q", got["X-Content-Sha256"], want)
@@ -58,7 +60,7 @@ func TestVolcSignatureCoversBody(t *testing.T) {
 }
 
 func TestVolcSignatureUsesUTC(t *testing.T) {
-	// Implementation note.
+	// same instant, different zones must sign identically: an X-Date with a local zone is judged expired
 	shanghai := time.FixedZone("CST", 8*3600)
 	got := volcProviderAt(volcBaseURL).buildHeaders(volcTestTime.In(shanghai), "")
 	if got["X-Date"] != "20240517T083045Z" {
@@ -67,7 +69,7 @@ func TestVolcSignatureUsesUTC(t *testing.T) {
 }
 
 func TestVolcNormQuery(t *testing.T) {
-	// Implementation note.
+	// the query string used for signing and the one actually sent must be identical; keys are sorted
 	got := volcNormQuery(map[string]string{"Version": volcVersion, "Action": volcAction})
 	if want := "Action=QueryBalanceAcct&Version=2022-01-01"; got != want {
 		t.Fatalf("查询串 = %q，expected %q", got, want)
@@ -94,7 +96,7 @@ func TestVolcFetch(t *testing.T) {
 			want: 88.5,
 		},
 		{
-			// Implementation note.
+			// Volcengine puts business errors in ResponseMetadata.Error while HTTP stays 200
 			name:   "business error",
 			body:   `{"ResponseMetadata":{"Error":{"Code":"AuthFailure","Message":"invalid ak"}}}`,
 			errMsg: `API returned an error: {"Code":"AuthFailure","Message":"invalid ak"}`,
@@ -157,7 +159,7 @@ func TestVolcRequestShape(t *testing.T) {
 	if rec.query.Get("Action") != volcAction || rec.query.Get("Version") != volcVersion {
 		t.Errorf("查询参数 = %v", rec.query)
 	}
-	// Implementation note.
+	// Host participates in the signature; the sent Host header must be the signed one, not the connection target
 	if rec.host != volcHost {
 		t.Errorf("Host = %q，expected %q", rec.host, volcHost)
 	}

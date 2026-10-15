@@ -42,7 +42,7 @@ func TestScheduleText(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestRunAtStart: the dashboard refresh must run once at startup or the first minutes of the page stay empty.
 func TestRunAtStart(t *testing.T) {
 	now := time.Now()
 	atStart := Task{Interval: time.Hour, RunAtStart: true}
@@ -75,7 +75,7 @@ func TestRunPendingOnlyRunsDueTasks(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestFailureDoesNotStopOtherTasks: one failing task must not affect others.
 func TestFailureDoesNotStopOtherTasks(t *testing.T) {
 	var secondRan bool
 	first := &Task{Name: "炸的", Interval: time.Hour, RunAtStart: true,
@@ -101,7 +101,7 @@ func TestFailureDoesNotStopOtherTasks(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestNextRunAdvances: after a run the next time must advance or the loop spins hot.
 func TestNextRunAdvances(t *testing.T) {
 	task := &Task{Name: "t", Interval: time.Hour, RunAtStart: true,
 		Run: func(context.Context) (any, error) { return nil, nil }}
@@ -116,13 +116,13 @@ func TestNextRunAdvances(t *testing.T) {
 
 func TestSleepForIsBounded(t *testing.T) {
 	now := time.Now()
-	// Implementation note.
+	// with no enabled tasks, wait the max
 	s := New([]*Task{{Name: "off"}}, nil, nil)
 	if got := s.sleepFor(now); got != time.Minute {
 		t.Errorf("没有启用任务时应等上限一分钟，实际 %v", got)
 	}
 
-	// Implementation note.
+	// overdue tasks must not make the wait negative
 	overdue := &Task{Name: "overdue", Interval: time.Hour, RunAtStart: true}
 	s = New([]*Task{overdue}, nil, nil)
 	if got := s.sleepFor(now.Add(time.Hour)); got < 100*time.Millisecond {
@@ -141,7 +141,7 @@ func TestLookup(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// TestStartStop: the loop starts and stops without leaking goroutines.
 func TestStartStop(t *testing.T) {
 	done := make(chan struct{}, 1)
 	task := &Task{Name: "t", Interval: time.Hour, RunAtStart: true,

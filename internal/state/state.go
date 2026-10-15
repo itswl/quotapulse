@@ -1,10 +1,12 @@
-// Package state provides the package implementation.
+// Package state holds the runtime state shown on the dashboard.
 //
-// Implementation note.
-// Implementation note.
+// The background scheduler thread writes; HTTP handlers read — true
+// concurrency. Every access happens under the lock, and reads return copies
+// the caller may mutate freely without touching internal state.
 //
-// Implementation note.
-// Implementation note.
+// This state lives only in process memory and clears on restart — it is
+// "the result of the last check", not a ledger. Anything that must survive
+// lives in store.
 package state
 
 import (
@@ -15,27 +17,27 @@ import (
 	"github.com/itswl/quotapulse/internal/timeutil"
 )
 
-// Implementation note.
+// BalanceState is the /api/credits response body.
 type BalanceState struct {
 	LastUpdate *string              `json:"last_update"`
 	Projects   []model.CheckResult  `json:"projects"`
 	Summary    model.BalanceSummary `json:"summary"`
 }
 
-// Implementation note.
+// SubscriptionState is the /api/subscriptions response body.
 type SubscriptionState struct {
 	LastUpdate    *string                    `json:"last_update"`
 	Subscriptions []model.SubscriptionResult `json:"subscriptions"`
 	Summary       SubscriptionSummary        `json:"summary"`
 }
 
-// Implementation note.
+// SubscriptionSummary is the subscription view's header count.
 type SubscriptionSummary struct {
 	Total     int `json:"total"`
 	NeedAlert int `json:"need_alert"`
 }
 
-// Implementation note.
+// EmailState is the /api/email/scan response body.
 type EmailState struct {
 	LastUpdate *string               `json:"last_update"`
 	Days       *int                  `json:"days"`
@@ -45,7 +47,7 @@ type EmailState struct {
 	Summary    EmailSummary          `json:"summary"`
 }
 
-// Implementation note.
+// EmailSummary is the mailbox view's header count.
 type EmailSummary struct {
 	TotalMailboxes  int `json:"total_mailboxes"`
 	FailedMailboxes int `json:"failed_mailboxes"`
@@ -54,7 +56,7 @@ type EmailSummary struct {
 	AlertsSent      int `json:"alerts_sent"`
 }
 
-// Implementation note.
+// Job is one scheduled task's runtime state, an element of /api/jobs.
 type Job struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
@@ -70,13 +72,13 @@ type Job struct {
 	Failures     int      `json:"failures"`
 }
 
-// Implementation note.
+// JobState is the /api/jobs response body. healthy = every enabled task's last run succeeded.
 type JobState struct {
 	Healthy bool  `json:"healthy"`
 	Jobs    []Job `json:"jobs"`
 }
 
-// Implementation note.
+// Manager is the thread-safe state container.
 type Manager struct {
 	mu        sync.RWMutex
 	startTime time.Time
@@ -86,10 +88,10 @@ type Manager struct {
 	subs           SubscriptionState
 	email          EmailState
 	jobs           map[string]*Job
-	jobOrder       []string // operation,/api/jobs operation
+	jobOrder       []string // registration order, keeping /api/jobs output stable
 }
 
-// Implementation note.
+// New creates the state container.
 func New() *Manager {
 	return &Manager{
 		startTime: time.Now(),
@@ -97,12 +99,10 @@ func New() *Manager {
 	}
 }
 
-// Implementation note.
+// UptimeSeconds is how long the process has been up.
 func (m *Manager) UptimeSeconds() float64 { return time.Since(m.startTime).Seconds() }
 
-// Implementation note.
-
-// Implementation note.
+// SetBalance replaces the balance state wholesale.
 func (m *Manager) SetBalance(results []model.CheckResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -110,7 +110,7 @@ func (m *Manager) SetBalance(results []model.CheckResult) {
 	m.setBalanceLocked(results, len(results) == 0 || anySucceeded(results))
 }
 
-// Implementation note.
+// MergeBalance merges a partial refresh by project name, for single-project refreshes.
 func (m *Manager) MergeBalance(results []model.CheckResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -133,7 +133,7 @@ func (m *Manager) MergeBalance(results []model.CheckResult) {
 	m.setBalanceLocked(merged, anySucceeded(results))
 }
 
-// Implementation note.
+// RemoveBalanceProject drops a project from the dashboard right after deletion, without waiting for the next check.
 func (m *Manager) RemoveBalanceProject(name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -182,7 +182,7 @@ func anySucceeded(results []model.CheckResult) bool {
 	return false
 }
 
-// Implementation note.
+// Balance returns a copy of the balance state.
 func (m *Manager) Balance() BalanceState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -192,9 +192,7 @@ func (m *Manager) Balance() BalanceState {
 	return out
 }
 
-// Implementation note.
-
-// Implementation note.
+// SetSubscriptions replaces the subscription state wholesale.
 func (m *Manager) SetSubscriptions(results []model.SubscriptionResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -209,7 +207,7 @@ func (m *Manager) SetSubscriptions(results []model.SubscriptionResult) {
 	m.subs = SubscriptionState{LastUpdate: &now, Subscriptions: results, Summary: summary}
 }
 
-// Implementation note.
+// Subscriptions returns a copy of the subscription state.
 func (m *Manager) Subscriptions() SubscriptionState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -218,9 +216,7 @@ func (m *Manager) Subscriptions() SubscriptionState {
 	return out
 }
 
-// Implementation note.
-
-// Implementation note.
+// SetEmailScan replaces the mailbox scan state.
 func (m *Manager) SetEmailScan(result model.ScanResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -248,7 +244,7 @@ func (m *Manager) SetEmailScan(result model.ScanResult) {
 	}
 }
 
-// Implementation note.
+// EmailScan returns a copy of the mailbox scan state.
 func (m *Manager) EmailScan() EmailState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -258,9 +254,9 @@ func (m *Manager) EmailScan() EmailState {
 	return out
 }
 
-// Implementation note.
+// ---------- Scheduled jobs ----------
 
-// Implementation note.
+// RegisterJob registers a task's static info; run records arrive via RecordJobRun.
 func (m *Manager) RegisterJob(name, description, schedule string, enabled bool, nextRun time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -281,7 +277,7 @@ func (m *Manager) RegisterJob(name, description, schedule string, enabled bool, 
 	}
 }
 
-// Implementation note.
+// RecordJobRun records one task run.
 func (m *Manager) RecordJobRun(name string, success bool, startedAt time.Time,
 	duration time.Duration, runErr error, detail any, nextRun time.Time) {
 	m.mu.Lock()
@@ -316,7 +312,7 @@ func (m *Manager) RecordJobRun(name string, success bool, startedAt time.Time,
 	job.LastError = &message
 }
 
-// Implementation note.
+// Jobs returns a copy of the job state.
 func (m *Manager) Jobs() JobState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -332,7 +328,7 @@ func (m *Manager) Jobs() JobState {
 	return out
 }
 
-// Implementation note.
+// FailedJobs returns the enabled tasks whose last run failed; /health cites them when unhealthy.
 func (m *Manager) FailedJobs() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

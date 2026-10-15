@@ -8,8 +8,10 @@ import (
 	"time"
 )
 
-// Implementation note.
-// Implementation note.
+// The signature string must match Aliyun's documented algorithm byte for
+// byte; a fixed key, timestamp and nonce pin the result here so regressions
+// surface immediately — in production a broken signature only shows as a
+// 403, and without these tests pinpointing the wrong step is painful.
 const (
 	aliyunTestID     = "LTAI5tTestAccessKey"
 	aliyunTestSecret = "testAccessKeySecret"
@@ -53,7 +55,7 @@ func TestAliyunSignature(t *testing.T) {
 }
 
 func TestAliyunSignatureUsesUTC(t *testing.T) {
-	// Implementation note.
+	// Timestamp must be UTC; a local timezone reads as excessive clock skew
 	shanghai := time.FixedZone("CST", 8*3600)
 	params := aliyunProviderAt(aliyunBaseURL).buildParams(aliyunTestTime.In(shanghai), aliyunTestNonce)
 	if params["Timestamp"] != "2024-05-17T08:30:45Z" {
@@ -65,7 +67,7 @@ func TestAliyunSignatureUsesUTC(t *testing.T) {
 }
 
 func TestPercentEncode(t *testing.T) {
-	// Implementation note.
+	// RFC 3986 encoding, exactly what the signature needs: space is %20 not +, * is encoded, ~ is not
 	got := percentEncode("a b+c*d~e/f=g&h%i中")
 	if want := "a%20b%2Bc%2Ad~e%2Ff%3Dg%26h%25i%E4%B8%AD"; got != want {
 		t.Fatalf("percentEncode\n = %q\nexpected %q", got, want)
@@ -107,7 +109,7 @@ func TestAliyunFetch(t *testing.T) {
 			want: 1,
 		},
 		{
-			// Implementation note.
+			// non-object Data still gets a proper message; a failed type assertion must not leak to users
 			name:   "密钥无效（HTTP 400 带business error）",
 			status: 400,
 			body: `{"Code":"InvalidAccessKeyId.NotFound","Message":"Specified access key is not found.",
@@ -125,7 +127,7 @@ func TestAliyunFetch(t *testing.T) {
 			errMsg: "Could not parse balance field, response: ",
 		},
 		{
-			// Implementation note.
+			// non-object Data still gets a proper message; a failed type assertion must not leak to users
 			name:   "Data 不是对象",
 			body:   `{"Code":"Success","Data":"oops"}`,
 			errMsg: "Could not parse balance field, response: ",
@@ -170,8 +172,9 @@ func TestAliyunRequestIsSignedOverWhatItSends(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Implementation note.
-	// Implementation note.
+	// recompute the signature from what the server actually received: what is
+	// signed and what is sent must be the same — one missing or extra parameter
+	// makes Aliyun compute a different signature
 	sent := map[string]string{}
 	for key := range rec.query {
 		sent[key] = rec.query.Get(key)
@@ -191,7 +194,7 @@ func TestAliyunRequestIsSignedOverWhatItSends(t *testing.T) {
 }
 
 func TestAliyunNonceIsRandomUUID(t *testing.T) {
-	// Implementation note.
+	// a repeated SignatureNonce is rejected as a replay attack
 	pattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	first, second := aliyunNonce(), aliyunNonce()
 	if !pattern.MatchString(first) {

@@ -1,8 +1,9 @@
 /**
- * Implementation note.
+ * Minimal declarations for node:test and node:assert.
  *
- * Implementation note.
- * Implementation note.
+ * Only typescript and esbuild are allowed as dependencies, so @types/node is
+ * out — tests use just describe / it and four assertions, and hand-writing
+ * these beats another dependency. Add new APIs here as they are used.
  */
 
 declare module 'node:fs' {

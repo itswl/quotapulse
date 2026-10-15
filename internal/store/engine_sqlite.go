@@ -9,8 +9,8 @@ import (
 	gen "github.com/itswl/quotapulse/internal/store/sqlc/sqlite"
 )
 
-// Implementation note.
-// Implementation note.
+// sqliteQuerier adapts the sqlite generated package onto querier.
+// The three engine adapters correspond line by line; change one, check the other two.
 type sqliteQuerier struct{ q *gen.Queries }
 
 func newSQLiteQuerier(db *sql.DB) querier { return sqliteQuerier{q: gen.New(db)} }

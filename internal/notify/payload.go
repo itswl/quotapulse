@@ -2,8 +2,9 @@ package notify
 
 import "strings"
 
-// Implementation note.
-// Implementation note.
+// Payload structures per platform. Struct field order is the JSON field order,
+// laid out per each platform's docs — do not reorder for looks: Feishu renders
+// cards in this order, and systems behind the custom webhook read by field name.
 
 type feishuTextPayload struct {
 	MsgType string            `json:"msg_type"`
@@ -67,7 +68,7 @@ type wecomMarkdown struct {
 	Content string `json:"content"`
 }
 
-// Implementation note.
+// customPayload is the generic custom-webhook payload; receivers parse the body themselves.
 type customPayload struct {
 	Title     string `json:"title"`
 	Content   string `json:"content"`
@@ -75,9 +76,10 @@ type customPayload struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// envelope is the structured custom-webhook payload: balance and subscription fields
+// carry semantics — the receiving alert system routes by Type/Level and reads raw
+// values from Resources, so a text blob does not suffice. The capitalized field
+// names are the receiver's contract; changing them breaks value extraction.
 type envelope struct {
 	Type      string `json:"Type"`
 	RuleName  string `json:"RuleName"`
@@ -114,10 +116,12 @@ type subscriptionResource struct {
 	Message          string  `json:"Message"`
 }
 
-// Implementation note.
+// payload picks the message by platform and alert kind.
 //
-// Implementation note.
-// Implementation note.
+// Balance and subscription are "few fields, machine-consumable" alerts sent
+// as plain text (or a structured envelope); runway, mail and weekly report
+// bodies are already Markdown and go through rich-text cards. Kind splits
+// exactly those two groups.
 func (n *notifier) payload(msg Message) any {
 	text := strings.Join(msg.Lines, "\n")
 	if msg.Kind == KindBalance || msg.Kind == KindSubscription {
@@ -142,7 +146,7 @@ func (n *notifier) plainPayload(title, text string, env *envelope) any {
 		if env != nil {
 			return env
 		}
-		// Implementation note.
+		// externally assembled Messages carry no structured fields and degrade to the generic payload
 		return n.customPayload(title, text)
 	default: // wecom
 		return wecomTextPayload{
@@ -184,8 +188,9 @@ func (n *notifier) customPayload(title, content string) customPayload {
 	return customPayload{Title: title, Content: content, Source: n.source, Timestamp: isoLocal(n.now())}
 }
 
-// Implementation note.
-// Implementation note.
+// dingtalkList turns bare "key: value" text into a Markdown list with bold keys:
+// DingTalk markdown ignores line breaks and would otherwise collapse everything
+// into one line.
 func dingtalkList(text string) string {
 	lines := strings.Split(text, "\n")
 	out := make([]string, 0, len(lines))

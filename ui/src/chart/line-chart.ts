@@ -1,20 +1,22 @@
 /**
- * Implementation note.
+/**
+ * Balance trend line chart.
  *
- * Implementation note.
- * Implementation note.
- * Implementation note.
- * Implementation note.
+ * The chart originally relied on Chart.js from a CDN (~200KB minified), while the
+ * Go build embeds the frontend into a single binary — leaving a jsdelivr <script>
+ * would blank the dialog on intranet / offline deployments. This draws directly
+ * on canvas: a balance line plus a dashed threshold line, with legend, axis
+ * ticks and hover crosshair recreated from the original, in under 8KB.
  */
 
 export interface Series {
   label: string;
   values: Array<number | null>;
   color: string;
-  /* Implementation note. */
+  /** Fill color under the line; no fill when unset */
   fill?: string;
   dashed?: boolean;
-  /* Implementation note. */
+  /** Reference lines like thresholds draw no data points */
   showPoints?: boolean;
 }
 
@@ -108,7 +110,7 @@ export function xLabelIndices(count: number, step: number): number[] {
 }
 const POINT_RADIUS = 3;
 const HOVER_RADIUS = 6;
-/* Implementation note. */
+  /** Smoothness, mirroring Chart.js tension: 0.4 */
 const TENSION = 0.4;
 
 export class LineChart {
@@ -143,7 +145,7 @@ export class LineChart {
     canvas.addEventListener('mousemove', this.onMove);
     canvas.addEventListener('mouseleave', this.onLeave);
 
-    // Implementation note.
+    // the container may still be 0-width when the dialog opens; redraw once layout settles
     this.resizeObserver =
       typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.draw());
     this.resizeObserver?.observe(canvas.parentElement ?? canvas);
@@ -165,9 +167,8 @@ export class LineChart {
     this.ctx.clearRect(0, 0, width, height);
   }
 
-  // Implementation note.
+// ---------- Scheduled jobs ----------
 
-  /* Implementation note. */
   /* The canvas fills its container. Ask the container first: a canvas without CSS size
      reports its intrinsic 300x150 box, which would freeze the chart at that size. */
   private size(): { width: number; height: number } {
@@ -179,7 +180,7 @@ export class LineChart {
     };
   }
 
-  /* Implementation note. */
+  /** All series share one value domain so threshold lines stay inside the chart */
   private range(): { min: number; max: number } {
     const values: number[] = [];
     for (const s of this.options.series) {
@@ -239,7 +240,7 @@ export class LineChart {
     return best;
   }
 
-  // Implementation note.
+// ---------- Scheduled jobs ----------
 
   draw(): void {
     const { width, height } = this.size();
@@ -302,7 +303,7 @@ export class LineChart {
     ctx.restore();
   }
 
-  /* Implementation note. */
+  /* X-axis labels, thinned so adjacent labels never overlap. */
   private drawXLabels(width: number, height: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     const labels = this.options.labels;
@@ -325,7 +326,7 @@ export class LineChart {
     ctx.restore();
   }
 
-  /* Implementation note. */
+  /** Catmull-Rom to cubic Bezier smoothing, close to Chart.js tension */
   private tracePath(points: Array<{ x: number; y: number }>): void {
     const ctx = this.ctx;
     ctx.beginPath();
@@ -433,7 +434,7 @@ export class LineChart {
     ctx.restore();
   }
 
-  /* Implementation note. */
+  /* The hover crosshair: a vertical line plus the highlighted point. */
   private drawHover(width: number, height: number, min: number, max: number, theme: ChartTheme): void {
     const ctx = this.ctx;
     const index = this.hoverIndex;

@@ -8,21 +8,26 @@ import (
 	"github.com/fernet/fernet-go"
 )
 
-// Implementation note.
-// Implementation note.
+// encryptedPrefix marks a value as already encrypted; the ciphertext format is
+// this prefix plus a Fernet token. This is the live format, not legacy baggage:
+// production databases already hold values written this way, and changing the
+// prefix or algorithm makes existing config unreadable.
 const encryptedPrefix = "enc:v1:"
 
-// Implementation note.
+// cipher handles encryption of project_config.api_key and
+// email_config.password.
 //
-// Implementation note.
-// Implementation note.
+// A nil key means CONFIG_ENCRYPTION_KEY is unset and values pass through
+// unchanged — encryption is optional: no key must neither stop the service
+// nor corrupt existing plaintext.
 type cipher struct {
 	key *fernet.Key
 }
 
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// newCipher derives the key: if CONFIG_ENCRYPTION_KEY is itself a valid Fernet
+// key use it directly, otherwise treat it as a passphrase and take SHA-256 as
+// the key. Neither the branching nor the derivation may change — stored
+// ciphertexts were encrypted under exactly these rules.
 func newCipher(rawKey string) *cipher {
 	raw := strings.TrimSpace(rawKey)
 	if raw == "" {
@@ -33,22 +38,27 @@ func newCipher(rawKey string) *cipher {
 	if decoded, ok := decodeFernetKey(raw); ok {
 		copy(key[:], decoded)
 	} else {
-		// Implementation note.
-		// Implementation note.
+		// a passphrase-derived key is the raw SHA-256 digest: base64-encoding
+		// urlsafe and then having Fernet decode it is an identity transform, skipped
+		// here
 		sum := sha256.Sum256([]byte(raw))
 		copy(key[:], sum[:])
 	}
 	return &cipher{key: &key}
 }
 
-// Implementation note.
+// decodeFernetKey tells whether raw is a valid Fernet key, i.e. 32 bytes of
+// urlsafe base64.
 //
-// Implementation note.
-// Implementation note.
+// It deliberately avoids fernet.DecodeKey: that also accepts 64-char
+// hexadecimal, so a hexadecimal CONFIG_ENCRYPTION_KEY would classify as a
+// key instead of a passphrase, changing the derived key and locking out
+// existing ciphertext.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// The checks below are exactly the ones existing data relies on, and the
+// leniency is intentional: characters outside the alphabet are ignored (a
+// key with one '!' still counts), but padding is required — 43 characters
+// without '=' classifies as a passphrase, not a key.
 func decodeFernetKey(raw string) ([]byte, bool) {
 	var b strings.Builder
 	for _, r := range raw {
@@ -68,36 +78,37 @@ func decodeFernetKey(raw string) ([]byte, bool) {
 	return decoded, true
 }
 
-// Implementation note.
+// enabled means a key is configured: writes encrypt, and plaintext reads get rewritten.
 func (c *cipher) enabled() bool { return c != nil && c.key != nil }
 
-// Implementation note.
+// isEncrypted tells whether a value is ciphertext in this project's format.
 func isEncrypted(value string) bool { return strings.HasPrefix(value, encryptedPrefix) }
 
-// Implementation note.
-// Implementation note.
+// encrypt turns plaintext into ciphertext. Empty and already-encrypted values
+// pass through unchanged so re-saving one config never double-wraps it.
 func (c *cipher) encrypt(value string) string {
 	if value == "" || isEncrypted(value) || !c.enabled() {
 		return value
 	}
 	token, err := fernet.EncryptAndSign([]byte(value), c.key)
 	if err != nil {
-		// Implementation note.
+		// Fernet only fails when the RNG is unavailable; better to store as-is than lose the config
 		return value
 	}
 	return encryptedPrefix + string(token)
 }
 
-// Implementation note.
+// decrypt turns ciphertext back into plaintext.
 //
-// Implementation note.
-// Implementation note.
+// Undecryptable values return as-is instead of erroring: with a changed or
+// missing key the page shows ciphertext blobs, still better than the whole
+// config list failing to load.
 func (c *cipher) decrypt(value string) string {
 	if !isEncrypted(value) || !c.enabled() {
 		return value
 	}
 	token := strings.TrimPrefix(value, encryptedPrefix)
-	// Implementation note.
+	// ttl 0 skips issue-time checks; Fernet tokens carry timestamps and expiry checks would suddenly invalidate old config
 	plain := fernet.VerifyAndDecrypt([]byte(token), 0, []*fernet.Key{c.key})
 	if plain == nil {
 		return value

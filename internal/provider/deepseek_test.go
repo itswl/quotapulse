@@ -25,7 +25,7 @@ func TestDeepSeekFetch(t *testing.T) {
 			want: 12.5,
 		},
 		{
-			// Implementation note.
+			// arrears suspension is still a valid reading; the balance must reach threshold checks or the alert goes mute
 			name: "欠费账户照样报 0",
 			body: `{"is_available":false,"balance_infos":[{"currency":"CNY","total_balance":"0.00"}]}`,
 			want: 0,

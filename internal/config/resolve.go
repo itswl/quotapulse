@@ -9,16 +9,18 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// Resolver rebuilds the business inventories on every call: database dynamic
+// config plus environment auto-discovery.
 //
-// Implementation note.
+// No caching. Config edits on the page must take effect immediately, and these
+// tables hold at most a few dozen rows — one read is negligible.
 type Resolver struct {
 	settings *Settings
 	store    store.Store
 	log      *slog.Logger
 }
 
-// Implementation note.
+// NewResolver creates an inventory resolver. store may be store.Null().
 func NewResolver(settings *Settings, st store.Store, log *slog.Logger) *Resolver {
 	if log == nil {
 		log = slog.Default()
@@ -26,9 +28,10 @@ func NewResolver(settings *Settings, st store.Store, log *slog.Logger) *Resolver
 	return &Resolver{settings: settings, store: st, log: log}
 }
 
-// Implementation note.
+// Load returns the three business inventories with all fields filled in.
 //
-// Implementation note.
+// A database read failure is not fatal: fall back to "environment variables
+// only", keep serving, and log a warning.
 func (r *Resolver) Load(ctx context.Context) model.Config {
 	cfg := model.Config{}
 	if r.settings.EnableDynamicConfig {
@@ -69,7 +72,7 @@ func (r *Resolver) fromDatabase(ctx context.Context) model.Config {
 	return cfg
 }
 
-// Implementation note.
+// normalize fills omitted fields so downstream code only sees complete records.
 func (r *Resolver) normalize(cfg *model.Config) {
 	ordinals := make(map[string]int)
 	for i := range cfg.Projects {
@@ -101,7 +104,7 @@ func (r *Resolver) normalize(cfg *model.Config) {
 	}
 }
 
-// Implementation note.
+// KeySource returns a key's source description and candidate variable names; used by the self-check.
 func KeySource(p model.Project, ordinal int) (source string, candidates []string) {
 	source, _ = "", ""
 	if p.APIKey == "" {

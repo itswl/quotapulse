@@ -9,8 +9,8 @@ import (
 	gen "github.com/itswl/quotapulse/internal/store/sqlc/postgres"
 )
 
-// Implementation note.
-// Implementation note.
+// postgresQuerier adapts the postgres generated package onto querier.
+// The three engine adapters correspond line by line; change one, check the other two.
 type postgresQuerier struct{ q *gen.Queries }
 
 func newPostgresQuerier(db *sql.DB) querier { return postgresQuerier{q: gen.New(db)} }

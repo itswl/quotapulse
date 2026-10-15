@@ -15,9 +15,7 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
-
-// Implementation note.
+// fakeStore cares only about the two mail-alert methods; the rest come from the Null store.
 type fakeStore struct {
 	store.Store
 	mu      sync.Mutex
@@ -70,7 +68,7 @@ func (f *fakeNotifier) messages() []notify.Message {
 	return append([]notify.Message(nil), f.sent...)
 }
 
-// Implementation note.
+// fakeConn impersonates a logged-in mailbox; IMAP protocol details stay out of tests.
 type fakeConn struct {
 	mu        sync.Mutex
 	order     []uint32
@@ -135,7 +133,7 @@ func (c *fakeConn) fetchedNums() []uint32 {
 	return all
 }
 
-// Implementation note.
+// harness assembles the scanner with all its dependencies, dispatching connections by mailbox name.
 type harness struct {
 	scanner  *Scanner
 	store    *fakeStore
@@ -158,7 +156,7 @@ func newHarness(conns map[string]*fakeConn) *harness {
 		Store:    h.store,
 		Notifier: h.notifier,
 		Log:      slog.New(slog.DiscardHandler),
-		// Implementation note.
+		// retry waits compressed to the minimum, or one unreachable mailbox would cost the test 8 seconds
 		retryWait: time.Microsecond,
 		dial:      h.dial,
 	}
@@ -187,10 +185,8 @@ func (h *harness) dialCount() int {
 	return len(h.dialed)
 }
 
-// Implementation note.
-
-// Implementation note.
-// Implementation note.
+// alertMail is a typical arrears reminder shaped like a real billing mail:
+// subject 【阿里云】余额不足提醒, body 您的账户余额不足，请及时充值。余额：12.50元
 func alertMail(messageID string) []byte {
 	return rawMessage([]string{
 		"Subject: =?utf-8?B?44CQ6Zi/6YeM5LqR44CR5L2Z6aKd5LiN6Laz5o+Q6YaS?=",
@@ -219,7 +215,7 @@ func mailbox(name, host string) model.Mailbox {
 	}
 }
 
-// Implementation note.
+// ---------- Test cases ----------
 
 func TestScanWithoutMailboxes(t *testing.T) {
 	h := newHarness(nil)
@@ -231,7 +227,7 @@ func TestScanWithoutMailboxes(t *testing.T) {
 	if len(result.Mailboxes) != 0 || len(result.Alerts) != 0 {
 		t.Errorf("结果 = %+v, 期望空", result)
 	}
-	// Implementation note.
+	// serialized JSON must be [], not null — the frontend breaks on null
 	if result.Mailboxes == nil || result.Alerts == nil {
 		t.Error("空结果也要是空切片，不能是 nil")
 	}
@@ -274,7 +270,7 @@ func TestScanDryRunFindsAlertWithoutSending(t *testing.T) {
 		t.Error("测试模式不该发通知")
 	}
 
-	// Implementation note.
+	// dry-run neither dedupes nor records: a trial run must not mark a mail "handled"
 	if len(h.store.queries) != 0 || len(h.store.saved) != 0 {
 		t.Errorf("测试模式动了数据库: queries=%d saved=%d", len(h.store.queries), len(h.store.saved))
 	}
@@ -321,7 +317,7 @@ func TestScanSendsAlertAndRecordsIt(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Failed sends are recorded too: next time we know the mail was processed and did not go out.
 func TestScanRecordsFailedNotification(t *testing.T) {
 	h := newHarness(map[string]*fakeConn{"A": newFakeConn(alertMail("<alert-1@aliyun.com>"))})
 	h.notifier.err = errors.New("webhook 挂了")
@@ -368,7 +364,7 @@ func TestScanSkipsRecentDuplicate(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// When the database misbehaves, prefer a duplicate alert over swallowing the arrears warning.
 func TestScanSendsWhenDedupeQueryFails(t *testing.T) {
 	h := newHarness(map[string]*fakeConn{"A": newFakeConn(alertMail("<alert-1@aliyun.com>"))})
 	h.store.err = errors.New("数据库连不上")
@@ -380,7 +376,7 @@ func TestScanSendsWhenDedupeQueryFails(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// One notification is often cc'd to several scanned mailboxes; within one scan it should alert once.
 func TestScanDedupesSameMessageAcrossMailboxes(t *testing.T) {
 	h := newHarness(map[string]*fakeConn{
 		"A": newFakeConn(alertMail("<alert-1@aliyun.com>")),
@@ -403,7 +399,7 @@ func TestScanDedupesSameMessageAcrossMailboxes(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Every scan starts fresh; last round's mails must match again this round.
 func TestScanResetsSeenBetweenScans(t *testing.T) {
 	h := newHarness(map[string]*fakeConn{"A": newFakeConn(alertMail("<alert-1@aliyun.com>"))})
 	boxes := []model.Mailbox{mailbox("A", "imap.a.com")}
@@ -429,7 +425,7 @@ func TestScanIncompleteMailboxConfig(t *testing.T) {
 	if h.dialCount() != 0 {
 		t.Error("配置不完整不该去连服务器")
 	}
-	// Implementation note.
+	// a config error is not an incident alert: note it in the result without paging the group
 	if len(h.notifier.messages()) != 0 {
 		t.Error("配置不完整不该发系统告警")
 	}
@@ -446,7 +442,7 @@ func TestScanConnectionFailure(t *testing.T) {
 	if box.Success || box.Error == nil || !strings.Contains(*box.Error, "login failed") {
 		t.Errorf("邮箱结果 = %+v, 期望记下连接错误", box)
 	}
-	// Implementation note.
+	// an unreachable mailbox must exhaust connectAttempts, not give up after one try
 	if got := h.dialCount(); got != connectAttempts {
 		t.Errorf("连接尝试 = %d 次, 期望 %d 次", got, connectAttempts)
 	}
@@ -455,7 +451,7 @@ func TestScanConnectionFailure(t *testing.T) {
 		t.Fatalf("通知 = %+v, 期望一条 mailbox_error", msgs)
 	}
 
-	// Implementation note.
+	// in dry-run the same failure does not disturb the on-call group
 	h2 := newHarness(map[string]*fakeConn{})
 	h2.dialErrs["A"] = errors.New("login failed")
 	h2.scanner.Scan(context.Background(), boxes, 1, true)
@@ -464,7 +460,7 @@ func TestScanConnectionFailure(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// One unreachable mailbox must not stop the others — the main reason scanning is concurrent.
 func TestScanIsolatesFailingMailbox(t *testing.T) {
 	h := newHarness(map[string]*fakeConn{"B": newFakeConn(alertMail("<alert-2@aliyun.com>"))})
 	h.dialErrs["A"] = errors.New("connection refused")
@@ -496,7 +492,7 @@ func TestScanSearchFailure(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// When a bulk FETCH fails, degrade to per-mail fetches: one bad mail must not cost the other 99 in the batch.
 func TestScanFallsBackToSequentialFetch(t *testing.T) {
 	conn := newFakeConn(normalMail("<weekly-1@example.com>"), alertMail("<alert-1@aliyun.com>"))
 	conn.failBatch = true
@@ -525,7 +521,7 @@ func TestScanRespectsMaxEmails(t *testing.T) {
 	if result.Mailboxes[0].TotalEmails != 2 {
 		t.Errorf("扫描邮件数 = %d, 期望被上限截到 2", result.Mailboxes[0].TotalEmails)
 	}
-	// Implementation note.
+	// the two newest (highest sequence numbers) were cut; the last alert mail must still be there
 	if want := []uint32{3, 4}; fmt.Sprint(conn.fetchedNums()) != fmt.Sprint(want) {
 		t.Errorf("取回的序号 = %v, 期望最新的 %v", conn.fetchedNums(), want)
 	}
@@ -534,7 +530,7 @@ func TestScanRespectsMaxEmails(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// With more mailboxes than the concurrency cap, results still come back in input order so page cards do not jump around.
 func TestScanKeepsMailboxOrder(t *testing.T) {
 	const count = 8
 	conns := map[string]*fakeConn{}

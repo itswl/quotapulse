@@ -13,31 +13,32 @@ import (
 	"github.com/itswl/quotapulse/internal/store"
 )
 
-// Implementation note.
+// Alerter sends the two trend alert kinds: runway exhaustion and spend spikes.
 //
-// Implementation note.
+// Both depend on history and stay silent on thin data — better to not alert
+// than to infer "three days left" from one hour of data.
 type Alerter struct {
 	Store    store.Store
 	Notifier notify.Notifier
 	Log      *slog.Logger
 
-	// Implementation note.
+	// RunwayAlertDays alerts when runway drops below this; 0 disables
 	RunwayAlertDays float64
-	// Implementation note.
+	// SpikeRatio is how many times today's spend over the daily median counts as a spike; 0 disables
 	SpikeRatio float64
-	// Implementation note.
+	// SpikeMinAmount suppresses spike alerts below this absolute spend to cut noise
 	SpikeMinAmount float64
-	// Implementation note.
+	// Cooldown is the per-alert cooldown
 	Cooldown time.Duration
 }
 
-// Implementation note.
+// Sent counts alerts sent per kind this round.
 type Sent struct {
 	Runway int
 	Spike  int
 }
 
-// Implementation note.
+// notice is one pending trend alert. alertType keys cooldown dedup; kind feeds metric classification.
 type notice struct {
 	alertType string
 	kind      string
@@ -48,7 +49,7 @@ type notice struct {
 	threshold *float64
 }
 
-// Implementation note.
+// Check walks accounts deciding trend alerts. dry-run judges without sending.
 func (a *Alerter) Check(ctx context.Context, results []model.CheckResult, dryRun bool) Sent {
 	var sent Sent
 	if a.RunwayAlertDays <= 0 && a.SpikeRatio <= 0 {
@@ -79,13 +80,13 @@ func (a *Alerter) Check(ctx context.Context, results []model.CheckResult, dryRun
 	return sent
 }
 
-// Implementation note.
+// runwayDue decides whether runway is running out. Accounts already alerting low balance are not bothered twice.
 func (a *Alerter) runwayDue(result *model.CheckResult) bool {
 	return a.RunwayAlertDays > 0 && result.Runway.RunwayDays != nil &&
 		*result.Runway.RunwayDays <= a.RunwayAlertDays && !result.NeedAlarm
 }
 
-// Implementation note.
+// spikeDue decides whether spend spiked. Whatever the ratio, absolute values too small are not worth a ping.
 func (a *Alerter) spikeDue(r *model.Runway) bool {
 	if a.SpikeRatio <= 0 || r.SpikeRatio == nil || *r.SpikeRatio < a.SpikeRatio {
 		return false
@@ -97,7 +98,7 @@ func (a *Alerter) spikeDue(r *model.Runway) bool {
 	return today >= a.SpikeMinAmount
 }
 
-// Implementation note.
+// emit sends and records; within the cooldown it skips, and failed sends leave no record (retry next time).
 func (a *Alerter) emit(ctx context.Context, projectID, projectName string, n notice) bool {
 	cooling, err := a.Store.HasRecentAlert(ctx, projectID, n.alertType, a.Cooldown)
 	if err != nil {
@@ -188,7 +189,7 @@ func deref[T any](p *T) T {
 	return *p
 }
 
-// Implementation note.
+// thousands formats a number with thousands separators and exactly decimals fraction digits.
 func thousands(value float64, decimals int) string {
 	text := strconv.FormatFloat(value, 'f', decimals, 64)
 	sign := ""
@@ -210,7 +211,7 @@ func thousands(value float64, decimals int) string {
 	return sign + grouped.String() + "." + frac
 }
 
-// Implementation note.
+// trimFloat drops meaningless decimal tails: 7.0 shows as 7, 7.5 stays 7.5.
 func trimFloat(value float64) string {
 	return strconv.FormatFloat(value, 'g', -1, 64)
 }

@@ -1,8 +1,9 @@
 /**
- * Implementation note.
+ * Data loading and repainting.
  *
- * Implementation note.
- * Implementation note.
+ * A separate module to break dependency cycles: view switches and every
+ * manager re-fetch after changes; hanging these functions on the app entry
+ * would make the entry reverse-depend on all managers.
  */
 
 import { byId, toggleDisplay } from './dom.js';
@@ -24,7 +25,7 @@ import { renderSubscriptions, renderSubscriptionsError } from './ui/subscription
 import { refreshOverview, updateNavFreshness } from './ui/stats.js';
 import { showToast } from './ui/toast.js';
 
-/* Implementation note. */
+/** Fetch capability switches and hide advanced entries accordingly; on failure degrade to the core build — the page still works */
 export async function loadFeatures(): Promise<void> {
   try {
     const result = await getFeatures();
@@ -40,7 +41,7 @@ export async function loadFeatures(): Promise<void> {
   if (!AppState.features.email_scan) {
     toggleDisplay('view-email-btn', false);
   }
-  // Implementation note.
+  // project CRUD depends on database dynamic config
   toggleDisplay('add-project-btn', AppState.features.dynamic_config);
 }
 
@@ -149,7 +150,7 @@ function renderLoadError(error: unknown): void {
   updateNavFreshness(AppState.balanceData);
 }
 
-/* Implementation note. */
+/** Top-bar refresh: make the backend really check balances once, then re-fetch the dashboard */
 export async function refreshNow(): Promise<void> {
   const btn = byId('refresh-btn');
   try {
@@ -166,7 +167,7 @@ export async function refreshNow(): Promise<void> {
   }
 }
 
-/* Implementation note. */
+/** Re-fetch every 5 minutes (no backend refresh, no provider filter reset) */
 export function startAutoRefresh(): void {
   if (AppState.autoRefreshTimer) return;
   AppState.autoRefreshTimer = setInterval(() => {

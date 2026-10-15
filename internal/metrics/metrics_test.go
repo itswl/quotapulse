@@ -19,14 +19,17 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// Implementation note.
-// Implementation note.
+// Assertions always run against the scraped text rather than reading Vec
+// internals: the contract is "what Prometheus scrapes", and
+// WithLabelValues would helpfully recreate pruned series and hide the bug.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// prometheus/testutil is not used: it depends on kylelemons/godebug, absent
+// from this repository's go.sum, and this task may not touch go.mod. The
+// helpers below are equivalents of testutil's GatherAndCompare /
+// ToFloat64 / CollectAndCount, all going through the official Gather +
+// expfmt path.
 
-// Implementation note.
+// Fixed clock: metrics like last_check_timestamp need exact assertions.
 var testNow = time.Date(2026, 9, 16, 10, 30, 0, 0, time.UTC)
 
 func newTestCollector(t *testing.T) (*Collector, *prometheus.Registry) {
@@ -46,7 +49,7 @@ func gather(t *testing.T, reg *prometheus.Registry) []*dto.MetricFamily {
 	return mfs
 }
 
-// Implementation note.
+// encode renders a metric family to text format; Gather output families and series are already sorted.
 func encode(t *testing.T, mfs []*dto.MetricFamily) string {
 	t.Helper()
 	var buf bytes.Buffer
@@ -59,13 +62,13 @@ func encode(t *testing.T, mfs []*dto.MetricFamily) string {
 	return buf.String()
 }
 
-// Implementation note.
+// dump is the scrape text of the entire registry.
 func dump(t *testing.T, reg *prometheus.Registry) string {
 	t.Helper()
 	return encode(t, gather(t, reg))
 }
 
-// Implementation note.
+// compareText compares the full output of given metrics, equivalent to testutil.GatherAndCompare.
 func compareText(t *testing.T, reg *prometheus.Registry, expected string, names ...string) {
 	t.Helper()
 	keep := map[string]bool{}
@@ -102,7 +105,7 @@ func mustNotContain(t *testing.T, text string, lines ...string) {
 	}
 }
 
-// Implementation note.
+// seriesCount is how many series a metric currently has; 0 when the metric does not exist.
 func seriesCount(t *testing.T, reg *prometheus.Registry, name string) int {
 	t.Helper()
 	for _, mf := range gather(t, reg) {
@@ -113,7 +116,7 @@ func seriesCount(t *testing.T, reg *prometheus.Registry, name string) int {
 	return 0
 }
 
-// Implementation note.
+// gaugeValue reads one Gauge series value; failing to read fails the case.
 func gaugeValue(t *testing.T, reg *prometheus.Registry, name string, labels ...string) float64 {
 	t.Helper()
 	for _, mf := range gather(t, reg) {
@@ -156,7 +159,7 @@ func failedResult(project, provider, balanceType string) model.CheckResult {
 	}
 }
 
-// Implementation note.
+// exerciseAll walks every update path so each metric has at least one series.
 func exerciseAll(c *Collector) {
 	c.UpdateBalance([]model.CheckResult{{
 		Project: "openai-main", Provider: "openai", Type: model.TypeBalance, Success: true,
@@ -173,12 +176,12 @@ func exerciseAll(c *Collector) {
 	c.RecordNotification("balance", true)
 }
 
-// Implementation note.
+// The metric inventory is the contract, checked line by line against grafana/README.md: a missing one means a No Data panel, an extra one means a typo.
 func TestMetricInventoryMatchesContract(t *testing.T) {
 	c, reg := newTestCollector(t)
 	exerciseAll(c)
 
-	// Implementation note.
+	// value is the label names sorted by name; Gather output labels are sorted anyway.
 	want := map[string]string{
 		"quotapulse_balance":                    "project,provider,type",
 		"quotapulse_threshold":                  "project,provider,type",
@@ -271,7 +274,7 @@ quotapulse_threshold{project="openai-main",provider="openai",type="balance"} 50
 		"quotapulse_check_status", "quotapulse_burn_rate_per_day", "quotapulse_runway_days")
 }
 
-// Implementation note.
+// With a zero threshold the ratio must be 0, never +Inf from division by zero.
 func TestRatioWithZeroThreshold(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{okResult("p1", "glm", model.TypeQuota, 80, 0, false)})
@@ -279,7 +282,7 @@ func TestRatioWithZeroThreshold(t *testing.T) {
 	mustContain(t, dump(t, reg), `quotapulse_ratio{project="p1",provider="glm",type="quota"} 0`)
 }
 
-// Implementation note.
+// Without enough history, no runway metrics: a 0 would trip runway_days < 3 alerts as "about to run out".
 func TestRunwayMetricsAbsentWithoutHistory(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{okResult("p1", "openai", model.TypeBalance, 100, 20, false)})
@@ -287,7 +290,7 @@ func TestRunwayMetricsAbsentWithoutHistory(t *testing.T) {
 	mustNotContain(t, dump(t, reg), "quotapulse_burn_rate_per_day", "quotapulse_runway_days")
 }
 
-// Implementation note.
+// A failed check only drops check_status to 0; balance series keep the last successful values.
 func TestFailedCheckKeepsLastBalance(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{{
@@ -307,7 +310,7 @@ func TestFailedCheckKeepsLastBalance(t *testing.T) {
 		`quotapulse_check_status{project="p1",provider="openai",type="balance"} 0`,
 	)
 
-	// Implementation note.
+	// after recovery the balance refreshes and check_status returns to 1.
 	c.UpdateBalance([]model.CheckResult{okResult("p1", "openai", model.TypeBalance, 88, 20, false)})
 	mustContain(t, dump(t, reg),
 		`quotapulse_balance{project="p1",provider="openai",type="balance"} 88`,
@@ -315,7 +318,7 @@ func TestFailedCheckKeepsLastBalance(t *testing.T) {
 	)
 }
 
-// Implementation note.
+// Without a type in the failure result, the balance series to keep must still be found by project+provider prefix.
 func TestFailedCheckWithoutTypeStillKeepsBalance(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{okResult("p1", "openai", model.TypeBalance, 100, 20, false)})
@@ -326,11 +329,11 @@ func TestFailedCheckWithoutTypeStillKeepsBalance(t *testing.T) {
 		`quotapulse_balance{project="p1",provider="openai",type="balance"} 100`,
 		`quotapulse_check_status{project="p1",provider="openai",type="unknown"} 0`,
 	)
-	// Implementation note.
+	// check_status follows this round: last round's type="balance" series must be gone.
 	mustNotContain(t, text, `quotapulse_check_status{project="p1",provider="openai",type="balance"}`)
 }
 
-// Implementation note.
+// After a project rename the old series must vanish or panel count() stays inflated forever.
 func TestRenamedProjectDropsOldSeries(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{{
@@ -359,7 +362,7 @@ func TestRenamedProjectDropsOldSeries(t *testing.T) {
 	}
 }
 
-// Implementation note.
+// Deleting all projects passes an empty slice and clears every balance series.
 func TestEmptyBalanceUpdateClearsSeries(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{
@@ -370,7 +373,7 @@ func TestEmptyBalanceUpdateClearsSeries(t *testing.T) {
 
 	text := dump(t, reg)
 	mustNotContain(t, text, "quotapulse_balance{", "quotapulse_check_status{", "quotapulse_status{")
-	// Implementation note.
+	// last_check_timestamp is unaffected: this round did check.
 	mustContain(t, text, `quotapulse_last_check_timestamp{check_type="balance"}`)
 }
 
@@ -379,7 +382,7 @@ func TestSubscriptionStatus(t *testing.T) {
 	c.UpdateSubscriptions([]model.SubscriptionResult{
 		{Name: "claude", CycleType: model.CycleMonthly, DaysUntilRenewal: 3, Amount: 20, NeedAlert: true},
 		{Name: "github", CycleType: model.CycleYearly, DaysUntilRenewal: 200, Amount: 100},
-		// Implementation note.
+		// renewed wins over need_alert: paid this cycle means no further reminder
 		{Name: "vps", CycleType: model.CycleMonthly, DaysUntilRenewal: 28, Amount: 5, NeedAlert: true, AlreadyRenewed: true},
 	})
 
@@ -411,7 +414,7 @@ func TestSubscriptionRenameAndDisableDropSeries(t *testing.T) {
 	mustNotContain(t, text, `name="old-sub"`)
 	mustContain(t, text, `quotapulse_subscription_days{cycle_type="monthly",name="new-sub"} 3`)
 
-	// Implementation note.
+	// when the subscription feature is off the caller passes an empty slice and series clear
 	c.UpdateSubscriptions(nil)
 	mustNotContain(t, dump(t, reg), "quotapulse_subscription_days{", "quotapulse_subscription_status{")
 }
@@ -430,7 +433,7 @@ func TestEmailScanGaugesAndCounters(t *testing.T) {
 		`quotapulse_email_last_scan_alerts{mailbox="work"} 2`,
 	)
 
-	// Implementation note.
+	// second round: Gauges reflect this scan, Counters accumulate; the "broken" mailbox was deleted
 	c.UpdateEmailScan(model.ScanResult{Mailboxes: []model.MailboxResult{
 		{Name: "work", TotalEmails: 5, AlertCount: 1, Success: true},
 	}})
@@ -446,7 +449,7 @@ func TestEmailScanGaugesAndCounters(t *testing.T) {
 		`quotapulse_email_mailbox_status{mailbox="broken"}`,
 		`quotapulse_email_last_scan_emails{mailbox="broken"}`,
 	)
-	// Implementation note.
+	// cumulative Counters are not deleted: deleting them would look like a false reset to increase().
 	mustContain(t, text, `quotapulse_email_scan_total{mailbox="broken"} 0`)
 }
 
@@ -460,7 +463,7 @@ func TestRecordJobRun(t *testing.T) {
 	if got := gaugeValue(t, reg, "quotapulse_job_last_run_timestamp", "alert_check"); got != unixSeconds(start.Add(time.Hour)) {
 		t.Errorf("last_run = %v，期望最后一次运行的时刻", got)
 	}
-	// Implementation note.
+	// failures do not refresh last_success: alert rules use time() - last_success to flag stale jobs.
 	if got := gaugeValue(t, reg, "quotapulse_job_last_success_timestamp", "alert_check"); got != unixSeconds(start) {
 		t.Errorf("last_success = %v，期望停在上次成功的时刻", got)
 	}
@@ -479,7 +482,7 @@ quotapulse_job_runs_total{status="success",task="alert_check"} 1
 `
 	compareText(t, reg, expected, "quotapulse_job_runs_total")
 
-	// Implementation note.
+	// the task label must never be job: Prometheus renames colliding labels to exported_job
 	mustContain(t, dump(t, reg), `quotapulse_job_last_status{task="alert_check"}`)
 	mustNotContain(t, dump(t, reg), `{job="alert_check"}`)
 }
@@ -529,7 +532,7 @@ quotapulse_last_check_timestamp{check_type="subscription"} %v
 	compareText(t, reg, expected, "quotapulse_last_check_timestamp")
 }
 
-// Implementation note.
+// Missing label values fall back to unknown / monthly so panels never see unidentifiable series like project="".
 func TestMissingLabelsFallBack(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{{Success: true, Credits: model.Ptr(1.0)}})
@@ -543,7 +546,7 @@ func TestMissingLabelsFallBack(t *testing.T) {
 	)
 }
 
-// Implementation note.
+// An unreadable balance records 0; pointer semantics only exist in API responses.
 func TestNilBalanceCountsAsZero(t *testing.T) {
 	c, reg := newTestCollector(t)
 	c.UpdateBalance([]model.CheckResult{{Project: "p1", Provider: "openai", Type: model.TypeBalance, Success: true}})
@@ -568,7 +571,7 @@ func TestHandlerServesMetrics(t *testing.T) {
 	mustContain(t, rec.Body.String(), "quotapulse_balance{", "quotapulse_notifications_total{")
 }
 
-// Implementation note.
+// The scheduler thread and HTTP handlers update concurrently; the series registry is a plain map — this case (with -race) watches it.
 func TestConcurrentUpdates(t *testing.T) {
 	c, reg := newTestCollector(t)
 
@@ -586,7 +589,7 @@ func TestConcurrentUpdates(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Implementation note.
+	// a new project has no history; these two were never written at all
 	if got := seriesCount(t, reg, "quotapulse_balance"); got != 1 {
 		t.Errorf("余额剩下 %d 条序列，期望 1", got)
 	}

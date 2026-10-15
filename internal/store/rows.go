@@ -6,14 +6,19 @@ import (
 	"time"
 )
 
-// Implementation note.
+// These types are the common denominator of the three sqlc-generated
+// packages.
 //
-// Implementation note.
-// Implementation note.
-// Implementation note.
+// sqlc.yaml deliberately makes the sqlite / postgres / mysql packages
+// generate structs with identical field layouts, so the adapter moves
+// generated types over with one struct conversion (balanceHistoryRow(row))
+// instead of field-by-field assignment. If an engine's column types ever
+// drift, the conversion stops compiling — exactly the guardrail wanted
+// here.
 //
-// Implementation note.
-// Implementation note.
+// Parameters are intentionally not unified: MySQL LIMIT takes no named
+// parameters, so generated parameter names and widths inevitably differ —
+// querier inputs are plain scalars and each engine builds its own Params.
 
 type projectConfigRow struct {
 	ID           int64
@@ -158,7 +163,7 @@ type projectCountRow struct {
 	Count       int64
 }
 
-// Implementation note.
+// ---------- Write parameters ----------
 
 type upsertProjectParams struct {
 	Name         string
@@ -231,10 +236,12 @@ type insertEmailAlertParams struct {
 	Timestamp       sql.NullTime
 }
 
-// Implementation note.
+// querier is the only database capability sqlStore depends on; each of the
+// three engines implements it once.
 //
-// Implementation note.
-// Implementation note.
+// Business semantics (filtering, aggregation, decryption, time formats)
+// live only in sql.go, written once; this only forwards parameters into the
+// generated code and carries rows back.
 type querier interface {
 	listProjectConfigs(ctx context.Context) ([]projectConfigRow, error)
 	upsertProjectConfig(ctx context.Context, arg upsertProjectParams) error
@@ -278,7 +285,7 @@ type querier interface {
 	listEmailAlertHistory(ctx context.Context, since time.Time, mailbox string, limit int64) ([]emailAlertHistoryRow, error)
 }
 
-// Implementation note.
+// mapRows converts the generated row slices into canonical row slices; conv is always a one-step struct conversion.
 func mapRows[S, D any](src []S, conv func(S) D) []D {
 	out := make([]D, len(src))
 	for i := range src {
@@ -287,7 +294,7 @@ func mapRows[S, D any](src []S, conv func(S) D) []D {
 	return out
 }
 
-// Implementation note.
+// nullTime wraps a time into a query parameter. Time columns are nullable in the schema, hence sql.NullTime in generated code.
 func nullTime(t time.Time) sql.NullTime {
 	return sql.NullTime{Time: t.UTC(), Valid: true}
 }

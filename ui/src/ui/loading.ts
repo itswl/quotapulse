@@ -1,8 +1,9 @@
 /**
- * Implementation note.
+ * Full-screen loading overlay.
  *
- * Implementation note.
- * Implementation note.
+ * Counted, not boolean: mailbox scanning nests setLoading(true) within one
+ * operation, and a boolean would let the inner call drop the overlay while
+ * the outer one is still running.
  */
 
 import { byId } from '../dom.js';
@@ -16,7 +17,7 @@ export function setLoading(show: boolean): void {
   overlay.classList.toggle('active', depth > 0);
 }
 
-/* Implementation note. */
+/** Failure fallback: force the overlay away so the page never sticks in loading */
 export function resetLoading(): void {
   depth = 0;
   byId('loading-overlay')?.classList.remove('active');

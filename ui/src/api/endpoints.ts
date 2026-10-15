@@ -1,4 +1,5 @@
-/* Implementation note. */
+/** Endpoint registry. Paths and query parameters appear exactly once here;
+ *  assembling strings elsewhere drifts from docs/API.md. */
 
 import { fetchJson, request } from './client.js';
 import type {
@@ -23,13 +24,13 @@ import type {
 } from './types.js';
 import type { FetchResult } from './client.js';
 
-// Implementation note.
+// ---------- Reads ----------
 
 export const getFeatures = (): Promise<FeaturesResponse> => request<FeaturesResponse>('/api/features');
 
 export const getCredits = (): Promise<CreditsResponse> => request<CreditsResponse>('/api/credits');
 
-/* Implementation note. */
+/** noCache: bypass the ETag cache when re-fetching right after a subscription edit, or you see the old value */
 export const getSubscriptions = (noCache = false): Promise<SubscriptionsResponse> =>
   request<SubscriptionsResponse>(
     '/api/subscriptions',
@@ -59,13 +60,15 @@ export const getHealth = (): Promise<HealthResponse> => request<HealthResponse>(
 export const getJobs = (): Promise<JobsResponse> => request<JobsResponse>('/api/jobs');
 
 /**
- * Implementation note.
- * Implementation note.
+/**
+ * Trend: the backend accepts an md5 project_id and also converts the raw
+ * "provider:name" itself; the frontend has no MD5, so it sends the latter.
+ * Escape the path segment — names may contain `/` or spaces.
  */
 export const getTrend = (provider: string, projectName: string, days = 30): Promise<FetchResult<TrendResponse>> =>
   fetchJson<TrendResponse>(`/api/history/trend/${encodeURIComponent(`${provider}:${projectName}`)}?days=${days}`);
 
-// Implementation note.
+// ---------- Writes ----------
 
 export const refresh = (projectName?: string): Promise<RefreshResponse> =>
   request<RefreshResponse>('/api/refresh', {
@@ -76,8 +79,10 @@ export const refresh = (projectName?: string): Promise<RefreshResponse> =>
 export const runEmailScan = (days: number): Promise<EmailScanState> =>
   request<EmailScanState>('/api/email/scan', { method: 'POST', body: JSON.stringify({ days }) });
 
-// Implementation note.
-// Implementation note.
+// The ones below go through mutate(); only the paths live here, and the payload
+// types pin down callers. /api/config/threshold in docs/API.md is the
+// threshold-only shortcut; the page edits thresholds inside the project dialog
+// and never uses it.
 export const ENDPOINTS = {
   saveProject: '/api/config/project',
   deleteProject: '/api/config/project/delete',
