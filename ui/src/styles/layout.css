@@ -509,3 +509,20 @@ html[lang="zh-CN"] .locale-glyph {
 }
 
 /* ==================== Footer ==================== */
+
+/* The provider filter and the add button get a row of their own between the
+   section header and the cards: the toolbar above stays airy no matter how
+   long the provider names get. */
+.projects-filterbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0 16px;
+}
+
+.projects-filterbar .filter-select {
+    min-width: 0;
+    max-width: 260px;
+}

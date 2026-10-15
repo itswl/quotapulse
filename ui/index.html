@@ -269,14 +269,17 @@
                         <svg class="icon search-icon" aria-hidden="true" focusable="false"><use href="#i-search"></use></svg>
                         <input type="search" id="search-input" placeholder="Search projects" aria-label="Search projects" data-i18n-placeholder="projects.search" data-i18n-aria-label="projects.search" autocomplete="off" />
                     </div>
-                    <select class="filter-select" id="provider-filter" aria-label="Filter by provider" data-i18n-aria-label="projects.filter_provider">
-                        <option value="all" data-i18n="projects.all_providers">All providers</option>
-                    </select>
-                    <button class="btn-primary" id="add-project-btn" style="display: none;">
-                        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
-                        <span data-i18n="projects.add">Add project</span>
-                    </button>
                 </div>
+            </div>
+
+            <div class="projects-filterbar">
+                <select class="filter-select" id="provider-filter" aria-label="Filter by provider" data-i18n-aria-label="projects.filter_provider">
+                    <option value="all" data-i18n="projects.all_providers">All providers</option>
+                </select>
+                <button class="btn-primary" id="add-project-btn" style="display: none;">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+                    <span data-i18n="projects.add">Add project</span>
+                </button>
             </div>
 
             <div id="projects-container" class="projects-grid" aria-busy="true">
