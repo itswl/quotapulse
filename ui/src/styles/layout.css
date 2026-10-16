@@ -272,6 +272,24 @@ html[lang="zh-CN"] .locale-glyph {
     display: flex;
 }
 
+/* The measured monthly cost is the only entry into the per-project cost
+   breakdown, so it shows in every view and must read as clickable. */
+.stat-cost {
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.stat-cost:hover .stat-value,
+.stat-cost:focus-visible .stat-value {
+    text-decoration: underline dotted;
+    text-underline-offset: 4px;
+}
+
+.stat-cost:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
 /* The email view has its own summary chips; the band would only duplicate them. */
 .stats-grid[data-view="email"] {
     display: none;

@@ -83,6 +83,7 @@ export const zhCN: Record<MessageKey, Message> = {
   'stats.due_30': '30 天内的提醒',
   'stats.renewed': '本周期已续费',
   'stats.monthly_cost': '本月花费',
+  'stats.monthly_cost_hint': '点击查看各项目明细',
   'stats.subs_unavailable': '订阅加载失败，下次刷新时重试',
   'stats.subs_disabled': '订阅提醒已关闭（ENABLE_SUBSCRIPTIONS=false）',
   'stats.next_reminder': '下次提醒：{name}，{date}',

@@ -167,10 +167,19 @@ export async function refreshMeasuredCost(): Promise<void> {
   }
 }
 
-/** Clicking the tile opens the per-project breakdown. */
+/** Clicking the tile opens the per-project breakdown. The whole block is the
+ * target so the hover affordance and the click area agree. */
 export function bindCostTile(): void {
-  byId('sub-cost')?.addEventListener('click', () => {
+  const block = byId('monthly-cost-block');
+  if (!block) return;
+  block.addEventListener('click', () => {
     if (lastSummary) showCostModal(lastSummary);
+  });
+  block.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (lastSummary) showCostModal(lastSummary);
+    }
   });
 }
 

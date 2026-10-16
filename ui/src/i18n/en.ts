@@ -98,6 +98,7 @@ export const en = {
   'stats.due_30': 'Reminders due within 30 days',
   'stats.renewed': 'Renewed this cycle',
   'stats.monthly_cost': 'Monthly spend',
+  'stats.monthly_cost_hint': 'Click for the per-project breakdown',
   'stats.subs_unavailable': 'Subscriptions could not be loaded; retrying on the next refresh',
   'stats.subs_disabled': 'Subscription reminders are disabled (ENABLE_SUBSCRIPTIONS=false)',
   'stats.next_reminder': 'Next reminder: {name} on {date}',
