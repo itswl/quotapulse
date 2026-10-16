@@ -326,6 +326,9 @@
 
 .cost-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 
+/* Five money columns cannot fit a phone; scroll sideways inside the modal. */
+#cost-modal-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 .cost-table th,
 .cost-table td {
   text-align: right;
