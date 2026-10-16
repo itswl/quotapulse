@@ -180,6 +180,20 @@ Agent 应先调用 `dashboard_summary`：它按严重程度列出需要处理的
 
 估算至少需要 4 个数据点、跨度 6 小时；跨度不足一天的结果标为低置信度，不用于告警。看板上每张卡片显示「还可用 N 天」，概览显示全部账户里最先见底的那个。每周的 `weekly_report` 会把本周消耗、跑道排名、未来 30 天的订阅支出汇成一张卡片推出去。
 
+## 本地用量上报
+
+不经过账户余额的消耗——Claude Code、编辑器里的 Agent——可以把花费报进同一个月度成本视图和预算告警：
+
+```bash
+QUOTAPULSE_URL=http://your-host:8080 QUOTAPULSE_KEY=$WEB_API_KEY   scripts/claude-code-usage.py            # 本月至今，幂等：可以挂 cron 每小时跑
+scripts/claude-code-usage.py --price "claude-sonnet-4-5:3,15" --dry-run   # 老日志只有 token 时需要给单价
+```
+
+- 脚本读 `~/.claude/projects/**/*.jsonl`，按天/模型聚合后 POST 到 `/api/usage/ingest`；重跑覆盖同一批格子，不会重复累计。
+- 上报的项目**只出现在成本视图**（统计栏「本月成本」卡片点开的项目明细里），不出现在项目卡片列表——它没有余额可查。
+- 给与上报同名的项目（默认 `claude-code`）设月度预算，超速告警和余额项目一样生效。
+- 需要 `ENABLE_DATABASE=true`。上报花费的币种不在 `FX_RATES` 里时单独列出、不进合计，配 `FX_RATES=USD=7.16` 即可折算。
+
 ## 看板与 API
 
 看板三个视图：全部项目、订阅管理、邮箱扫描，项目视图上的「仅告警」筛选只看低于阈值或查询失败的账户；地址栏加 `#subscriptions` `#email` 可直达，`#alerts` 打开项目视图并开启该筛选。界面有英文和简体中文两套文案，默认跟随浏览器语言，顶栏的「中 / EN」按钮可随时切换，选择记在当前浏览器里。首次打开填 `WEB_API_KEY`。开了动态配置能在页面上增删改项目、订阅和邮箱；开了历史 API 有趋势图和历史告警邮件。接口清单见 [docs/API.md](docs/API.md)。

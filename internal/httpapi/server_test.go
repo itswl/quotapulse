@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/itswl/quotapulse/internal/config"
@@ -265,6 +266,48 @@ func TestETag(t *testing.T) {
 	}
 	if second.Body.Len() != 0 {
 		t.Error("304 不该带响应体")
+	}
+}
+
+// TestAssetCacheHeaders pins the deploy-staleness fix: HTML must revalidate on
+// every load (it is the only pointer to the content-hashed bundle URLs), while
+// assets addressed with ?v=<content hash> are immutable. A cached page used to
+// pin the previous release for as long as proxies honored their TTL.
+func TestAssetCacheHeaders(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	assets := fstest.MapFS{
+		"index.html":                  {Data: []byte("<html>app</html>")},
+		"static/app.js":               {Data: []byte("console.log(1)")},
+		"static/manifest.webmanifest": {Data: []byte(`{"name":"q"}`)},
+		"static/icons/icon.png":       {Data: []byte("png")},
+	}
+	s := &Server{
+		Settings: &config.Settings{WebAPIKey: testAPIKey, AppVersion: "1"},
+		Resolver: config.NewResolver(&config.Settings{WebAPIKey: testAPIKey}, store.Null(), log),
+		Store:    store.Null(), State: state.New(), Log: log, Assets: assets,
+	}
+	handler := s.Handler()
+	cache := func(path string) string {
+		t.Helper()
+		rec := request(t, handler, "GET", path, "", false)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s 应返回 200，实际 %d", path, rec.Code)
+		}
+		return rec.Header().Get("Cache-Control")
+	}
+
+	for _, path := range []string{"/", "/#subscriptions", "/static/manifest.webmanifest"} {
+		if got := cache(path); got != "no-cache" {
+			t.Errorf("%s 的 Cache-Control 应为 no-cache，实际 %q", path, got)
+		}
+	}
+	if got := cache("/static/app.js?v=59b56bdfd212"); got != "public, max-age=31536000, immutable" {
+		t.Errorf("带内容 hash 的资源应 immutable，实际 %q", got)
+	}
+	for _, path := range []string{"/static/app.js", "/static/icons/icon.png"} {
+		if got := cache(path); got != "public, max-age=3600" {
+			t.Errorf("%s 的 Cache-Control 应为 public, max-age=3600，实际 %q", path, got)
+		}
 	}
 }
 

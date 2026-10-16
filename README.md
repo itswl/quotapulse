@@ -62,7 +62,10 @@ scripts/claude-code-usage.py --price "claude-sonnet-4-5:3,15" --dry-run   # toke
 ```
 
 Give a project with the reporter's name a monthly budget on the dashboard and
-its pace alert fires like any balance-backed project. Needs `ENABLE_DATABASE`.
+its pace alert fires like any balance-backed project. Reported projects appear
+only in the cost view (click the "Monthly cost" tile), never in the project
+grid — there is no balance to check. Currency missing from `FX_RATES` is listed
+separately instead of joining the total. Needs `ENABLE_DATABASE`.
 
 Adding a simple provider usually requires a `RegisterSpec` declaration in `internal/provider/`. Providers that require request signing can implement the `Provider` interface directly.
 

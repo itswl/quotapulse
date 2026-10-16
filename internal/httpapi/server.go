@@ -326,11 +326,24 @@ func (s *Server) assetHandler() http.Handler {
 	files := http.FileServer(http.FS(s.Assets))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// SPA: any non-asset path falls back to index.html; the frontend switches views by hash
+		fallback := false
 		if path := strings.TrimPrefix(r.URL.Path, "/"); path != "" {
 			if _, err := fs.Stat(s.Assets, path); err != nil {
 				r = r.Clone(r.Context())
 				r.URL.Path = "/"
+				fallback = true
 			}
+		}
+		// HTML (and the manifest) must revalidate every load: only index.html
+		// points at the content-hashed asset URLs (?v=<sha256>), so a cached
+		// page pins a stale bundle for as long as proxies honor its TTL.
+		if fallback || r.URL.Path == "/" || strings.HasSuffix(r.URL.Path, ".html") || strings.HasSuffix(r.URL.Path, ".webmanifest") {
+			w.Header().Set("Cache-Control", "no-cache")
+		} else if r.URL.Query().Has("v") {
+			// ?v=<content hash> makes this exact URL immutable; deploys change the query
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
 		}
 		files.ServeHTTP(w, r)
 	})
