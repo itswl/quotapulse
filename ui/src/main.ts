@@ -151,6 +151,12 @@ async function init(): Promise<void> {
   initLocale();
   bindEvents();
 
+  // Register the service worker up front: it carries the runtime cache that
+  // lets the installed PWA open offline; push subscription reuses it later.
+  navigator.serviceWorker?.register('/sw.js').catch(() => {
+    /* no notifications or offline shell; the app still works */
+  });
+
   await loadFeatures();
   await loadData();
 
