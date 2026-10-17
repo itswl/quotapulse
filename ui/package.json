@@ -12,8 +12,8 @@
     "clean": "rm -rf dist dist-test"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "geist": "^1.7.2",
-    "typescript": "^5.7.0"
+    "typescript": "^7.0.2"
   }
 }
