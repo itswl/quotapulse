@@ -99,6 +99,8 @@ func (s *Server) Handler() http.Handler {
 
 	// core read endpoints
 	mux.HandleFunc("GET /api/features", s.handleFeatures)
+	mux.HandleFunc("POST /api/session", s.handleSessionCreate)
+	mux.HandleFunc("DELETE /api/session", s.handleSessionDelete)
 	mux.HandleFunc("GET /api/costs/summary", s.handleCostsSummary)
 	mux.HandleFunc("POST /api/usage/ingest", s.handleUsageIngest)
 	mux.HandleFunc("GET /api/credits", s.handleCredits)
@@ -193,8 +195,26 @@ func (s *Server) withAPIKey(next http.Handler) http.Handler {
 				break
 			}
 		}
-		if token == "" || !matched {
+		viaCookie := false
+		if !matched && token == "" {
+			// A browser that typed the key once carries this instead. The
+			// value is an HMAC of its expiry, not the key itself.
+			if cookie, err := r.Cookie(sessionCookieName); err == nil {
+				signer, expires, ok := sessionSigner(cookie.Value, keys, time.Now())
+				if ok {
+					matched, viaCookie = true, true
+					if time.Until(expires) < sessionRenewWithin {
+						s.setSessionCookie(w, r, signer)
+					}
+				}
+			}
+		}
+		if !matched {
 			fail(w, http.StatusUnauthorized, "API key is invalid or missing")
+			return
+		}
+		if viaCookie && !safeMethod(r.Method) && !sameSiteRequest(r) {
+			fail(w, http.StatusForbidden, "cross-site request refused")
 			return
 		}
 		next.ServeHTTP(w, r)

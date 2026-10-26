@@ -1,6 +1,6 @@
 # API
 
-All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bearer <key>`. `/health` and `/live` need no key. `/mcp` also accepts the keys in `MCP_API_KEYS`, which work nowhere else; see the README's MCP section. Responses are JSON. Errors use `{"status":"error","message":"..." }`; validation errors may also include an `errors` array.
+All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bearer <key>`. The dashboard exchanges the key for an HttpOnly session cookie (`POST /api/session`), so the browser does not store the key and only asks for it again when the session expires or the key rotates; `DELETE /api/session` ends that session. `/health` and `/live` need no key. `/mcp` also accepts the keys in `MCP_API_KEYS`, which work nowhere else; see the README's MCP section. Responses are JSON. Errors use `{"status":"error","message":"..." }`; validation errors may also include an `errors` array.
 
 | Status | Meaning |
 | --- | --- |
@@ -18,6 +18,8 @@ All `/api/*` endpoints require `X-API-Key: <WEB_API_KEY>` or `Authorization: Bea
 | `GET /live` | Liveness check | — |
 | `GET /health` | Readiness check; requires data, fresh results, and successful scheduled jobs | — |
 | `GET /api/features` | Enabled optional capabilities | — |
+| `POST /api/session` | Exchanges a valid `X-API-Key` for an HttpOnly session cookie valid for 30 days (renewed on use in its last week) | — |
+| `DELETE /api/session` | Clears that cookie | — |
 | `GET /api/credits` | Current balance state for all projects | — |
 | `GET/POST /api/refresh` | Run an immediate balance check; POST accepts `project_name` (404 if unknown, 409 if disabled); one run at a time, with a 30-second cooldown | — |
 | `POST /api/notify/test` | Sends a canary message through the configured webhook and returns the delivery error verbatim, so the channel can be verified without waiting for a real alert | `WEB_API_KEY` |

@@ -1,10 +1,10 @@
 /**
  * HTTP client: API key handling, 401 retry, and unified write feedback.
  *
- * Every /api/* request carries X-API-Key. The key is kept in memory only: a
- * reload prompts once more rather than leaving a credential readable by any
- * script on the page. The prompt shares one Promise so concurrent requests
- * never open five dialogs.
+ * The browser trades the key for an HttpOnly session cookie once, so a reload
+ * does not ask again and no script on the page can read the credential. The
+ * key itself stays in memory for this tab and is only sent as a header while
+ * it is known; after a reload requests ride the cookie alone.
  */
 
 import { byId } from '../dom.js';
@@ -18,7 +18,7 @@ export interface FetchResult<T> {
   data: ApiPayload<T>;
 }
 
-/** In-memory only; the key is deliberately never written to browser storage. */
+/** In-memory for this tab only; the server keeps the durable credential. */
 let apiKey = '';
 
 /** Only one API key prompt may exist at a time */
@@ -30,6 +30,43 @@ export function getApiKey(): string {
 
 export function setApiKey(value: string | null | undefined): void {
   apiKey = (value ?? '').trim();
+}
+
+/**
+ * Trade the key for the HttpOnly session cookie the server sets. This both
+ * validates the key and is what stops the prompt from returning on reload.
+ */
+async function establishSession(key: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/session`, {
+      method: 'POST',
+      headers: { 'X-API-Key': key },
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Save a key everywhere it belongs: validated by the server, cookie minted,
+ * and kept in memory for requests made before the cookie round-trips. Clearing
+ * deletes the cookie too, so the next load asks again.
+ */
+export async function saveApiKey(value: string | null | undefined): Promise<boolean> {
+  const key = (value ?? '').trim();
+  if (!key) {
+    try {
+      await fetch(`${window.location.origin}/api/session`, { method: 'DELETE', headers: authHeaders() });
+    } catch {
+      // Offline, or the session already expired: forgetting it locally is still right.
+    }
+    setApiKey('');
+    return true;
+  }
+  if (!(await establishSession(key))) return false;
+  setApiKey(key);
+  return true;
 }
 
 function authHeaders(): Record<string, string> {
@@ -51,8 +88,8 @@ function errorMessage(data: unknown, fallback: string): string {
 /**
 /**
  * Prompt for the API key. The missing cancel button is deliberate: without a
- * key the page can fetch nothing, and a "cancel" would just strand the user
- * in front of an empty dashboard.
+ * key and without a session the page can fetch nothing, and a "cancel" would
+ * just strand the user in front of an empty dashboard.
  */
 export function promptForApiKey(message = ''): Promise<string | null> {
   if (pendingPrompt) return pendingPrompt;
@@ -62,12 +99,20 @@ export function promptForApiKey(message = ''): Promise<string | null> {
     const form = byId<HTMLFormElement>('auth-form');
     const input = byId<HTMLInputElement>('auth-api-key');
     const error = byId('auth-error');
+    let checking = false;
 
     // fall back to the browser's native input when the template is trimmed away; still usable
     if (!modal || !form || !input) {
       const value = window.prompt(message || t('auth.title'), getApiKey());
-      if (value !== null) setApiKey(value);
-      resolve(getApiKey() || null);
+      const key = (value ?? '').trim();
+      if (!key) {
+        resolve(null);
+        return;
+      }
+      void establishSession(key).then((ok) => {
+        if (ok) setApiKey(key);
+        resolve(ok ? key : null);
+      });
       return;
     }
 
@@ -82,17 +127,23 @@ export function promptForApiKey(message = ''): Promise<string | null> {
     const onSubmit = (event: Event): void => {
       event.preventDefault();
       const value = input.value.trim();
-      if (!value) {
-        if (error) {
-          error.textContent = t('auth.title');
-          error.style.display = 'block';
+      if (!value || checking) return;
+      checking = true;
+      void establishSession(value).then((ok) => {
+        checking = false;
+        if (!ok) {
+          if (error) {
+            error.textContent = t('auth.invalid');
+            error.style.display = 'block';
+          }
+          input.select();
+          return;
         }
-        return;
-      }
-      setApiKey(value);
-      modal.classList.remove('active');
-      form.removeEventListener('submit', onSubmit);
-      resolve(value);
+        setApiKey(value);
+        modal.classList.remove('active');
+        form.removeEventListener('submit', onSubmit);
+        resolve(value);
+      });
     };
 
     form.addEventListener('submit', onSubmit);
@@ -102,12 +153,6 @@ export function promptForApiKey(message = ''): Promise<string | null> {
   return pendingPrompt.finally(() => {
     pendingPrompt = null;
   });
-}
-
-async function ensureApiKey(): Promise<string | null> {
-  const current = getApiKey();
-  if (current) return current;
-  return promptForApiKey();
 }
 
 /**
@@ -122,7 +167,6 @@ export async function fetchJson<T>(
   retried = false,
 ): Promise<FetchResult<T>> {
   const isApi = endpoint.startsWith('/api/');
-  if (isApi) await ensureApiKey();
 
   const url = endpoint.startsWith('http') ? endpoint : `${window.location.origin}${endpoint}`;
   const response = await fetch(url, {

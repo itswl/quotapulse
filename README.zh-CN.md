@@ -111,7 +111,7 @@ Agent 应先调用 `dashboard_summary`：它按严重程度列出需要处理的
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `WEB_API_KEY` | 无 | `/api/*` 的访问密钥；未设置时接口一律 503 |
+| `WEB_API_KEY` | 无 | `/api/*` 的访问密钥；未设置时接口一律 503。看板会把它换成 HttpOnly Cookie，浏览器不保存密钥本身 |
 | `ENABLE_MCP` | `false` | 是否在 `/mcp` 开启只读 MCP |
 | `MCP_API_KEYS` | 无 | `/mcp` 专用的只读 Agent Key，每项 `名称:密钥[:权限[:过期]]`，`;` 分隔，见 [MCP](#mcp) |
 | `MCP_REQUIRE_SCOPED_KEY` | `false` | 不再接受用 `WEB_API_KEY` 访问 `/mcp` |
@@ -196,7 +196,7 @@ scripts/claude-code-usage.py --price "claude-sonnet-4-5:3,15" --dry-run   # 老�
 
 ## 看板与 API
 
-看板三个视图：全部项目、订阅管理、邮箱扫描，项目视图上的「仅告警」筛选只看低于阈值或查询失败的账户；地址栏加 `#subscriptions` `#email` 可直达，`#alerts` 打开项目视图并开启该筛选。界面有英文和简体中文两套文案，默认跟随浏览器语言，顶栏的「中 / EN」按钮可随时切换，选择记在当前浏览器里。首次打开填 `WEB_API_KEY`。开了动态配置能在页面上增删改项目、订阅和邮箱；开了历史 API 有趋势图和历史告警邮件。接口清单见 [docs/API.md](docs/API.md)。
+看板三个视图：全部项目、订阅管理、邮箱扫描，项目视图上的「仅告警」筛选只看低于阈值或查询失败的账户；地址栏加 `#subscriptions` `#email` 可直达，`#alerts` 打开项目视图并开启该筛选。界面有英文和简体中文两套文案，默认跟随浏览器语言，顶栏的「中 / EN」按钮可随时切换，选择记在当前浏览器里。首次打开填 `WEB_API_KEY`；后端会把它换成 HttpOnly 会话 Cookie，页面不再保存密钥，正常使用不会反复要求输入，只有密钥轮换或 30 天未访问后才需要重填。开了动态配置能在页面上增删改项目、订阅和邮箱；开了历史 API 有趋势图和历史告警邮件。接口清单见 [docs/API.md](docs/API.md)。
 
 前端是 TypeScript，用 esbuild 打包，产物嵌进二进制，运行时不需要额外的静态文件目录。
 

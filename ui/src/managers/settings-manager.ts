@@ -6,7 +6,7 @@
  * theme tweak ran five times.
  */
 
-import { fetchJson, getApiKey, mutate, setApiKey } from '../api/client.js';
+import { fetchJson, getApiKey, mutate, saveApiKey } from '../api/client.js';
 import { ENDPOINTS, getJobs } from '../api/endpoints.js';
 import type { HealthResponse } from '../api/types.js';
 import { byId, inputById, onClick } from '../dom.js';
@@ -198,8 +198,14 @@ export function bindSettingsManager(): void {
   });
 
   byId('setting-api-key')?.addEventListener('change', (event) => {
-    setApiKey((event.target as HTMLInputElement).value);
-    showToast(getApiKey() ? t('settings.key_saved') : t('settings.key_cleared'), 'info');
+    const value = (event.target as HTMLInputElement).value;
+    void saveApiKey(value).then((ok) => {
+      if (!ok) {
+        showToast(t('auth.invalid'), 'error');
+        return;
+      }
+      showToast(getApiKey() ? t('settings.key_saved') : t('settings.key_cleared'), 'info');
+    });
   });
 
   // after rotating the key in settings, sync the dialog's input too so the two displays agree

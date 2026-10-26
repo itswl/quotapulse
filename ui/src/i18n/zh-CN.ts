@@ -370,6 +370,7 @@ export const zhCN: Record<MessageKey, Message> = {
   'settings.auth': '身份验证',
   'settings.key_saved': 'API 密钥已保存',
   'settings.key_cleared': 'API 密钥已清除',
+  'settings.key_session_note': '留空即保持当前登录。密钥会换成 HttpOnly Cookie，不会存在页面里。',
   'settings.about': '关于',
   'settings.about_text': 'API 余额监控、订阅提醒与邮箱扫描',
   'cadence.server_checks': '服务端检查：{cadence}{next}',

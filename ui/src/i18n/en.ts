@@ -388,6 +388,8 @@ export const en = {
   'settings.auth': 'Authentication',
   'settings.key_saved': 'API key saved',
   'settings.key_cleared': 'API key cleared',
+  'settings.key_session_note':
+    'Leave this blank to keep the current sign-in. The key is exchanged for an HttpOnly cookie and is never stored in the page.',
   'settings.about': 'About',
   'settings.about_text': 'API balance monitoring, subscription reminders, and email scanning',
   'cadence.server_checks': 'Server checks {cadence}{next}',

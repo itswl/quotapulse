@@ -84,7 +84,7 @@ The most important variables are:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `WEB_API_KEY` | unset | Authentication for `/api/*`; comma-separated keys enable rotation; requests return 503 when unset |
+| `WEB_API_KEY` | unset | Authentication for `/api/*`; comma-separated keys enable rotation; requests return 503 when unset. The dashboard exchanges it for an HttpOnly cookie, so the browser never stores the key itself |
 | `ENABLE_MCP` | `false` | Enable the read-only `/mcp` endpoint |
 | `MCP_API_KEYS` | unset | Read-only agent keys for `/mcp`, as `name:key[:scopes[:expires]]` separated by `;`; see [MCP](#mcp) |
 | `MCP_REQUIRE_SCOPED_KEY` | `false` | Stop accepting `WEB_API_KEY` on `/mcp` |
