@@ -22,6 +22,7 @@ import {
   updateSubscriptionStats,
 } from '../src/ui/stats.js';
 import { AppState, parseRefreshMinutes } from '../src/state.js';
+import { setApiKey } from '../src/api/client.js';
 import { fetchAndRender } from '../src/data.js';
 import { formatServerCadence } from '../src/format.js';
 import { resetStubDom, stubElement } from './stub-dom.js';
@@ -658,7 +659,7 @@ describe('fetchAndRender', () => {
     resetStubDom();
     const subsContainer = stubElement('subscriptions-container');
     stubElement('projects-container');
-    localStorage.setItem('apiKey', 'test-key');
+    setApiKey('test-key');
     const originalFetch = globalThis.fetch;
     const subscriptions = { last_update: null, subscriptions: [subscription({ need_alert: true })], summary: {} };
     globalThis.fetch = (async (input: string | URL | Request) => {
@@ -678,6 +679,7 @@ describe('fetchAndRender', () => {
       assert.match(subsContainer.innerHTML, /Netflix/);
     } finally {
       globalThis.fetch = originalFetch;
+      setApiKey(null);
       AppState.features = features;
       AppState.currentView = 'all';
       AppState.balanceLoadFailed = false;

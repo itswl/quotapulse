@@ -1,14 +1,14 @@
 /**
  * HTTP client: API key handling, 401 retry, and unified write feedback.
  *
- * Every /api/* request carries X-API-Key. The key lives in localStorage; the
- * first load or a backend key rotation prompts once — the prompt shares one
- * Promise so concurrent requests never open five dialogs.
+ * Every /api/* request carries X-API-Key. The key is kept in memory only: a
+ * reload prompts once more rather than leaving a credential readable by any
+ * script on the page. The prompt shares one Promise so concurrent requests
+ * never open five dialogs.
  */
 
 import { byId } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { readStorage, writeStorage } from '../state.js';
 import { setLoading } from '../ui/loading.js';
 import { showToast } from '../ui/toast.js';
 import type { ApiPayload, ErrorResponse, MutationResponse } from './types.js';
@@ -18,18 +18,18 @@ export interface FetchResult<T> {
   data: ApiPayload<T>;
 }
 
-const STORAGE_KEY = 'apiKey';
+/** In-memory only; the key is deliberately never written to browser storage. */
+let apiKey = '';
 
 /** Only one API key prompt may exist at a time */
 let pendingPrompt: Promise<string | null> | null = null;
 
 export function getApiKey(): string {
-  return (readStorage(STORAGE_KEY) ?? '').trim();
+  return apiKey;
 }
 
 export function setApiKey(value: string | null | undefined): void {
-  const key = (value ?? '').trim();
-  writeStorage(STORAGE_KEY, key || null);
+  apiKey = (value ?? '').trim();
 }
 
 function authHeaders(): Record<string, string> {
