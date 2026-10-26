@@ -147,6 +147,15 @@ function bindEvents(): void {
 }
 
 async function init(): Promise<void> {
+  // Releases up to 0.1.51 kept the API key in localStorage. It is traded for an
+  // HttpOnly cookie now, so drop the stale copy instead of leaving a readable
+  // credential behind on an upgraded browser.
+  try {
+    localStorage.removeItem('apiKey');
+  } catch {
+    /* storage disabled: there was nothing to remove */
+  }
+
   initTheme();
   initLocale();
   bindEvents();
