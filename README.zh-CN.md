@@ -237,7 +237,7 @@ kubectl -n common-prod rollout status deploy/quotapulse
 
 ## 监控
 
-`ENABLE_PROMETHEUS=true` 后 `:9100/metrics` 暴露余额、订阅、邮箱扫描、定时任务、通知发送五组指标。指标含义、Grafana 面板和建议的自监控告警规则见 [grafana/README.md](grafana/README.md)。
+`ENABLE_PROMETHEUS=true` 后 `:9100/metrics` 暴露余额、订阅、邮箱扫描、定时任务、通知发送和 HTTP 请求六组指标。HTTP 指标按路由模板记（`route="/api/credits"`），不会因项目名或趋势 ID 产生无限序列。指标含义、Grafana 面板和建议的自监控告警规则见 [grafana/README.md](grafana/README.md)。
 
 ## 排障
 

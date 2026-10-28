@@ -151,7 +151,7 @@ Pin `QUOTAPULSE_VERSION` in production instead of relying on `latest`. Kubernete
 
 ## Monitoring
 
-Set `ENABLE_PROMETHEUS=true` to expose balance, subscription, email, job, and notification metrics at `:9100/metrics`. See [grafana/README.md](grafana/README.md) for the metric contract, dashboard, PromQL examples, and self-monitoring rules.
+Set `ENABLE_PROMETHEUS=true` to expose balance, subscription, email, job, notification, and HTTP request metrics at `:9100/metrics`. HTTP metrics are keyed by route pattern (`route="/api/credits"`), not raw paths, so project names and trend IDs cannot blow up cardinality. See [grafana/README.md](grafana/README.md) for the metric contract, dashboard, PromQL examples, and self-monitoring rules.
 
 ## CLI
 

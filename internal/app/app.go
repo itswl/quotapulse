@@ -127,6 +127,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		OnBalanceUpdated:      app.Metrics.UpdateBalance,
 		OnSubscriptionUpdated: app.Metrics.UpdateSubscriptions,
 		OnEmailScanned:        app.Metrics.UpdateEmailScan,
+		WrapHandler:           app.Metrics.Middleware,
 	}
 	if err := app.Server.ValidateWiring(); err != nil {
 		return nil, err

@@ -17,8 +17,12 @@ Set `ENABLE_PROMETHEUS=true` to expose `/metrics` on `METRICS_PORT` (default `91
 | `quotapulse_job_runs_total` | `task`, `status` | Job run count |
 | `quotapulse_notifications_total` | `kind`, `status` | Webhook count; kinds include `balance`, `subscription`, `email`, `mailbox_error`, `runway`, `spend_spike`, and `weekly_report` |
 | `quotapulse_last_check_timestamp` | `check_type` | Last balance, subscription, or email check |
+| `quotapulse_http_requests_total` | `route`, `method`, `status` | Requests handled, keyed by the matched route pattern (`/api/credits`), never the raw path; unmatched requests collapse into `route="unmatched"` |
+| `quotapulse_http_request_duration_seconds` | `route`, `method` | Request latency histogram (5 ms to 10 s buckets) |
 
 When a project, subscription, or mailbox is renamed or deleted, obsolete gauge series are removed on the next update. The job label is `task`; Prometheus may rename it to `exported_job` to avoid its built-in `job` label.
+
+HTTP series are counters: they reset to zero when the process restarts, which is why every panel and rule uses `rate(...)`.
 
 ## Dashboard
 
@@ -29,6 +33,7 @@ When a project, subscription, or mailbox is renamed or deleted, obsolete gauge s
 - Renewals: countdown and status table.
 - Email scanning: mailbox totals, failures, latest hits, details, and daily alert counts.
 - Jobs and notifications: failed jobs, recent sends and failures, job status, and notification types.
+- HTTP endpoints: request rate and p95 latency per route, plus 5xx share and latency totals.
 
 Filters are `project`, `type`, `subscription`, and `mailbox`. Balance units differ between providers, so compare projects using the ratio panels.
 
@@ -53,6 +58,8 @@ quotapulse_email_mailbox_status == 0
 increase(quotapulse_email_alerts_total[7d])
 time() - quotapulse_job_last_success_timestamp > 26 * 3600
 increase(quotapulse_notifications_total{status="failed"}[1h]) > 0
+histogram_quantile(0.95, sum by (le, route) (rate(quotapulse_http_request_duration_seconds_bucket[5m]))) > 0.5
+sum(rate(quotapulse_http_requests_total{status=~"5.."}[5m])) / sum(rate(quotapulse_http_requests_total[5m])) > 0.01
 ```
 
 ## Self-monitoring rules

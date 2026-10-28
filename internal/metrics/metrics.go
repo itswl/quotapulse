@@ -98,6 +98,10 @@ type Collector struct {
 	notifications *prometheus.CounterVec
 	lastCheck     *prometheus.GaugeVec
 
+	// HTTP layer, filled by Middleware
+	httpRequests *prometheus.CounterVec
+	httpDuration *prometheus.HistogramVec
+
 	gatherer prometheus.Gatherer
 
 	// The Vecs are concurrency-safe; this lock only guards the series registry
@@ -120,6 +124,14 @@ func New(reg prometheus.Registerer) *Collector {
 	}
 	counter := func(name, help string, labels []string) *prometheus.CounterVec {
 		return f.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, labels)
+	}
+
+	histogram := func(name, help string, labels []string) *prometheus.HistogramVec {
+		return f.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    name,
+			Help:    help,
+			Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
+		}, labels)
 	}
 
 	c := &Collector{
@@ -156,6 +168,11 @@ func New(reg prometheus.Registerer) *Collector {
 		notifications: counter("quotapulse_notifications_total",
 			"Webhook notifications by kind and result", []string{"kind", "status"}),
 		lastCheck: gauge("quotapulse_last_check_timestamp", "Timestamp of last check", []string{"check_type"}),
+
+		httpRequests: counter("quotapulse_http_requests_total",
+			"HTTP requests by matched route, method and status code", httpRequestLabels),
+		httpDuration: histogram("quotapulse_http_request_duration_seconds",
+			"HTTP request latency by matched route and method", httpDurationLabels),
 
 		series: map[string]map[labelValues]struct{}{},
 		now:    time.Now,

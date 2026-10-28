@@ -40,6 +40,11 @@ type Server struct {
 	Assets fs.FS
 	MCP    http.Handler
 
+	// WrapHandler wraps the router just before it serves; the app installs the
+	// metrics middleware here so httpapi stays free of metrics imports. Nil is
+	// fine — the router then serves unwrapped.
+	WrapHandler func(http.Handler) http.Handler
+
 	// Callbacks like OnBalanceUpdated keep metrics in sync with page actions;
 	// otherwise Grafana lags until the next scheduled job after a config edit.
 	OnBalanceUpdated      func([]model.CheckResult)
@@ -378,9 +383,13 @@ func (s *Server) log() *slog.Logger {
 
 // ListenAndServe runs the server and shuts down gracefully when ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
+	handler := s.Handler()
+	if s.WrapHandler != nil {
+		handler = s.WrapHandler(handler)
+	}
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           s.Handler(),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
