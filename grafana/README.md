@@ -22,7 +22,7 @@ Set `ENABLE_PROMETHEUS=true` to expose `/metrics` on `METRICS_PORT` (default `91
 
 When a project, subscription, or mailbox is renamed or deleted, obsolete gauge series are removed on the next update. The job label is `task`; Prometheus may rename it to `exported_job` to avoid its built-in `job` label.
 
-HTTP series are counters: they reset to zero when the process restarts, which is why every panel and rule uses `rate(...)`.
+HTTP series are counters: they reset to zero when the process restarts, which is why every panel and rule uses `rate(...)`. Requests rejected before routing — a missing or wrong API key returns 401, an unset `WEB_API_KEY` returns 503 — count under `route="unmatched"`; the status code still separates them from 404 noise.
 
 ## Dashboard
 
