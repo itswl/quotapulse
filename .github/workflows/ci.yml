@@ -8,6 +8,34 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Real MySQL and PostgreSQL: sqlc generates one dialect per engine and the
+    # store suite runs the same assertions on each when these URLs are set, so
+    # dialect drift fails here instead of in production.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: quotapulse_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: quotapulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
     steps:
       - uses: actions/checkout@v7
 
@@ -31,6 +59,8 @@ jobs:
         run: go test -race ./...
         env:
           TZ: Asia/Shanghai
+          STORE_TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306/quotapulse_test?charset=utf8mb4
+          STORE_TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/quotapulse_test?sslmode=disable
 
       - uses: actions/setup-node@v7
         with:

@@ -104,6 +104,7 @@ The most important variables are:
 | `ALERT_COOLDOWN_SECONDS` | `86400` | Per-alert notification cooldown |
 | `JOB_FAILURE_ALERT_THRESHOLD` | `3` | Consecutive failures before a job escalates to the webhook; `0` disables |
 | `JOB_TIMEOUT_SECONDS` | `600` | Per-run timeout for scheduled jobs; `0` disables |
+| `HISTORY_RETENTION_DAYS` | `730` | Daily sweep deletes balance, alert, email, and usage history older than this; `0` keeps everything forever |
 | `DB_BACKUP_SCHEDULE` | unset | Daily times for SQLite backups, e.g. `03:00`; unset disables backups |
 | `DB_BACKUP_DIR` / `DB_BACKUP_KEEP` | `backups` / `7` | Where SQLite backups live and how many are kept |
 
@@ -119,6 +120,7 @@ All jobs run inside the web process; the container does not require cron.
 | `alert_check` | `ALERT_SCHEDULE` | Balance and subscription alerts |
 | `email_scan` | `EMAIL_SCAN_SCHEDULE` | Email alerts |
 | `weekly_report` | `WEEKLY_REPORT_SCHEDULE` | Weekly spending, runway, and renewal summary |
+| `history_retention` | Every 24 h | Deletes history older than `HISTORY_RETENTION_DAYS` |
 
 `/health` returns 503 when data is missing, stale, or an enabled job failed. `GET /api/jobs` provides the job details.
 

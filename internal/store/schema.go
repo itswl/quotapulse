@@ -75,3 +75,26 @@ func splitStatements(script string) []string {
 	}
 	return out
 }
+
+// ensureIndexes adds indexes that deployments created before the index existed
+// are missing. The sqlite and postgres schema files carry CREATE INDEX IF NOT
+// EXISTS and cover themselves on every startup; MySQL has no such form and
+// keeps its indexes inline in CREATE TABLE, so existing tables get an
+// idempotent ALTER here — "duplicate key name" means it is already there.
+func ensureIndexes(ctx context.Context, db *sql.DB, engine Engine) error {
+	if engine != EngineMySQL {
+		return nil
+	}
+	for _, stmt := range []string{
+		"ALTER TABLE usage_events ADD INDEX ix_usage_events_entry_date (entry_date)",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			msg := strings.ToLower(err.Error())
+			if strings.Contains(msg, "duplicate") || strings.Contains(msg, "already exists") {
+				continue
+			}
+			return fmt.Errorf("index migration(%.80s): %w", stmt, err)
+		}
+	}
+	return nil
+}

@@ -38,13 +38,6 @@ func glmResetsWithin(limit map[string]any, now time.Time, d time.Duration) bool 
 	return reset.After(now) && reset.Sub(now) <= d
 }
 
-// glmHasWindowMetadata reports whether the entry carries unit/number labels.
-func glmHasWindowMetadata(limit map[string]any) bool {
-	_, hasUnit := jsonNum(limit["unit"])
-	_, hasNumber := jsonNum(limit["number"])
-	return hasUnit || hasNumber
-}
-
 func clampPercent(v float64) float64 {
 	return math.Max(0, math.Min(100, v))
 }

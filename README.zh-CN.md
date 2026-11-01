@@ -166,6 +166,7 @@ Agent 应先调用 `dashboard_summary`：它按严重程度列出需要处理的
 | `alert_check` | 每天 `ALERT_SCHEDULE`，检查余额与订阅 | 是 |
 | `email_scan` | 每天 `EMAIL_SCAN_SCHEDULE`，扫最近 `EMAIL_SCAN_DAYS` 天的邮件 | 是 |
 | `weekly_report` | 每周 `WEEKLY_REPORT_SCHEDULE`，汇总一周消耗、跑道与待续费 | 是 |
+| `history_retention` | 每 24 小时，清理超过 `HISTORY_RETENTION_DAYS` 的历史 | 否 |
 
 任一任务上次失败，`/health` 返回 503 并在 `failed_jobs` 列出，`GET /api/jobs` 看详情。
 

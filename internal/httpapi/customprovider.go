@@ -9,12 +9,6 @@ import (
 	"github.com/itswl/quotapulse/internal/provider"
 )
 
-// maskedCustomProvider is the external shape of a page-defined platform. It
-// holds no secrets: the API key travels per project like every other provider.
-type maskedCustomProvider struct {
-	model.CustomProvider
-}
-
 // handleListCustomProviders lists the page-defined platforms. Reads stay open
 // so the page can show what exists even without dynamic configuration.
 func (s *Server) handleListCustomProviders(w http.ResponseWriter, r *http.Request) {

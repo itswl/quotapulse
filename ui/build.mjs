@@ -47,11 +47,12 @@ async function copyWebAssets() {
   await copyFile(resolve(root, 'www/sw.js'), join(outdir, 'sw.js'));
 }
 
-/* The Geist fonts are OFL-1.1 licensed; redistribution must ship the license text alongside them. */
+/* The Geist fonts are OFL-1.1 licensed; redistribution must ship the license text alongside
+   them. Both the fonts and this license are vendored in src/styles/fonts. */
 async function copyFontLicense() {
   const fontsDir = join(staticDir, 'fonts');
   await mkdir(fontsDir, { recursive: true });
-  await copyFile(resolve(root, 'node_modules/geist/LICENSE.txt'), join(fontsDir, 'OFL.txt'));
+  await copyFile(resolve(root, 'src/styles/fonts/OFL.txt'), join(fontsDir, 'OFL.txt'));
   await copyWebAssets();
 }
 

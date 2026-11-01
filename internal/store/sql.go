@@ -82,6 +82,16 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database:%w", err)
 	}
+	// Pool hygiene. database/sql defaults to unlimited open connections, two
+	// idle ones, and connections that never age out; MySQL's wait_timeout
+	// (8h by default) silently drops idle connections server-side, which is
+	// the classic source of sporadic "invalid connection" latency spikes.
+	// Retiring connections proactively keeps every checkout fresh, and the
+	// cap matches what a monitoring tool can ever need.
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("Failed to connect to database:%w", err)
@@ -91,6 +101,10 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 		return nil, err
 	}
 	if err := ensureColumns(ctx, db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := ensureIndexes(ctx, db, target.Engine); err != nil {
 		db.Close()
 		return nil, err
 	}

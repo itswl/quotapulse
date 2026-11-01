@@ -51,7 +51,7 @@ func (s *Server) handleUsageIngest(w http.ResponseWriter, r *http.Request) {
 
 	var problems []string
 	entries := make([]model.UsageEntry, 0, len(body.Entries))
-	for i, entry := range body.Entries {
+	for _, entry := range body.Entries {
 		entry.Source = body.Source
 		entry.Project = body.Project
 		entry.Date = strings.TrimSpace(entry.Date)
@@ -69,7 +69,6 @@ func (s *Server) handleUsageIngest(w http.ResponseWriter, r *http.Request) {
 		case entry.Cost < 0:
 			problems = append(problems, "entries: cost cannot be negative")
 		}
-		_ = i
 		entries = append(entries, entry)
 		if len(problems) > 0 {
 			break
@@ -84,12 +83,12 @@ func (s *Server) handleUsageIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, entry := range entries {
-		if err := s.Store.UpsertUsageEvent(r.Context(), entry); err != nil {
-			s.log().Error("Failed to store a usage event", "project", entry.Project, "error", err)
-			fail(w, http.StatusInternalServerError, "Failed to store the report")
-			return
-		}
+	// One atomic batch: a month of day/model cells is hundreds of rows, and a
+	// failure halfway must not store half a report.
+	if err := s.Store.UpsertUsageEvents(r.Context(), entries); err != nil {
+		s.log().Error("Failed to store a usage report", "project", body.Project, "entries", len(entries), "error", err)
+		fail(w, http.StatusInternalServerError, "Failed to store the report")
+		return
 	}
 	ok(w, map[string]any{"message": "Report accepted", "accepted": len(entries)})
 }

@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -57,53 +56,6 @@ func serveJSON(t *testing.T, status int, body string) (*httptest.Server, *record
 	}))
 	t.Cleanup(srv.Close)
 	return srv, rec
-}
-
-// specProviderAt swaps a Spec's URL for the test server's address, keeping the
-// rest — so what is tested is the production declaration itself, not a copy in
-// the test.
-func specProviderAt(spec Spec, rawURL, apiKey string) Provider {
-	spec.URL = rawURL
-	return &specProvider{spec: spec, apiKey: apiKey, client: NewClient(2 * time.Second)}
-}
-
-// specCase is one "given a response, expect a balance or an error" case.
-type specCase struct {
-	name   string
-	status int
-	body   string
-	want   float64
-	errMsg string // 非空表示expected失败，且error message包含这段
-}
-
-func runSpecCases(t *testing.T, spec Spec, cases []specCase) {
-	t.Helper()
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			srv, _ := serveJSON(t, tc.status, tc.body)
-			got, err := specProviderAt(spec, srv.URL, "test-key").Fetch(context.Background())
-			if tc.errMsg != "" {
-				if err == nil {
-					t.Fatalf("expected失败，却拿到余额 %v", got)
-				}
-				if !strings.Contains(err.Error(), tc.errMsg) {
-					t.Fatalf("error message = %q，expected包含 %q", err.Error(), tc.errMsg)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("Fetch 失败: %v", err)
-			}
-			assertFloat(t, got, tc.want)
-		})
-	}
-}
-
-func assertFloat(t *testing.T, got, want float64) {
-	t.Helper()
-	if math.Abs(got-want) > 1e-9 {
-		t.Fatalf("余额 = %v，expected %v", got, want)
-	}
 }
 
 // ---------- Registry ----------

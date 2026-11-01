@@ -1,6 +1,6 @@
--- PostgreSQL Localized message BIGSERIALïLocalized message DOUBLE PRECISIONïLocalized message TIMESTAMPïLocalized messageïLocalized message UTCïLocalized message
--- timestamp Localized messageïLocalized messageïLocalized message
--- Localized message SERIALïLocalized messageint4ïLocalized messageïLocalized messageIF NOT EXISTS Localized message int8ïLocalized messageint4 Localized message int64 Localized message
+-- PostgreSQL Localized message BIGSERIALï¿½Localized message DOUBLE PRECISIONï¿½Localized message TIMESTAMPï¿½Localized messageï¿½Localized message UTCï¿½Localized message
+-- timestamp Localized messageï¿½Localized messageï¿½Localized message
+-- Localized message SERIALï¿½Localized messageint4ï¿½Localized messageï¿½Localized messageIF NOT EXISTS Localized message int8ï¿½Localized messageint4 Localized message int64 Localized message
 
 CREATE TABLE IF NOT EXISTS balance_history (
     id BIGSERIAL NOT NULL,
@@ -178,3 +178,7 @@ CREATE TABLE IF NOT EXISTS usage_events (
     PRIMARY KEY (id),
     UNIQUE (source, project_name, entry_date, model)
 );
+
+-- The spend aggregate filters on entry_date; the identity key above starts
+-- with source, so the date range cannot use it.
+CREATE INDEX IF NOT EXISTS ix_usage_events_entry_date ON usage_events (entry_date);

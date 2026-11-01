@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 	"strings"
 )
@@ -134,24 +132,6 @@ func percentEncode(s string) string {
 		}
 	}
 	return b.String()
-}
-
-// fetchBody issues the request and reads the body. Volcengine and Aliyun treat
-// status codes differently (Volcengine fails on non-200; Aliyun returns business
-// errors as 4xx + JSON), so this only fetches and each adapter judges the status
-// itself.
-func fetchBody(client *Client, req *http.Request) (int, string, error) {
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	if err != nil {
-		return resp.StatusCode, "", fmt.Errorf("failed to read response: %w", err)
-	}
-	return resp.StatusCode, string(body), nil
 }
 
 // parseJSONObject parses the response body. Empty bodies and null both return an

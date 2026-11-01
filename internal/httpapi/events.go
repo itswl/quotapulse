@@ -21,26 +21,29 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	eventType := r.URL.Query().Get("type")
 
-	alerts, err := s.Store.RecentAlerts(r.Context(), store.AlertQuery{Days: days, Limit: 500})
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
+	// The type decides which feeds to read: alert types live only in
+	// alert_history, "email_alert" only in email_alert_history. Filtering has to
+	// happen in the query — after the merge the requested limit is already spent
+	// on the newer feed, and older matches of the asked-for type disappear.
+	// Each feed is read up to the limit itself: the merged top-limit cannot
+	// contain more than limit rows of either feed.
+	var alerts []store.AlertRow
+	var emails []store.EmailAlertRow
+	if eventType != "email_alert" {
+		alerts, err = s.Store.RecentAlerts(r.Context(), store.AlertQuery{AlertType: eventType, Days: days, Limit: limit})
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
-	emails, err := s.Store.EmailAlerts(r.Context(), store.EmailAlertQuery{Days: days, Limit: 500})
-	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
+	if eventType == "" || eventType == "email_alert" {
+		emails, err = s.Store.EmailAlerts(r.Context(), store.EmailAlertQuery{Days: days, Limit: limit})
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	events := store.MergeEvents(alerts, emails, limit)
-	if eventType != "" {
-		filtered := make([]store.EventRow, 0, len(events))
-		for _, event := range events {
-			if event.Type == eventType {
-				filtered = append(filtered, event)
-			}
-		}
-		events = filtered
-	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "success", "count": len(events), "data": events})
 }

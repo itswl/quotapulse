@@ -52,6 +52,7 @@ type Settings struct {
 	SubscriptionAlertCooldownSecond *int
 	JobFailureAlertThreshold        *int
 	JobTimeoutSeconds               *int
+	HistoryRetentionDays            *int
 	BackupSchedule                  string
 	BackupTimes                     []timeutil.ClockTime
 	BackupDir                       string
@@ -144,7 +145,10 @@ const (
 
 	DefaultJobFailureAlertThreshold = 3
 	DefaultJobTimeoutSeconds        = 600
-	DefaultBackupKeep               = 7
+	// Two years of history by default: the widest API window is 365 days, so the
+	// default keeps a year of margin while still bounding the tables.
+	DefaultHistoryRetentionDays = 730
+	DefaultBackupKeep           = 7
 
 	// DefaultBaseCurrency is what totals display in when BASE_CURRENCY is unset.
 	DefaultBaseCurrency = "CNY"
@@ -210,6 +214,7 @@ func Load() (*Settings, error) {
 		WebAPIKey:                strings.TrimSpace(e.text("WEB_API_KEY", "")),
 		JobFailureAlertThreshold: e.optionalInt("JOB_FAILURE_ALERT_THRESHOLD"),
 		JobTimeoutSeconds:        e.optionalInt("JOB_TIMEOUT_SECONDS"),
+		HistoryRetentionDays:     e.optionalInt("HISTORY_RETENTION_DAYS"),
 		BackupSchedule:           strings.TrimSpace(e.text("DB_BACKUP_SCHEDULE", "")),
 		BackupDir:                e.text("DB_BACKUP_DIR", "backups"),
 		BackupKeep:               e.optionalInt("DB_BACKUP_KEEP"),
@@ -340,6 +345,15 @@ func (s *Settings) JobFailureAlertThresholdValue() int {
 		return DefaultJobFailureAlertThreshold
 	}
 	return max(0, *s.JobFailureAlertThreshold)
+}
+
+// HistoryRetentionDaysValue is how many days of history to keep; zero disables
+// the pruning task, and the tables then grow for as long as the process runs.
+func (s *Settings) HistoryRetentionDaysValue() int {
+	if s.HistoryRetentionDays == nil {
+		return DefaultHistoryRetentionDays
+	}
+	return max(0, *s.HistoryRetentionDays)
 }
 
 // JobTimeoutSecondsValue caps a single scheduled run; zero disables the cap.

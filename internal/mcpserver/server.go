@@ -156,7 +156,6 @@ func newServer(d *deps) *sdkmcp.Server {
 			// The lists are fixed for a request, and a stateless server never sends
 			// list_changed notifications.
 			Capabilities: &sdkmcp.ServerCapabilities{
-				Logging:   &sdkmcp.LoggingCapabilities{},
 				Tools:     &sdkmcp.ToolCapabilities{ListChanged: false},
 				Resources: &sdkmcp.ResourceCapabilities{ListChanged: false},
 			},

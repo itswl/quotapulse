@@ -22,7 +22,7 @@ FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS ui
 ARG NPM_REGISTRY=https://registry.npmjs.org
 WORKDIR /ui
 COPY ui/package.json ui/package-lock.json* ./
-RUN npm config set registry "${NPM_REGISTRY}" && npm install --no-audit --no-fund
+RUN npm config set registry "${NPM_REGISTRY}" && npm ci --no-audit --no-fund
 COPY ui/ ./
 RUN npm run build
 

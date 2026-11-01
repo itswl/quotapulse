@@ -130,10 +130,14 @@ func TestCostsSummary(t *testing.T) {
 		}
 	}
 	// seed history with chosen timestamps straight into SQLite: deepseek
-	// spends 200 CNY, openrouter 20 USD this month
+	// spends 200 CNY, openrouter 20 USD this month. The bare datetime strings
+	// are read back as UTC by the sqlite driver, so the seeds are UTC instants:
+	// the month start lands exactly on the window edge, and the midpoint
+	// halfway to now is always inside (first, now) on any day of the month.
 	now := time.Now()
-	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	mid := first.AddDate(0, 0, 10)
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	first := monthStart.UTC()
+	mid := first.Add(now.UTC().Sub(first) / 2)
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)

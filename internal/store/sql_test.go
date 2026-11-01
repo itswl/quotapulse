@@ -13,14 +13,21 @@ import (
 	"github.com/itswl/quotapulse/internal/model"
 )
 
-// The six tables are cleared in dependency-free order so cases do not pollute each other.
+// Every table is cleared in dependency-free order so cases do not pollute each
+// other. On the shared mysql/postgres servers the same database serves the whole
+// run, so a table missing here leaks rows into the next case.
 var allTables = []string{
 	"balance_history",
 	"alert_history",
+	"usage_events",
 	"project_config",
 	"subscription_config",
+	"custom_provider_config",
 	"email_config",
 	"email_alert_history",
+	"email_suppressions",
+	"push_subscriptions",
+	"app_settings",
 }
 
 type backend struct {

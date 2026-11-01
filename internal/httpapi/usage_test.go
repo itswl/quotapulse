@@ -17,7 +17,7 @@ func TestUsageIngestRoundTrip(t *testing.T) {
 	}
 
 	// validation: bad source and empty entries are rejected field by field
-	got := post(`{"source":"Bad Source","entries":[{"date":"2026-10-15"}]}`)
+	got := post(`{"source":"Bad Source","entries":[{"date":"not-a-date"}]}`)
 	if got.code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", got.code, got.body)
 	}
@@ -27,10 +27,12 @@ func TestUsageIngestRoundTrip(t *testing.T) {
 		t.Fatalf("empty batch should be rejected: %d %s", got.code, got.body)
 	}
 
-	// a valid batch
+	// a valid batch; today's date keeps the cells inside the cost summary's
+	// month-to-date window on any day of the month
+	today := time.Now().Format("2006-01-02")
 	got = post(`{"source":"claude-code","project":"claude-code","entries":[
-		{"date":"2026-10-15","model":"claude-sonnet-4-5","cost":3.5,"currency":"USD","input_tokens":1000,"output_tokens":2000,"requests":10},
-		{"date":"2026-10-15","model":"claude-opus-4-6","cost":1.25,"input_tokens":500,"output_tokens":100,"requests":2}
+		{"date":"` + today + `","model":"claude-sonnet-4-5","cost":3.5,"currency":"USD","input_tokens":1000,"output_tokens":2000,"requests":10},
+		{"date":"` + today + `","model":"claude-opus-4-6","cost":1.25,"input_tokens":500,"output_tokens":100,"requests":2}
 	]}`)
 	if got.code != http.StatusOK {
 		t.Fatalf("ingest failed: %d %s", got.code, got.body)
@@ -38,7 +40,7 @@ func TestUsageIngestRoundTrip(t *testing.T) {
 
 	// re-reporting the same cell overwrites instead of accumulating
 	got = post(`{"source":"claude-code","entries":[
-		{"date":"2026-10-15","model":"claude-sonnet-4-5","cost":4.5,"currency":"USD","requests":12}
+		{"date":"` + today + `","model":"claude-sonnet-4-5","cost":4.5,"currency":"USD","requests":12}
 	]}`)
 	if got.code != http.StatusOK {
 		t.Fatalf("refresh failed: %d %s", got.code, got.body)
@@ -65,7 +67,7 @@ func TestUsageIngestRoundTrip(t *testing.T) {
 		t.Errorf("summary should carry the reported project: %s", got2.body)
 	}
 	// default project falls back to the source name
-	got = post(`{"source":"cron-job","entries":[{"date":"2026-10-15","model":"all","cost":0,"currency":"CNY"}]}`)
+	got = post(`{"source":"cron-job","entries":[{"date":"` + today + `","model":"all","cost":0,"currency":"CNY"}]}`)
 	if got.code != http.StatusOK {
 		t.Fatalf("zero-cost entry rejected: %d %s", got.code, got.body)
 	}

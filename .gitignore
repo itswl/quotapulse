@@ -20,6 +20,9 @@ logs/
 *.sqlite
 *.sqlite3
 
+# Some local test runs point TMPDIR here; the databases are throwaway
+internal/httpapi/tmp/
+
 # But test fixtures belong in the repo: the testdata database proves we can open
 # existing production data directly. Blocked by *.db above, the test would be green
 # locally and data-less in CI. It contains only fabricated data (AK:SK / sk-old / pw).

@@ -13,7 +13,9 @@ import (
 // The three engine adapters correspond line by line; change one, check the other two.
 type sqliteQuerier struct{ q *gen.Queries }
 
-func newSQLiteQuerier(db *sql.DB) querier { return sqliteQuerier{q: gen.New(db)} }
+// gen.DBTX accepts both a *sql.DB and a *sql.Tx, which is how UpsertUsageEvents
+// runs its batch on one transaction.
+func newSQLiteQuerier(db gen.DBTX) querier { return sqliteQuerier{q: gen.New(db)} }
 
 func (e sqliteQuerier) listProjectConfigs(ctx context.Context) ([]projectConfigRow, error) {
 	rows, err := e.q.ListProjectConfigs(ctx)

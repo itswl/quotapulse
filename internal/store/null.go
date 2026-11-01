@@ -27,9 +27,14 @@ func (nullStore) ListCustomProviders(context.Context) ([]model.CustomProvider, e
 func (nullStore) UpsertCustomProvider(context.Context, model.CustomProvider) error {
 	return ErrDisabled
 }
-func (nullStore) DeleteCustomProvider(context.Context, string) error              { return ErrDisabled }
-func (nullStore) UpsertUsageEvent(context.Context, model.UsageEntry) error        { return ErrDisabled }
-func (nullStore) ListUsageSpend(context.Context, string) ([]UsageSpend, error)    { return nil, nil }
+func (nullStore) DeleteCustomProvider(context.Context, string) error { return ErrDisabled }
+func (nullStore) UpsertUsageEvents(ctx context.Context, _ []model.UsageEntry) error {
+	return ErrDisabled
+}
+func (nullStore) ListUsageSpend(context.Context, string) ([]UsageSpend, error) { return nil, nil }
+func (nullStore) PruneHistoryBefore(context.Context, time.Time) (PruneCounts, error) {
+	return PruneCounts{}, nil
+}
 func (nullStore) ListSubscriptions(context.Context) ([]model.Subscription, error) { return nil, nil }
 func (nullStore) UpsertSubscription(context.Context, model.Subscription) error    { return ErrDisabled }
 func (nullStore) DeleteSubscription(context.Context, string) error                { return ErrDisabled }

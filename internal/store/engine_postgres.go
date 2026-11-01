@@ -13,7 +13,9 @@ import (
 // The three engine adapters correspond line by line; change one, check the other two.
 type postgresQuerier struct{ q *gen.Queries }
 
-func newPostgresQuerier(db *sql.DB) querier { return postgresQuerier{q: gen.New(db)} }
+// gen.DBTX accepts both a *sql.DB and a *sql.Tx, which is how UpsertUsageEvents
+// runs its batch on one transaction.
+func newPostgresQuerier(db gen.DBTX) querier { return postgresQuerier{q: gen.New(db)} }
 
 func (e postgresQuerier) listProjectConfigs(ctx context.Context) ([]projectConfigRow, error) {
 	rows, err := e.q.ListProjectConfigs(ctx)

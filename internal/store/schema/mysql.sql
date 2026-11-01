@@ -173,5 +173,6 @@ CREATE TABLE IF NOT EXISTS usage_events (
     requests INTEGER NOT NULL,
     updated_at DATETIME,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_usage_events_identity (source, project_name, entry_date, model)
+    UNIQUE KEY uq_usage_events_identity (source, project_name, entry_date, model),
+    KEY ix_usage_events_entry_date (entry_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

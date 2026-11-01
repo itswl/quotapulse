@@ -13,7 +13,9 @@ import (
 // The three engine adapters correspond line by line; change one, check the other two.
 type mysqlQuerier struct{ q *gen.Queries }
 
-func newMySQLQuerier(db *sql.DB) querier { return mysqlQuerier{q: gen.New(db)} }
+// gen.DBTX accepts both a *sql.DB and a *sql.Tx, which is how UpsertUsageEvents
+// runs its batch on one transaction.
+func newMySQLQuerier(db gen.DBTX) querier { return mysqlQuerier{q: gen.New(db)} }
 
 func (e mysqlQuerier) listProjectConfigs(ctx context.Context) ([]projectConfigRow, error) {
 	rows, err := e.q.ListProjectConfigs(ctx)

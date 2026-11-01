@@ -239,6 +239,19 @@ func (a *App) BuildTasks() []*scheduler.Task {
 		}
 	}
 
+	// History is append-only everywhere else; without this sweep the tables grow
+	// for as long as the deployment lives. Zero opts out.
+	if days := settings.HistoryRetentionDaysValue(); days > 0 {
+		tasks = append(tasks, &scheduler.Task{
+			Name:        "history_retention",
+			Description: fmt.Sprintf("Delete balance, alert, email, and usage history older than %s", model.Quantity(days, "day", "days")),
+			Interval:    24 * time.Hour,
+			Run: func(ctx context.Context) (any, error) {
+				return a.PruneHistory(ctx, days)
+			},
+		})
+	}
+
 	return tasks
 }
 
@@ -417,6 +430,24 @@ func (a *App) maybeEscalateJobFailure(result scheduler.Result) {
 	a.jobEscalated[result.Name] = true
 	a.jobFailMu.Unlock()
 	a.Log.Warn("Job failure escalation sent", "task", result.Name, "failures", count)
+}
+
+// PruneHistory drops history older than the retention window and reports what
+// went, per table, as the task's run detail.
+func (a *App) PruneHistory(ctx context.Context, days int) (any, error) {
+	if !a.Settings.EnableDatabase {
+		return nil, errors.New("database is disabled (ENABLE_DATABASE=false)")
+	}
+	counts, err := a.Store.PruneHistoryBefore(ctx, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return counts, err
+	}
+	if total := counts.Total(); total > 0 {
+		a.Log.Info("History pruned", "rows", total,
+			"balance", counts.BalanceHistory, "alerts", counts.AlertHistory,
+			"emails", counts.EmailHistory, "usage", counts.UsageEvents)
+	}
+	return counts, nil
 }
 
 // RunDatabaseBackup writes a verified SQLite snapshot and prunes old ones.

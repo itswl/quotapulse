@@ -1,7 +1,7 @@
--- SQLite Localized messageïLocalized messageVARCHAR/FLOAT/BOOLEAN/DATETIMEïLocalized messageïLocalized message
--- Localized message TEXT/REAL/INTEGERïLocalized messageSQLite Localized messageïLocalized message
--- Localized message DATETIME Localized message modernc.org/sqlite Localized message time.TimeïLocalized message
--- Localized messageïLocalized message CREATE ... IF NOT EXISTS Localized message
+-- SQLite Localized messageï¿½Localized messageVARCHAR/FLOAT/BOOLEAN/DATETIMEï¿½Localized messageï¿½Localized message
+-- Localized message TEXT/REAL/INTEGERï¿½Localized messageSQLite Localized messageï¿½Localized message
+-- Localized message DATETIME Localized message modernc.org/sqlite Localized message time.Timeï¿½Localized message
+-- Localized messageï¿½Localized message CREATE ... IF NOT EXISTS Localized message
 
 CREATE TABLE IF NOT EXISTS balance_history (
     id INTEGER NOT NULL,
@@ -179,3 +179,7 @@ CREATE TABLE IF NOT EXISTS usage_events (
     PRIMARY KEY (id),
     UNIQUE (source, project_name, entry_date, model)
 );
+
+-- The spend aggregate filters on entry_date; the identity key above starts
+-- with source, so the date range cannot use it.
+CREATE INDEX IF NOT EXISTS ix_usage_events_entry_date ON usage_events (entry_date);

@@ -16,22 +16,47 @@ import (
 // balance-derived spend. Rows are keyed by source+project+date+model, so
 // re-running a reporter is an idempotent refresh.
 
-// UpsertUsageEvent records one aggregated day/model cell; a repeat report of
-// the same cell overwrites it.
-func (s *sqlStore) UpsertUsageEvent(ctx context.Context, e model.UsageEntry) error {
+// UpsertUsageEvents records a batch of aggregated day/model cells atomically: a
+// repeat report of the same cells overwrites them, and a failure partway
+// through must not leave half a report stored. One transaction keeps the batch
+// all-or-nothing whatever the engine.
+func (s *sqlStore) UpsertUsageEvents(ctx context.Context, entries []model.UsageEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
 	now := time.Now().UTC()
-	return s.q.upsertUsageEvent(ctx, upsertUsageEventParams{
-		Source:       e.Source,
-		ProjectName:  e.Project,
-		EntryDate:    e.Date,
-		Model:        e.Model,
-		Cost:         e.Cost,
-		Currency:     e.Currency,
-		InputTokens:  e.InputTokens,
-		OutputTokens: e.OutputTokens,
-		Requests:     int32(e.Requests),
-		UpdatedAt:    nullTime(now),
-	})
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() // a no-op once Commit succeeded
+
+	var q querier
+	switch s.engine {
+	case EngineSQLite:
+		q = newSQLiteQuerier(tx)
+	case EnginePostgres:
+		q = newPostgresQuerier(tx)
+	default:
+		q = newMySQLQuerier(tx)
+	}
+	for _, e := range entries {
+		if err := q.upsertUsageEvent(ctx, upsertUsageEventParams{
+			Source:       e.Source,
+			ProjectName:  e.Project,
+			EntryDate:    e.Date,
+			Model:        e.Model,
+			Cost:         e.Cost,
+			Currency:     e.Currency,
+			InputTokens:  e.InputTokens,
+			OutputTokens: e.OutputTokens,
+			Requests:     int32(e.Requests),
+			UpdatedAt:    nullTime(now),
+		}); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // UsageSpend is one project's reported spend since a date.
