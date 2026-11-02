@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	_ "modernc.org/sqlite"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
@@ -594,4 +597,28 @@ func TestConcurrentUpdates(t *testing.T) {
 		t.Errorf("余额剩下 %d 条序列，期望 1", got)
 	}
 	mustContain(t, dump(t, reg), `quotapulse_job_runs_total{status="success",task="alert_check"} 8`)
+}
+
+// RegisterDBStats is a no-op without a database and exports the pool gauges
+// with one; a double registration must not panic the wiring.
+func TestRegisterDBStats(t *testing.T) {
+	reg := prometheus.NewPedanticRegistry()
+	c := New(reg)
+
+	c.RegisterDBStats(nil) // no database: nothing registers
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("sqlite driver unavailable: %v", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(20) // mirrors the pool store.Open configures
+	c.RegisterDBStats(db)
+	c.RegisterDBStats(db) // duplicate: ignored, not a panic
+
+	text := dump(t, reg)
+	mustContain(t, text,
+		`go_sql_max_open_connections{db_name="quotapulse"} 20`,
+		`go_sql_open_connections{db_name="quotapulse"} 0`,
+	)
 }

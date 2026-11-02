@@ -19,6 +19,7 @@ Set `ENABLE_PROMETHEUS=true` to expose `/metrics` on `METRICS_PORT` (default `91
 | `quotapulse_last_check_timestamp` | `check_type` | Last balance, subscription, or email check |
 | `quotapulse_http_requests_total` | `route`, `method`, `status` | Requests handled, keyed by the matched route pattern (`/api/credits`), never the raw path; unmatched requests collapse into `route="unmatched"` |
 | `quotapulse_http_request_duration_seconds` | `route`, `method` | Request latency histogram (5 ms to 10 s buckets) |
+| `go_sql_open_connections`, `_in_use_`, `_idle_`, `go_sql_max_open_connections` | `db_name` | database/sql pool occupancy — shows whether the pool limits are the right size; `increase(go_sql_wait_count_total[1h])` climbing means contention |
 
 When a project, subscription, or mailbox is renamed or deleted, obsolete gauge series are removed on the next update. The job label is `task`; Prometheus may rename it to `exported_job` to avoid its built-in `job` label.
 
@@ -34,6 +35,7 @@ HTTP series are counters: they reset to zero when the process restarts, which is
 - Email scanning: mailbox totals, failures, latest hits, details, and daily alert counts.
 - Jobs and notifications: failed jobs, recent sends and failures, job status, and notification types.
 - HTTP endpoints: request rate and p95 latency per route, plus 5xx share and latency totals.
+- Database pool: open, in-use, and idle connections from database/sql.
 
 Filters are `project`, `type`, `subscription`, and `mailbox`. Balance units differ between providers, so compare projects using the ratio panels.
 

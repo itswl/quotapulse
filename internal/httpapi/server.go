@@ -171,7 +171,32 @@ func (s *Server) Handler() http.Handler {
 	// dashboard static assets, last as the fallback
 	mux.Handle("GET /", s.assetHandler())
 
-	return s.withCORS(s.withAPIKey(s.withRecovery(mux)))
+	return s.withSecurityHeaders(s.withCORS(s.withAPIKey(s.withRecovery(mux))))
+}
+
+// contentSecurityPolicy is the dashboard's CSP. script-src has no 'unsafe-inline'
+// and no hashes: the only inline script (the theme bootstrap) was moved to
+// /static/theme.js so this stays strict. style-src keeps 'unsafe-inline' for
+// the handful of dynamically set style attributes (chart sizing, progress
+// bars). Everything else — fonts, icons, API, the service worker — is same-origin.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+	"img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; " +
+	"base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+
+// withSecurityHeaders sets the browser hardening headers on every response:
+// the CSP above, plus the basics — nosniff keeps content-type confusion from
+// turning a JSON error into script, frame-ancestors/X-Frame-Options block
+// embedding the dashboard elsewhere, and no-referrer keeps dashboard URLs
+// (which carry nothing sensitive, but still) out of other sites' logs.
+func (s *Server) withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // withAPIKey guards every /api/ path. Without WEB_API_KEY everything is 503:
@@ -391,7 +416,12 @@ func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
 		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		// ReadTimeout bounds the request body: only small JSON ever posts, so a
+		// slow-loris body gets no unlimited connection. There is deliberately no
+		// WriteTimeout: MCP's streamable-HTTP GET responses are long-lived SSE
+		// streams, and a write deadline would cut them off mid-stream.
+		ReadTimeout: 30 * time.Second,
+		IdleTimeout: 120 * time.Second,
 	}
 	go func() {
 		<-ctx.Done()

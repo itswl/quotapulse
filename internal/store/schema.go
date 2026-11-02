@@ -76,21 +76,35 @@ func splitStatements(script string) []string {
 	return out
 }
 
-// ensureIndexes adds indexes that deployments created before the index existed
-// are missing. The sqlite and postgres schema files carry CREATE INDEX IF NOT
-// EXISTS and cover themselves on every startup; MySQL has no such form and
-// keeps its indexes inline in CREATE TABLE, so existing tables get an
-// idempotent ALTER here — "duplicate key name" means it is already there.
+// ensureIndexes brings indexes that deployments created before the change are
+// missing, and drops ones that became redundant. The sqlite and postgres
+// schema files carry CREATE INDEX IF NOT EXISTS / DROP INDEX IF EXISTS and
+// cover themselves on every startup; MySQL has no such forms and keeps its
+// indexes inline in CREATE TABLE, so existing tables get idempotent ALTERs
+// here — "duplicate key name" means the index is already there, and
+// "check that column/key exists" means a drop found nothing to remove.
 func ensureIndexes(ctx context.Context, db *sql.DB, engine Engine) error {
 	if engine != EngineMySQL {
 		return nil
 	}
-	for _, stmt := range []string{
+	additions := []string{
 		"ALTER TABLE usage_events ADD INDEX ix_usage_events_entry_date (entry_date)",
-	} {
+	}
+	// Single-column indexes made redundant by a composite index whose leftmost
+	// column they repeat: MySQL serves those lookups from the composite, so the
+	// extra index only costs write amplification.
+	drops := []string{
+		"ALTER TABLE balance_history DROP INDEX ix_balance_history_project_id",
+		"ALTER TABLE balance_history DROP INDEX ix_balance_history_provider",
+		"ALTER TABLE alert_history DROP INDEX ix_alert_history_project_id",
+		"ALTER TABLE email_alert_history DROP INDEX ix_email_alert_history_mailbox",
+	}
+	for _, stmt := range append(additions, drops...) {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			msg := strings.ToLower(err.Error())
-			if strings.Contains(msg, "duplicate") || strings.Contains(msg, "already exists") {
+			if strings.Contains(msg, "duplicate") ||
+				strings.Contains(msg, "already exists") ||
+				strings.Contains(msg, "check that") {
 				continue
 			}
 			return fmt.Errorf("index migration(%.80s): %w", stmt, err)

@@ -9,23 +9,10 @@
     <meta name="theme-color" content="#f4f5f7">
     <!-- Apply the saved (or system) theme and language before the first paint so dark mode
          never flashes light and Chinese text gets Chinese glyphs from the first frame. The
-         language rule mirrors detectLocale() in ui/src/i18n/index.ts. -->
-    <script>
-        (function () {
-            try {
-                var theme = localStorage.getItem('theme');
-                if (theme !== 'dark' && theme !== 'light') {
-                    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                document.documentElement.setAttribute('data-theme', theme);
-                var locale = localStorage.getItem('locale');
-                if (locale !== 'en' && locale !== 'zh-CN') {
-                    locale = /^zh(?:[-_]|$)/i.test(navigator.language || '') ? 'zh-CN' : 'en';
-                }
-                document.documentElement.lang = locale;
-            } catch (error) { /* storage unavailable: fall back to the stylesheet default */ }
-        })();
-    </script>
+         script lives in its own file (src/theme.ts) so the server can send a strict CSP
+         without 'unsafe-inline'; it is loaded synchronously, unlike the deferred app.js.
+         The language rule mirrors detectLocale() in ui/src/i18n/index.ts. -->
+    <script src="/static/theme.js?v=__BUILD_ID__"></script>
         <link rel="manifest" href="/static/manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">

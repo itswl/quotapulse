@@ -3,6 +3,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -60,6 +61,13 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 	if err != nil {
 		return nil, err
 	}
+	// Pool diagnostics: go_sql_* series only exist when a real database is on.
+	// The one collector created here is reused for the app below; registering
+	// everything twice would panic on the default registry.
+	appMetrics := metrics.New(nil)
+	if pooled, ok := st.(interface{ SQLDB() *sql.DB }); ok {
+		appMetrics.RegisterDBStats(pooled.SQLDB())
+	}
 
 	httpClient := &http.Client{Timeout: time.Duration(settings.RequestTimeout) * time.Second}
 	notifier, err := notify.New(settings.WebhookURL, settings.WebhookType, settings.WebhookSource, httpClient)
@@ -77,7 +85,7 @@ func New(settings *config.Settings, log *slog.Logger, assets fs.FS) (*App, error
 		Store:    st,
 		Resolver: config.NewResolver(settings, st, log),
 		Notifier: notifier,
-		Metrics:  metrics.New(nil),
+		Metrics:  appMetrics,
 		State:    state.New(),
 	}
 

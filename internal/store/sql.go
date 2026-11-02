@@ -134,6 +134,12 @@ func Open(ctx context.Context, opts Options) (Store, error) {
 func (s *sqlStore) Enabled() bool { return true }
 func (s *sqlStore) Close() error  { return s.db.Close() }
 
+// SQLDB exposes the underlying pool for diagnostics (the go_sql_* metrics).
+// It is deliberately not on the Store interface: only the app wiring that
+// knows about metrics reaches for it, via an inline interface assertion, so
+// Null/Volatile carry no dead method.
+func (s *sqlStore) SQLDB() *sql.DB { return s.db }
+
 // ---------- Project config ----------
 
 func (s *sqlStore) ListProjects(ctx context.Context) ([]model.Project, error) {
@@ -394,6 +400,66 @@ func (s *sqlStore) BalanceSeries(ctx context.Context, days int) ([]model.Balance
 	return out, nil
 }
 
+// trendPointCap bounds the drawn series. Above it the chart is a few hundred
+// pixels wide anyway, so extra points only cost payload.
+const trendPointCap = 600
+
+// downsampleTrend shrinks a time-ascending series to at most ~trendPointCap
+// points while keeping its visual shape: the range is split into equal
+// buckets and each bucket contributes its minimum and maximum, in timestamp
+// order, plus the exact first and last points of the whole series. Every dip
+// and spike survives — unlike uniform sampling, which can skip a one-point
+// crash between two samples. At or below the cap the input is returned
+// unchanged.
+func downsampleTrend(points []TrendPoint) []TrendPoint {
+	if len(points) <= trendPointCap {
+		return points
+	}
+	buckets := trendPointCap / 2 // two survivors per bucket keep the total at the cap
+	out := make([]TrendPoint, 0, buckets*2+2)
+	add := func(p TrendPoint) {
+		if n := len(out); n > 0 && out[n-1].Timestamp == p.Timestamp {
+			return // bucket boundaries and the global endpoints can coincide
+		}
+		out = append(out, p)
+	}
+	add(points[0])
+	for i := 1; i < len(points); {
+		bucket := i * buckets / len(points)
+		// First index of the next bucket: ceil, so it matches the floor used
+		// for bucket itself and no bucket collapses into single points.
+		end := ((bucket+1)*len(points) + buckets - 1) / buckets
+		if end <= i {
+			end = i + 1
+		}
+		if end > len(points) {
+			end = len(points)
+		}
+		if end <= i+2 { // one or two points: nothing to elide
+			for j := i; j < end; j++ {
+				add(points[j])
+			}
+			i = end
+			continue
+		}
+		minIdx, maxIdx := i, i
+		for j := i; j < end; j++ {
+			switch {
+			case points[j].Balance < points[minIdx].Balance:
+				minIdx = j
+			case points[j].Balance > points[maxIdx].Balance:
+				maxIdx = j
+			}
+		}
+		lo, hi := min(minIdx, maxIdx), max(minIdx, maxIdx)
+		add(points[lo])
+		add(points[hi])
+		i = end
+	}
+	add(points[len(points)-1])
+	return out
+}
+
 func (s *sqlStore) BalanceHistory(ctx context.Context, q BalanceQuery) ([]BalanceRow, error) {
 	rows, err := s.q.listBalanceHistory(ctx,
 		since(q.Days, defaultBalanceDays), q.ProjectID, q.Provider, limitOf(q.Limit, defaultBalanceLimit))
@@ -453,7 +519,10 @@ func (s *sqlStore) BalanceTrend(ctx context.Context, projectID string, days int)
 		Threshold:      last.Threshold.Float64, // no threshold reads as 0 per the established API contract
 		FirstTimestamp: isoUTC(first.Timestamp),
 		LastTimestamp:  isoUTC(last.Timestamp),
-		History:        history,
+		// The summary above comes from every row; only the drawn series is
+		// downsampled, so a 365-day hourly history (8,760 points, and growing
+		// for as long as the deployment lives) cannot bloat the response.
+		History: downsampleTrend(history),
 	}
 	if len(rows) >= 2 {
 		change := last.Balance - first.Balance

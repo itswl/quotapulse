@@ -15,7 +15,7 @@ import {
   getSubscriptionsConfig,
   refresh as refreshApi,
 } from './api/endpoints.js';
-import type { SubscriptionsResponse } from './api/types.js';
+import type { CreditsResponse, SubscriptionsResponse } from './api/types.js';
 import { t } from './i18n/index.js';
 import { AppState } from './state.js';
 import { emptyState, loadErrorDetail } from './ui/empty.js';
@@ -68,10 +68,13 @@ async function loadDisabledItems(): Promise<void> {
  * a failing /api/credits must not leave the subscription view, its badge and its counters
  * empty, or the other way round. Each view renders from whatever arrived, and the first
  * failure is rethrown for the caller to report.
+ *
+ * creditsAlreadyStarted lets the caller overlap the credits fetch with the features
+ * fetch — they are independent, and features only gate the companion calls below.
  */
-export async function fetchAndRender(rebuildFilter = false): Promise<void> {
+export async function fetchAndRender(rebuildFilter = false, creditsAlreadyStarted?: Promise<CreditsResponse>): Promise<void> {
   const [balance, subscriptions] = await Promise.allSettled([
-    getCredits(),
+    creditsAlreadyStarted ?? getCredits(),
     AppState.features.subscriptions ? getSubscriptions() : Promise.resolve(NO_SUBSCRIPTIONS),
     loadDisabledItems(),
   ]);
@@ -120,7 +123,12 @@ export async function reloadSubscriptions(): Promise<void> {
 export async function loadData(): Promise<void> {
   try {
     setLoading(true);
-    await fetchAndRender(true);
+    // Fire the balance fetch before waiting on /api/features: the two are
+    // independent, and this cuts the first paint from two serial round trips
+    // to one. Everything feature-gated still waits for loadFeatures below.
+    const credits = getCredits();
+    await loadFeatures();
+    await fetchAndRender(true, credits);
   } catch (error) {
     console.error('Failed to load data:', error);
     showToast(t('load.failed_toast'), 'error');

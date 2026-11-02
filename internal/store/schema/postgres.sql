@@ -15,8 +15,10 @@ CREATE TABLE IF NOT EXISTS balance_history (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS ix_balance_history_project_id ON balance_history (project_id);
-CREATE INDEX IF NOT EXISTS ix_balance_history_provider ON balance_history (provider);
+-- Covered by the composite index; drop leftovers from older installs.
+DROP INDEX IF EXISTS ix_balance_history_project_id;
+-- Covered by the composite index; drop leftovers from older installs.
+DROP INDEX IF EXISTS ix_balance_history_provider;
 CREATE INDEX IF NOT EXISTS ix_balance_history_timestamp ON balance_history ("timestamp");
 CREATE INDEX IF NOT EXISTS idx_project_time ON balance_history (project_id, "timestamp");
 CREATE INDEX IF NOT EXISTS idx_provider_time ON balance_history (provider, "timestamp");
@@ -34,7 +36,8 @@ CREATE TABLE IF NOT EXISTS alert_history (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS ix_alert_history_project_id ON alert_history (project_id);
+-- Covered by the composite index; drop leftovers from older installs.
+DROP INDEX IF EXISTS ix_alert_history_project_id;
 CREATE INDEX IF NOT EXISTS ix_alert_history_alert_type ON alert_history (alert_type);
 CREATE INDEX IF NOT EXISTS ix_alert_history_timestamp ON alert_history ("timestamp");
 CREATE INDEX IF NOT EXISTS idx_project_type_time ON alert_history (project_id, alert_type, "timestamp");
@@ -108,7 +111,8 @@ CREATE TABLE IF NOT EXISTS email_alert_history (
     PRIMARY KEY (id)
 );
 
-CREATE INDEX IF NOT EXISTS ix_email_alert_history_mailbox ON email_alert_history (mailbox);
+-- Covered by the composite index; drop leftovers from older installs.
+DROP INDEX IF EXISTS ix_email_alert_history_mailbox;
 CREATE INDEX IF NOT EXISTS ix_email_alert_history_timestamp ON email_alert_history ("timestamp");
 CREATE INDEX IF NOT EXISTS idx_email_mailbox_time ON email_alert_history (mailbox, "timestamp");
 

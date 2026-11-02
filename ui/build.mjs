@@ -58,18 +58,19 @@ async function copyFontLicense() {
 
 /** Replace __BUILD_ID__ with a hash of the bundle; an unchanged bundle keeps its hash and the browser cache stays valid */
 async function emitHtml() {
-  const [js, css] = await Promise.all([
+  const [js, theme, css] = await Promise.all([
     readFile(join(staticDir, 'app.js')),
+    readFile(join(staticDir, 'theme.js')),
     readFile(join(staticDir, 'app.css')),
   ]);
-  const buildId = createHash('sha256').update(js).update(css).digest('hex').slice(0, 12);
+  const buildId = createHash('sha256').update(js).update(theme).update(css).digest('hex').slice(0, 12);
   const html = await readFile(join(root, 'index.html'), 'utf8');
   await writeFile(join(outdir, 'index.html'), html.replaceAll('__BUILD_ID__', buildId), 'utf8');
   return buildId;
 }
 
 async function reportSizes(buildId) {
-  const files = ['index.html', 'static/app.js', 'static/app.css', 'static/fonts/Geist-Variable.woff2', 'static/fonts/GeistMono-Variable.woff2', 'static/manifest.webmanifest', 'static/icons/icon-512.png'];
+  const files = ['index.html', 'static/app.js', 'static/theme.js', 'static/app.css', 'static/fonts/Geist-Variable.woff2', 'static/fonts/GeistMono-Variable.woff2', 'static/manifest.webmanifest', 'static/icons/icon-512.png'];
   const { gzipSync, brotliCompressSync } = await import('node:zlib');
   console.log(`\nBuild ID ${buildId}`);
   for (const file of files) {
@@ -92,6 +93,8 @@ async function buildApp() {
     entryPoints: [
       { in: resolve(root, 'src/main.ts'), out: 'app' },
       { in: resolve(root, 'src/styles/index.css'), out: 'app' },
+      // Standalone synchronous bootstrap; see src/theme.ts for why it is separate.
+      { in: resolve(root, 'src/theme.ts'), out: 'theme' },
     ],
     outdir: staticDir,
     minify: true,

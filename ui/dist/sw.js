@@ -5,6 +5,16 @@
 
 const RUNTIME_CACHE = 'quotapulse-runtime-v1';
 
+/* Drop caches from older service worker versions: bumping RUNTIME_CACHE above
+   must not leave the previous generation's assets on the client forever. */
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(names.filter((name) => name !== RUNTIME_CACHE).map((name) => caches.delete(name))),
+    ),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;

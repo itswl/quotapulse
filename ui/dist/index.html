@@ -9,23 +9,10 @@
     <meta name="theme-color" content="#f4f5f7">
     <!-- Apply the saved (or system) theme and language before the first paint so dark mode
          never flashes light and Chinese text gets Chinese glyphs from the first frame. The
-         language rule mirrors detectLocale() in ui/src/i18n/index.ts. -->
-    <script>
-        (function () {
-            try {
-                var theme = localStorage.getItem('theme');
-                if (theme !== 'dark' && theme !== 'light') {
-                    theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                document.documentElement.setAttribute('data-theme', theme);
-                var locale = localStorage.getItem('locale');
-                if (locale !== 'en' && locale !== 'zh-CN') {
-                    locale = /^zh(?:[-_]|$)/i.test(navigator.language || '') ? 'zh-CN' : 'en';
-                }
-                document.documentElement.lang = locale;
-            } catch (error) { /* storage unavailable: fall back to the stylesheet default */ }
-        })();
-    </script>
+         script lives in its own file (src/theme.ts) so the server can send a strict CSP
+         without 'unsafe-inline'; it is loaded synchronously, unlike the deferred app.js.
+         The language rule mirrors detectLocale() in ui/src/i18n/index.ts. -->
+    <script src="/static/theme.js?v=b3d62218233e"></script>
         <link rel="manifest" href="/static/manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
@@ -34,7 +21,7 @@
     <meta name="apple-mobile-web-app-title" content="QuotaPulse">
     <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=fbcc91194dc9">
+    <link rel="stylesheet" href="/static/app.css?v=b3d62218233e">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><linearGradient id='c' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a3b8fc'/><stop offset='1' stop-color='%235878ef'/></linearGradient></defs><rect width='24' height='24' rx='6.5' fill='%2315171b'/><g transform='translate(2.4 2.4) scale(.8)'><circle cx='12' cy='12' r='8.8' fill='url(%23c)'/><path d='M1.5 12.2H8.55L10.45 7.6L13.55 16.9L15.45 12.2H22.5' fill='none' stroke='%2315171b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/></g></svg>">
 </head>
 <body>
@@ -739,7 +726,7 @@
     </div>
 
     <!-- The dashboard is embedded in the binary; trend charts use the built-in canvas renderer -->
-    <script defer src="/static/app.js?v=fbcc91194dc9"></script>
+    <script defer src="/static/app.js?v=b3d62218233e"></script>
     <!-- Custom provider management -->
     <div id="custom-provider-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="custom-provider-modal-title">
         <div class="modal-content">

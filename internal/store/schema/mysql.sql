@@ -15,8 +15,6 @@ CREATE TABLE IF NOT EXISTS balance_history (
     need_alarm BOOLEAN,
     `timestamp` DATETIME,
     PRIMARY KEY (id),
-    KEY ix_balance_history_project_id (project_id),
-    KEY ix_balance_history_provider (provider),
     KEY ix_balance_history_timestamp (`timestamp`),
     KEY idx_project_time (project_id, `timestamp`),
     KEY idx_provider_time (provider, `timestamp`)
@@ -33,7 +31,6 @@ CREATE TABLE IF NOT EXISTS alert_history (
     threshold_value DOUBLE,
     `timestamp` DATETIME,
     PRIMARY KEY (id),
-    KEY ix_alert_history_project_id (project_id),
     KEY ix_alert_history_alert_type (alert_type),
     KEY ix_alert_history_timestamp (`timestamp`),
     KEY idx_project_type_time (project_id, alert_type, `timestamp`)
@@ -104,7 +101,6 @@ CREATE TABLE IF NOT EXISTS email_alert_history (
     alert_sent BOOLEAN,
     `timestamp` DATETIME,
     PRIMARY KEY (id),
-    KEY ix_email_alert_history_mailbox (mailbox),
     KEY ix_email_alert_history_timestamp (`timestamp`),
     KEY idx_email_mailbox_time (mailbox, `timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -162,7 +162,7 @@ Runway fields are present only when `ENABLE_DATABASE` is enabled and enough hist
 
 ### `GET /api/history/trend/<project_id>`
 
-`project_id` is the `md5("provider:name")` identity, or the raw `provider:name` (URL-encoded). Fewer than two points yield no `change` fields.
+`project_id` is the `md5("provider:name")` identity, or the raw `provider:name` (URL-encoded). Fewer than two points yield no `change` fields. Long windows are downsampled server-side: `history` keeps at most ~600 points (per-bucket minimum and maximum, so spikes survive), while the summary fields (`points`, min/max/avg) always cover every stored snapshot.
 
 ```json
 {

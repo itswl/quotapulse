@@ -11,11 +11,13 @@
 package metrics
 
 import (
+	"database/sql"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -102,7 +104,8 @@ type Collector struct {
 	httpRequests *prometheus.CounterVec
 	httpDuration *prometheus.HistogramVec
 
-	gatherer prometheus.Gatherer
+	gatherer   prometheus.Gatherer
+	registerer prometheus.Registerer
 
 	// The Vecs are concurrency-safe; this lock only guards the series registry
 	// below: the scheduler thread and HTTP handlers both update, and the registry
@@ -186,7 +189,21 @@ func New(reg prometheus.Registerer) *Collector {
 	} else {
 		c.gatherer = prometheus.DefaultGatherer
 	}
+	c.registerer = reg
 	return c
+}
+
+// RegisterDBStats exports the database/sql pool statistics — max/open/in-use/idle
+// connections, waits, and lifetime closes — as go_sql_* series with db_name="quotapulse".
+// They show whether the pool limits configured in store.Open are the right size:
+// sustained in_use == max or climbing wait counters mean contention, a flat idle
+// pool with no waits means the limits are generous. A nil db (no database) or a
+// double registration is a no-op, so it is safe to call unconditionally at wiring.
+func (c *Collector) RegisterDBStats(db *sql.DB) {
+	if c.registerer == nil || db == nil {
+		return
+	}
+	_ = c.registerer.Register(collectors.NewDBStatsCollector(db, "quotapulse"))
 }
 
 // Handler exposes /metrics.
