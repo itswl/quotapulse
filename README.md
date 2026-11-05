@@ -12,23 +12,9 @@ See [docs/overview.md](docs/overview.md) for a screenshot tour of the dashboard,
 
 Demo data only, rendered from the real dashboard on a pinned clock by `node ui/scripts/docs-screenshots.mjs` — no real accounts, keys, or mailboxes.
 
-<p align="center">
-  <img src="docs/images/dashboard-light.png" alt="Project dashboard with runway estimates, light theme" width="100%">
-</p>
+![Project dashboard with runway estimates, light theme](docs/images/dashboard-light.png)
 
-<p align="center">
-  <img src="docs/images/dashboard-dark.png" alt="Project dashboard, dark theme" width="100%">
-</p>
-
-<p align="center">
-  <img src="docs/images/trend-modal.png" alt="30-day balance trend with projection" width="78%">
-</p>
-
-<p align="center">
-  <img src="docs/images/mobile.png" alt="Mobile layout" width="26%">
-</p>
-
-Subscriptions, email scanning, the list view, and the empty and failure states are in [docs/overview.md](docs/overview.md).
+Dark theme, the phone layout, subscriptions, email scanning, and the remaining states are in [docs/overview.md](docs/overview.md).
 
 ## Quick start
 
