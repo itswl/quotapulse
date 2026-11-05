@@ -8,6 +8,28 @@
 
 界面与各功能的截图速览见 [docs/overview.md](docs/overview.md)，图标系统说明见 [docs/icons.md](docs/icons.md)。
 
+## 截图
+
+全部为演示数据，由 `node ui/scripts/docs-screenshots.mjs` 用固定时钟从真实看板渲染——不含任何真实账户、密钥或邮箱。
+
+<p align="center">
+  <img src="docs/images/dashboard-light.png" alt="项目看板：跑道估算与余额，浅色主题" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-dark.png" alt="项目看板，深色主题" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/images/trend-modal.png" alt="30 天余额趋势与消耗预测" width="78%">
+</p>
+
+<p align="center">
+  <img src="docs/images/mobile.png" alt="手机布局" width="26%">
+</p>
+
+订阅、邮箱扫描、列表视图以及空状态和失败状态见 [docs/overview.md](docs/overview.md)。
+
 ## 快速开始
 
 ```bash

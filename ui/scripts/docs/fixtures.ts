@@ -16,6 +16,7 @@
 
 import type {
   CheckResult,
+  CostsSummaryResponse,
   CreditsResponse,
   EmailAlert,
   EmailAlertRecord,
@@ -207,12 +208,61 @@ export function trend(id: string): TrendResponse | null {
   };
 }
 
+/* /api/costs/summary: month-to-date spend measured from the same series, plus one
+ * usage-reported project (the Claude Code reporter path). Amounts track the burn
+ * rates above over 29 elapsed days of September; USD converts at 7.16 like the
+ * FX example in the README, and the openrouter budget is over its projection so
+ * the cost tile and breakdown show the over-budget state. */
+export function costs(empty = false): CostsSummaryResponse {
+  const fx = 7.16;
+  const daysElapsed = 29;
+  const daysInMonth = 30;
+  const spend = (native: number, currency: 'CNY' | 'USD') =>
+    currency === 'CNY' ? round(native, 2) : round(native * fx, 2);
+  const rows: Array<[string, string, 'CNY' | 'USD' | null, number, number | undefined]> = empty
+    ? []
+    : [
+        ['deepseek-prod', 'deepseek', 'CNY', 62.5 * daysElapsed - 800 + 62.5 * 9, undefined],
+        ['openrouter-main', 'openrouter', 'USD', 31.2 * daysElapsed, 800],
+        ['volc-1', 'volc', 'CNY', 15.3 * daysElapsed - 250 + 15.3 * 11, undefined],
+        ['uniapi-batch', 'uniapi', 'USD', 6.9 * daysElapsed, undefined],
+        ['tikhub-scraper', 'tikhub', 'CNY', 12.1 * daysElapsed, undefined],
+        ['claude-code', 'usage:claude-code', 'USD', 41.2, undefined],
+        ['glm-coding', 'glm', null, 0, undefined],
+        ['aliyun-ops', 'aliyun', null, 0, undefined],
+      ];
+  const projects = rows.map(([project, provider, currency, native, budget]) => ({
+    project,
+    provider,
+    currency,
+    spend: round(native, 2),
+    spend_base: currency ? spend(native, currency) : 0,
+    ...(budget !== undefined ? { budget } : {}),
+    projected: round((native / daysElapsed) * daysInMonth, 2),
+    over_budget: budget !== undefined && (native / daysElapsed) * daysInMonth > budget,
+  }));
+  return {
+    status: 'success',
+    summary: {
+      month: '2026-09',
+      base_currency: 'CNY',
+      days_elapsed: daysElapsed,
+      days_in_month: daysInMonth,
+      projects,
+      total_base: round(projects.reduce((sum, p) => sum + p.spend_base, 0), 2),
+    },
+  };
+}
+
+const MONTHLY_BUDGETS: Record<string, number> = { 'openrouter-main': 800 };
+
 export function projectsConfig(empty = false): ProjectConfig[] {
   return empty
     ? []
     : PROJECTS.map((p) => ({
         name: p.name, provider: p.provider, api_key: '********', threshold: p.threshold,
         type: p.type, owner_project: p.owner, enabled: true,
+        ...(MONTHLY_BUDGETS[p.name] !== undefined ? { monthly_budget: MONTHLY_BUDGETS[p.name] } : {}),
       }));
 }
 
@@ -341,10 +391,10 @@ const ALERTS: EmailAlert[] = [
   },
   {
     mailbox: 'Ops mailbox',
-    subject: '【DeepSeek】余额不足提醒',
+    subject: '[DeepSeek] Low balance reminder',
     sender: 'DeepSeek <noreply@deepseek.com>',
     date: 'Mon, 28 Sep 2026 16:05:12 +0800',
-    keywords: ['余额不足'],
+    keywords: ['low balance'],
     service_name: 'DeepSeek',
     amount: 98.5,
     alert_sent: false,
@@ -381,8 +431,8 @@ export function emailHistory(empty = false): EmailAlertRecord[] {
     },
     {
       id: 9, mailbox: 'Ops mailbox', sender: 'DeepSeek <noreply@deepseek.com>',
-      subject: '【DeepSeek】余额不足提醒', date: 'Mon, 28 Sep 2026 16:05:12 +0800',
-      service_name: 'DeepSeek', amount: 98.5, matched_keywords: ['余额不足'], alert_sent: true,
+      subject: '[DeepSeek] Low balance reminder', date: 'Mon, 28 Sep 2026 16:05:12 +0800',
+      service_name: 'DeepSeek', amount: 98.5, matched_keywords: ['low balance'], alert_sent: true,
       timestamp: isoZ(NOW - 18 * HOUR),
     },
   ];

@@ -47,6 +47,7 @@ const list = (data) => ({ status: 'success', count: data.length, data });
 function api(path, empty) {
   if (path === '/api/features') return demo.features();
   if (path === '/api/credits') return demo.credits(empty);
+  if (path === '/api/costs/summary') return demo.costs(empty);
   if (path === '/api/subscriptions') return demo.subscriptions(empty);
   if (path === '/api/config/subscriptions') return { status: 'success', subscriptions: demo.subscriptionsConfig(empty) };
   if (path === '/api/config/projects') return { status: 'success', projects: demo.projectsConfig(empty) };
@@ -95,7 +96,6 @@ const SHOTS = {
   'dashboard-light': { theme: 'light', full: true },
   'dashboard-dark': { theme: 'dark', full: true },
   'project-list': { theme: 'light', full: true, list: true },
-  'dashboard-zh-CN': { theme: 'light', full: true, locale: 'zh-CN' },
   subscriptions: { theme: 'dark', full: true, view: '#view-subscriptions-btn' },
   'email-scanning': { theme: 'light', full: true, view: '#view-email-btn' },
   'trend-modal': { theme: 'dark', run: openTrend },
@@ -143,7 +143,9 @@ async function shoot(browser, name, spec) {
         }
       }
       globalThis.Date = PinnedDate;
-      localStorage.setItem('apiKey', 'demo');
+      // The dashboard trades the key for an HttpOnly cookie, so no credential is
+      // stored here: the demo server simply never answers 401, which is what
+      // keeps the key prompt out of every shot.
       localStorage.setItem('theme', theme);
       localStorage.setItem('projectViewStyle', list ? 'list' : 'grid');
       // Pin the language too: headless Chrome inherits the machine's, which would turn

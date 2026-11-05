@@ -127,6 +127,10 @@ export async function loadData(): Promise<void> {
     // independent, and this cuts the first paint from two serial round trips
     // to one. Everything feature-gated still waits for loadFeatures below.
     const credits = getCredits();
+    // A fast failure (offline, 5xx) would reject before fetchAndRender's
+    // allSettled attaches below; this no-op handler keeps the gap from
+    // surfacing as an uncaught rejection in the console.
+    credits.catch(() => {});
     await loadFeatures();
     await fetchAndRender(true, credits);
   } catch (error) {
