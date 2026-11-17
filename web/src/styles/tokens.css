@@ -1,0 +1,148 @@
+/* Design tokens. Every colour, size and radius in the dashboard comes from
+   here; a component that needs a new one adds it here, in both themes.
+
+   Light is on :root, dark on [data-theme="dark"]. The attribute is always
+   set before the first paint (src/theme-boot.ts), so there is no media query:
+   following the system is the script's job.
+
+   Text contrast, checked against WCAG AA (4.5:1) on bg, surface and
+   surface-2 alike: text, text-2, text-3, accent, ok, warning, critical and
+   info all pass in both themes. --text-disabled does not, by design: use it
+   only for disabled controls and decoration. */
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  /* surfaces and lines */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f5;
+  --border: #e3e6ea;
+  --border-strong: #cfd4da;
+  /* the edge of a form control: 3:1 against every surface */
+  --border-control: #888c91;
+
+  /* text */
+  --text: #15171b;
+  --text-2: #4b525c;
+  --text-3: #696e77;
+  --text-disabled: #8b929c;
+
+  /* the one accent */
+  --accent: #2f5bea;
+  --accent-hover: #2449c7;
+  --accent-weak: #eaf0ff;
+  --on-accent: #ffffff;
+
+  /* meaning: each is text on its own tint, and a mark on any surface */
+  --ok: #117c59;
+  --ok-bg: #e3f5ee;
+  --warning: #b25209;
+  --warning-bg: #fdf1dc;
+  --critical: #c93434;
+  --critical-bg: #fdecec;
+  --info: #2562e9;
+  --info-bg: #e8f0fe;
+
+  /* charts: one series colour (validated for its lightness band and for 3:1
+     on the surface), and furniture one step off the surface */
+  --chart-1: #2f5bea;
+  --chart-grid: #eceef1;
+  --chart-axis: #cfd4da;
+
+  --overlay: rgb(15 17 20 / 0.4);
+  --shadow-float: 0 1px 2px rgb(15 17 20 / 0.06), 0 8px 24px rgb(15 17 20 / 0.1);
+
+  /* type */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-20: 1.25rem;
+  --fs-28: 1.75rem;
+  --fs-40: 2.5rem;
+
+  /* space, on a 4px grid */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* radii */
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 14px;
+
+  /* layout */
+  --content-max: 1200px;
+  --rail: 216px;
+  --rail-compact: 64px;
+  --tabbar: 56px;
+  --control: 32px;
+  --control-sm: 28px;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f1114;
+  --surface: #171a1f;
+  --surface-2: #1e2228;
+  --border: #272c33;
+  --border-strong: #363c45;
+  --border-control: #676c73;
+
+  --text: #eceef1;
+  --text-2: #a3aab4;
+  --text-3: #838a94;
+  --text-disabled: #6f7782;
+
+  --accent: #7c9cff;
+  --accent-hover: #96b0ff;
+  --accent-weak: #1c2647;
+  --on-accent: #0f1114;
+
+  --ok: #3ecf98;
+  --ok-bg: #12281f;
+  --warning: #f2a93b;
+  --warning-bg: #2e2210;
+  --critical: #f26d6d;
+  --critical-bg: #301616;
+  --info: #6ea8ff;
+  --info-bg: #152238;
+
+  /* the accent is too light for a mark on a dark surface; this is the same
+     hue a step darker, inside the dark lightness band */
+  --chart-1: #6a8bfb;
+  --chart-grid: #20252b;
+  --chart-axis: #363c45;
+
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+}

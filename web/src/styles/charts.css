@@ -1,0 +1,426 @@
+/* The charts (src/charts). Marks take the series colour; text stays in text
+   colours; grid and axes sit one step off the surface. */
+
+/* ---------- Sparkline ---------- */
+
+.spark {
+  display: block;
+  padding: 4px 5px 4px 0;
+  --spark-dot: var(--chart-1);
+}
+
+.spark--warning {
+  --spark-dot: var(--warning);
+}
+
+.spark--critical {
+  --spark-dot: var(--critical);
+}
+
+.spark--neutral {
+  --spark-dot: var(--text-disabled);
+}
+
+.spark__plot {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spark svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The line is quiet on purpose: on a card the number is the message, and
+   the dot says where things stand now. */
+.spark__line {
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* the area under the line fades out towards the floor */
+.spark__fade-top {
+  stop-color: var(--text-3);
+  stop-opacity: 0.2;
+}
+
+.spark__fade-bottom {
+  stop-color: var(--text-3);
+  stop-opacity: 0;
+}
+
+.spark__dot {
+  position: absolute;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--spark-dot);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* ---------- QuotaBar, BudgetBar ---------- */
+
+.meterbar {
+  display: block;
+  overflow: visible;
+  --bar: var(--chart-1);
+  --bar-track: var(--accent-weak);
+}
+
+.meterbar--warning {
+  --bar: var(--warning);
+  --bar-track: var(--warning-bg);
+}
+
+.meterbar--critical {
+  --bar: var(--critical);
+  --bar-track: var(--critical-bg);
+}
+
+.meterbar--neutral {
+  --bar: var(--text-disabled);
+  --bar-track: var(--surface-2);
+}
+
+/* room past the end for the arrows that say "it runs on" */
+.meterbar--beyond {
+  width: calc(100% - 18px);
+  margin-right: 18px;
+}
+
+.meterbar__track {
+  fill: var(--bar-track);
+}
+
+.meterbar__fill {
+  fill: var(--bar);
+}
+
+.meterbar__tick {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.meterbar__tick-ring {
+  stroke: var(--surface);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.meterbar__beyond {
+  fill: none;
+  stroke: var(--bar);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- ChartFrame ---------- */
+
+.chart-frame {
+  min-width: 0;
+}
+
+.chart-frame__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-4);
+  min-height: var(--control-sm);
+  margin-bottom: var(--s-2);
+}
+
+.chart-frame__title {
+  font-size: var(--fs-14);
+}
+
+.chart-frame__toggle {
+  margin-left: auto;
+}
+
+.chart-frame__body {
+  transition: opacity 0.15s var(--ease);
+}
+
+/* newer data is on its way: hold the frame, do not blank it */
+.chart-frame__body--refreshing {
+  opacity: 0.45;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-4);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* each key mirrors the mark it explains */
+.chart-legend__key {
+  flex: none;
+  width: 14px;
+  height: 0;
+  border-top: 2px solid var(--chart-1);
+}
+
+.chart-legend__key--projection {
+  border-top-style: dashed;
+  opacity: 0.75;
+}
+
+.chart-legend__key--threshold {
+  border-top: 1px dashed var(--critical);
+}
+
+.chart-legend__key--marker {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chart-1);
+}
+
+.chart-legend__key--bar,
+.chart-legend__key--bar-partial {
+  width: 8px;
+  height: 10px;
+  border: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--chart-1);
+}
+
+.chart-legend__key--bar-partial {
+  background: color-mix(in oklab, var(--chart-1) 42%, var(--surface));
+}
+
+/* ---------- LineChart, BarChart ---------- */
+
+.chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.chart svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.chart__gridline {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart__baseline,
+.chart__tick {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart__label {
+  fill: var(--text-3);
+  font-size: 0.6875rem;
+}
+
+.chart__label.num {
+  letter-spacing: 0;
+}
+
+/* a note on the plot: readable over whatever it crosses */
+.chart__note {
+  fill: var(--text-2);
+  font-size: 0.6875rem;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.chart__line {
+  fill: none;
+  stroke: var(--chart-1);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart__area {
+  fill: var(--chart-1);
+  opacity: 0.1;
+}
+
+.chart__projection {
+  stroke: var(--chart-1);
+  stroke-width: 2;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.chart__threshold {
+  stroke: var(--critical);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  shape-rendering: crispEdges;
+}
+
+.chart__marker,
+.chart__end,
+.chart__focus {
+  fill: var(--chart-1);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart__focus--projected {
+  fill: var(--surface);
+  stroke: var(--chart-1);
+}
+
+.chart__crosshair {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart__bar {
+  fill: var(--chart-1);
+}
+
+.chart__bar--partial {
+  fill: color-mix(in oklab, var(--chart-1) 42%, var(--surface));
+}
+
+.chart__band {
+  fill: var(--surface-2);
+}
+
+/* The hit area lies over the plot and takes the pointer, touch and keys. */
+.chart__hit {
+  position: absolute;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart__hit:focus-visible {
+  outline-offset: 4px;
+}
+
+.chart-tip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-12);
+  line-height: 1.4;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.chart-tip--start {
+  transform: translate(-12px, calc(-100% - 12px));
+}
+
+.chart-tip--end {
+  transform: translate(calc(-100% + 12px), calc(-100% - 12px));
+}
+
+.chart-tip--below {
+  transform: translate(-50%, 14px);
+}
+
+.chart-tip--below.chart-tip--start {
+  transform: translate(-12px, 14px);
+}
+
+.chart-tip--below.chart-tip--end {
+  transform: translate(calc(-100% + 12px), 14px);
+}
+
+/* the value leads; what it belongs to follows */
+.chart-tip__value {
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.chart-tip__tag,
+.chart-tip__when {
+  color: var(--text-2);
+}
+
+.chart-tip__note {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ---------- the table view ---------- */
+
+.chart-table {
+  max-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  overflow: auto;
+}
+
+.chart-table table {
+  width: 100%;
+  font-size: var(--fs-13);
+}
+
+.chart-table th,
+.chart-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.chart-table tbody tr:last-child th,
+.chart-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.chart-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.chart-table tbody th {
+  font-weight: 400;
+}
+
+.chart-table__num {
+  text-align: right;
+}

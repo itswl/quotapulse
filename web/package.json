@@ -1,0 +1,23 @@
+{
+  "name": "quotapulse-web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The QuotaPulse dashboard.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
+    "test": "node build.mjs --test"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "lucide-preact": "^1.73.0",
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,585 @@
+/* The Spend page (src/pages/spend): the month switcher, the headline, the
+   days and the six months, the meters table and the renewals. */
+
+/* ---------- the month switcher ---------- */
+
+.sp-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.sp-switch__month {
+  min-width: 8.5em;
+  padding: 0 var(--s-1);
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* another month is on its way: hold the frame, do not blank it */
+.sp {
+  transition: opacity 0.15s var(--ease);
+}
+
+.sp--refreshing {
+  opacity: 0.45;
+}
+
+.sp-note {
+  margin-bottom: var(--s-3);
+}
+
+.sp-loading {
+  margin-top: var(--s-8);
+}
+
+/* ---------- the headline ---------- */
+
+.sp-head__groups {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+/* a month that is over has one metered figure, not two */
+.sp-head__groups--past {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sp-group {
+  min-width: 0;
+}
+
+.sp-group--fixed {
+  padding-left: var(--s-6);
+  border-left: 1px solid var(--border);
+}
+
+.sp-group__label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  font-weight: 500;
+}
+
+.sp-figures {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s-6);
+  margin-top: var(--s-1);
+}
+
+.sp-figure {
+  min-width: 0;
+}
+
+.sp-figure dt {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.sp-figure dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sp-figure__value {
+  position: relative;
+  display: inline-block;
+  font-size: var(--fs-28);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.sp-figure__sub {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  text-wrap: balance;
+}
+
+/* "so far → by the end": the arrow sits in the gap before the second number */
+.sp-figure--next .sp-figure__value::before {
+  content: '→';
+  content: '→' / '';
+  position: absolute;
+  top: 0;
+  right: 100%;
+  margin-right: var(--s-3);
+  color: var(--text-disabled);
+  font-family: var(--font-sans);
+  font-size: var(--fs-20);
+  font-weight: 400;
+  line-height: calc(var(--fs-28) * 1.3);
+}
+
+.sp-head__note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.sp-head__sum {
+  color: var(--text-2);
+}
+
+.sp-head__sum .num {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ---------- the days of the month, and the six months ---------- */
+
+.sp-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+/* the six months on their own, under an empty month */
+.sp-charts--alone {
+  grid-template-columns: minmax(0, 420px);
+  justify-content: center;
+  margin-top: 0;
+}
+
+.sp-history {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-history__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  min-height: var(--control-sm);
+  margin-bottom: var(--s-2);
+}
+
+.sp-history__title {
+  font-size: var(--fs-14);
+}
+
+.sp-history__meta {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.sp-history__bars {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  min-height: 150px;
+}
+
+.sp-history__bars > li {
+  display: flex;
+  min-width: 0;
+}
+
+/* one month: its amount, its bar, its name — and all of it a link */
+.sp-month {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  transition: background-color 0.12s var(--ease);
+}
+
+.sp-month:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.sp-month__amount {
+  color: var(--text-3);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.sp-month__plot {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 28px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--chart-axis);
+}
+
+.sp-month__bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--chart-1);
+}
+
+/* not spent yet: the same lighter tone as a day that is not over */
+.sp-month__bar--heading {
+  background: color-mix(in oklab, var(--chart-1) 42%, var(--surface));
+}
+
+.sp-month__name {
+  padding: 0 2px 2px;
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+/* the month on screen: heavier and underlined, not just another colour */
+.sp-month[aria-current='true'] .sp-month__name {
+  box-shadow: 0 2px 0 var(--text);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sp-history__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+/* ---------- by meter ---------- */
+
+.sp-table {
+  width: 100%;
+}
+
+.sp-table th,
+.sp-table td {
+  padding: 10px var(--s-4);
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.sp-table thead th {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-top: 0;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+/* the name takes what the numbers leave, and is cut short when that is
+   not enough */
+.sp-table tbody th {
+  width: 40%;
+  max-width: 0;
+  font-weight: 500;
+}
+
+.sp-table__name {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-table .sp-table__num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* an amount in its own unit, and under it the same in the base currency */
+.sp-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sp-approx {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.sp-table__budget {
+  width: 28%;
+  min-width: 200px;
+}
+
+.sp-budget {
+  min-width: 0;
+}
+
+.sp-budget__line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.sp-budget__state {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sp-budget__state--warning {
+  color: var(--warning);
+}
+
+.sp-budget__state--critical {
+  color: var(--critical);
+}
+
+.sp-table tfoot th,
+.sp-table tfoot td {
+  border-top-color: var(--border-strong);
+  font-weight: 500;
+}
+
+.sp-table tfoot th {
+  color: var(--text-2);
+}
+
+/* ---------- renewals ---------- */
+
+/* One grid for the whole list; each row borrows its columns (subgrid), so
+   the amounts and the chips line up down the page. */
+.sp-renewals {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto auto;
+  column-gap: var(--s-4);
+}
+
+.sp-renewal {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 10px var(--s-4);
+}
+
+.sp-renewal + .sp-renewal {
+  border-top: 1px solid var(--border);
+}
+
+.sp-renewal__date {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.sp-renewal__day {
+  font-size: var(--fs-20);
+  font-weight: 500;
+}
+
+.sp-renewal__month {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.sp-renewal__title {
+  font-weight: 500;
+}
+
+.sp-renewal__amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.sp-renewal__when {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 4.5em;
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+/* ---------- narrower screens ---------- */
+
+@media (max-width: 959px) {
+  .sp-figure__value {
+    font-size: var(--fs-20);
+  }
+
+  .sp-figure--next .sp-figure__value::before {
+    font-size: var(--fs-16);
+    line-height: calc(var(--fs-20) * 1.3);
+  }
+
+  .sp-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 719px) {
+  /* the three figures as rows: name on the left, number on the right */
+  .sp-head__groups,
+  .sp-head__groups--past {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+
+  .sp-group--fixed {
+    padding: var(--s-3) 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .sp-figures {
+    grid-auto-flow: row;
+    gap: var(--s-2);
+  }
+
+  .sp-figure {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+
+  .sp-figure dd {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .sp-figure--next .sp-figure__value::before {
+    content: none;
+  }
+
+  /* the table's rows as blocks: the name, then each number beside the name
+     of its column */
+  .sp-table,
+  .sp-table tbody,
+  .sp-table tfoot,
+  .sp-table tr,
+  .sp-table th,
+  .sp-table td {
+    display: block;
+  }
+
+  .sp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .sp-table tr {
+    padding: 12px var(--s-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .sp-table tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .sp-table tfoot tr {
+    border-top-color: var(--border-strong);
+  }
+
+  .sp-table th,
+  .sp-table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .sp-table tbody th,
+  .sp-table tfoot th {
+    width: auto;
+    max-width: none;
+    margin-bottom: 6px;
+  }
+
+  .sp-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: 3px 0;
+  }
+
+  .sp-table td::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--text-2);
+    font-size: var(--fs-13);
+    text-align: left;
+  }
+
+  .sp-table td:empty {
+    display: none;
+  }
+
+  .sp-table__budget {
+    width: auto;
+    min-width: 0;
+  }
+
+  .sp-budget {
+    flex: 0 1 62%;
+  }
+
+  .sp-renewals {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    column-gap: var(--s-3);
+  }
+
+  .sp-renewal {
+    row-gap: 2px;
+  }
+
+  .sp-renewal__date {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  .sp-renewal__title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sp-renewal__when {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .sp-renewal__when:empty {
+    display: none;
+  }
+
+  .sp-renewal__amount {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: var(--s-2);
+    font-size: var(--fs-13);
+  }
+}

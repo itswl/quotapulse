@@ -1,0 +1,328 @@
+/* The shell (src/app.tsx): navigation, top bar, the page outlet.
+
+   One piece of markup, three layouts:
+     ≥ 960px   a left rail with labels
+     720–959   a rail of icons
+     < 720px   a bottom tab bar, and a slim top bar for the brand and tools */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.shell__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.page {
+  width: 100%;
+  max-width: calc(var(--content-max) + 2 * var(--s-8));
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-8) var(--s-12);
+}
+
+.page:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--s-2);
+  top: -48px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: var(--r-1);
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 500;
+}
+
+.skip-link:focus {
+  top: var(--s-2);
+}
+
+/* ---------- brand ---------- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.brand__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--fs-16);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand__link:hover {
+  text-decoration: none;
+}
+
+/* ---------- tools: theme, language, sign out ---------- */
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tools__lang {
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+
+/* ---------- the rail ---------- */
+
+.nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--s-5) var(--s-3) var(--s-4);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.nav .brand {
+  padding: 0 var(--s-2);
+}
+
+.nav__items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  font-weight: 500;
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+
+.nav__item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav__item.is-active {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text);
+}
+
+.nav__badge {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.nav__badge--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.nav__badge--critical {
+  background: var(--critical-bg);
+  color: var(--critical);
+}
+
+.nav__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: auto;
+  padding: 0 var(--s-1);
+}
+
+.nav__version {
+  padding: 0 6px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* ---------- the top bar: phones only ---------- */
+
+.topbar {
+  display: none;
+}
+
+.shell__banner {
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- 720–959px: a rail of icons ---------- */
+
+@media (max-width: 959px) {
+  .shell {
+    grid-template-columns: var(--rail-compact) minmax(0, 1fr);
+  }
+
+  .page {
+    padding: var(--s-6) var(--s-6) var(--s-12);
+  }
+
+  .nav {
+    align-items: center;
+    padding: var(--s-4) var(--s-2);
+  }
+
+  .nav .brand {
+    padding: 0;
+  }
+
+  /* The labels stay in the page for screen readers and as each link's name. */
+  .nav .brand__name,
+  .nav .brand__demo,
+  .nav__label,
+  .nav__version {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .nav__item {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  .nav__badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 0.625rem;
+  }
+
+  .nav .tools {
+    flex-direction: column;
+  }
+}
+
+/* ---------- < 720px: bottom tab bar ---------- */
+
+@media (max-width: 719px) {
+  .shell {
+    display: block;
+  }
+
+  .page {
+    padding: var(--s-5) var(--s-4) calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-8));
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    padding: 0 var(--s-2) 0 var(--s-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 20;
+    flex-direction: row;
+    gap: 0;
+    height: auto;
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--border);
+    border-right: 0;
+    background: var(--surface);
+    overflow: visible;
+  }
+
+  .nav .brand,
+  .nav__foot {
+    display: none;
+  }
+
+  .nav__items {
+    flex: 1 1 auto;
+    flex-direction: row;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .nav__item {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 3px;
+    width: auto;
+    min-width: 0;
+    height: var(--tabbar);
+    border-radius: 0;
+    color: var(--text-3);
+    font-size: 0.6875rem;
+  }
+
+  .nav__item:hover {
+    background: none;
+  }
+
+  .nav__item.is-active {
+    background: none;
+    box-shadow: inset 0 2px 0 var(--accent);
+    color: var(--text);
+  }
+
+  .nav__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: hidden;
+    clip-path: none;
+    max-width: 100%;
+    padding: 0 2px;
+    text-overflow: ellipsis;
+  }
+
+  .nav__badge {
+    top: 6px;
+    right: calc(50% - 22px);
+  }
+}

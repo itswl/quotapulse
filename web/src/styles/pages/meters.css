@@ -1,0 +1,726 @@
+/* The meters list and the meter page (src/pages/meters), and the meter card
+   they share with the overview. Classes are prefixed "meter-" or "mt-". */
+
+/* ---------- MeterCard ---------- */
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: var(--s-3);
+}
+
+.meter-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.12s var(--ease);
+}
+
+.meter-card:hover {
+  border-color: var(--border-control);
+  text-decoration: none;
+}
+
+.meter-card:focus-visible {
+  border-radius: var(--r-2);
+}
+
+.meter-card--hidden {
+  opacity: 0.65;
+}
+
+.meter-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.meter-card__titles {
+  min-width: 0;
+}
+
+.meter-card__name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.meter-card__source {
+  margin-top: 1px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.meter-card__state {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.meter-card__muted {
+  display: inline-flex;
+  color: var(--text-3);
+}
+
+.meter-card__figure {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 38px;
+}
+
+.meter-card__value {
+  font-size: var(--fs-28);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.meter-card__value .unit--spaced {
+  font-size: var(--fs-13);
+}
+
+/* on a big figure the percent sign steps back a little */
+.meter-card__value .unit--tight,
+.mt-head__value .unit--tight {
+  margin-left: 0.04em;
+  color: var(--text-3);
+  font-size: 0.6em;
+  font-weight: 500;
+}
+
+.meter-card__value.is-long {
+  font-size: var(--fs-20);
+  line-height: 1.5;
+}
+
+.meter-card__value.is-dim {
+  color: var(--text-3);
+}
+
+.meter-card__spark {
+  flex: 0 1 116px;
+  min-width: 48px;
+  height: 38px;
+}
+
+.meter-card__meaning {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.meter-card__line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--s-2);
+  min-height: 1.5em;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+  /* an error from a platform can be long; two lines is where a card stops */
+  max-height: 3em;
+  overflow: hidden;
+}
+
+/* ---------- the list ---------- */
+
+.mt-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-6);
+}
+
+.mt-group {
+  margin-top: var(--s-8);
+}
+
+.mt-filters + .mt-group {
+  margin-top: 0;
+}
+
+.mt-group__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-14);
+}
+
+.mt-group__count {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  font-weight: 400;
+}
+
+.mt-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.meter-grid + .mt-accounts {
+  margin-top: var(--s-3);
+}
+
+/* an account with no meters: a row, since there is no card to give it */
+.mt-account {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+.mt-account__icon {
+  color: var(--text-3);
+}
+
+.mt-account__text {
+  min-width: 0;
+}
+
+.mt-account__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+}
+
+.mt-account__note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.mt-account__note > span + span::before {
+  content: '·';
+  margin-right: var(--s-2);
+  color: var(--text-3);
+}
+
+.mt-account__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mt-hidden {
+  margin-top: var(--s-8);
+}
+
+.mt-hidden summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mt-hidden summary::-webkit-details-marker {
+  display: none;
+}
+
+.mt-hidden summary:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.mt-hidden[open] summary {
+  margin-bottom: var(--s-3);
+}
+
+/* ---------- the account dialog ---------- */
+
+.mt-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.mt-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: var(--s-2);
+}
+
+.mt-providers > li,
+.mt-providers .tip {
+  display: flex;
+  min-width: 0;
+}
+
+.mt-providers .tip {
+  flex: 1 1 auto;
+}
+
+.mt-provider {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: 68px;
+  padding: var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  transition:
+    border-color 0.12s var(--ease),
+    background-color 0.12s var(--ease);
+}
+
+.mt-provider:hover {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.mt-provider__name {
+  max-width: 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mt-picker__more {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.mt-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.mt-form__platform {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+
+.mt-form__platform-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.mt-form__site {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-13);
+}
+
+.mt-form__notes {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.mt-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.mt-form__test {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.mt-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.mt-test {
+  align-self: stretch;
+  padding: var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--ok-bg);
+  font-size: var(--fs-13);
+}
+
+.mt-test--failed {
+  background: var(--critical-bg);
+}
+
+.mt-test__title {
+  font-weight: 600;
+}
+
+.mt-test__took {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.mt-test__error {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.mt-test__meters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--s-2);
+}
+
+.mt-test__meters li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.mt-test__meters .chip {
+  background: var(--surface);
+}
+
+.mt-test__value {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.mt-test__limit {
+  color: var(--text-2);
+}
+
+/* ---------- a meter's page ---------- */
+
+.mt-loading {
+  margin-top: var(--s-8);
+}
+
+.mt-head__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.mt-head__name .page-head__title {
+  overflow-wrap: anywhere;
+}
+
+.mt-head__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+}
+
+.mt-head__meta > * + *::before {
+  content: '·';
+  margin-right: var(--s-2);
+  color: var(--text-3);
+}
+
+.mt-head__figure {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin: calc(-1 * var(--s-2)) 0 var(--s-6);
+}
+
+.mt-head__value {
+  font-size: var(--fs-40);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.mt-head__value .unit--spaced {
+  font-size: var(--fs-16);
+  letter-spacing: 0;
+}
+
+.mt-head__limit {
+  color: var(--text-3);
+  font-size: var(--fs-20);
+}
+
+.mt-head__states {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-left: var(--s-2);
+}
+
+.mt-head__states .status {
+  font-size: var(--fs-13);
+}
+
+.mt-head__hidden {
+  margin-bottom: var(--s-6);
+}
+
+.mt-rename {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 560px;
+}
+
+.mt-rename__row {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.mt-rename__row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mt-page__incidents {
+  margin-top: 0;
+  margin-bottom: var(--s-6);
+}
+
+.mt-charts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.mt-charts__range {
+  display: flex;
+}
+
+.mt-charts__note {
+  margin-top: var(--s-2);
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.mt-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.mt-card-title {
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-14);
+}
+
+/* label on the left, figure on the right, a hairline between rows */
+.mt-numbers__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+
+.mt-numbers__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mt-numbers__row:last-child {
+  padding-bottom: 0;
+}
+
+.mt-numbers__row dt {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  max-width: 60%;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.mt-numbers__row dd {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.mt-numbers__per {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.mt-numbers__note {
+  margin-bottom: var(--s-3);
+}
+
+.mt-numbers__bar {
+  margin: var(--s-1) 0 var(--s-3);
+}
+
+.mt-numbers__list + .mt-numbers__bar {
+  margin: var(--s-3) 0 0;
+}
+
+.mt-numbers__empty {
+  color: var(--text-2);
+}
+
+.mt-rules__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.mt-rules__form .input,
+.mt-rules__form .select {
+  max-width: 280px;
+}
+
+/* a switch sits beside its label rather than under it */
+.mt-rules__switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px var(--s-4);
+}
+
+.mt-rules__switch .field__help {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.mt-rules__switch .switch {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.mt-rules__actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.mt-account-card {
+  margin-top: var(--s-3);
+}
+
+.mt-account-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+/* wide enough for two columns of rows: a label then stays near its value */
+@media (min-width: 960px) {
+  .mt-account-card__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--s-10);
+  }
+
+  .mt-account-card__list .mt-numbers__row:nth-child(2) {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .mt-account-card__list .mt-numbers__row:nth-last-child(2):nth-child(odd) {
+    padding-bottom: 0;
+  }
+}
+
+.mt-account-card__note {
+  color: var(--text-2);
+}
+
+.mt-account-card__site {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: -1px;
+}
+
+.mt-account-card__secret {
+  overflow-wrap: anywhere;
+}
+
+.mt-account-card__error,
+.mt-account__error {
+  color: var(--critical);
+}
+
+.mt-account-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 959px) {
+  .mt-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 719px) {
+  .mt-form__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mt-providers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mt-head__value {
+    font-size: var(--fs-28);
+  }
+
+  .mt-rules__form .input,
+  .mt-rules__form .select {
+    max-width: none;
+  }
+
+  .mt-rename__row {
+    flex-wrap: wrap;
+  }
+
+  .mt-rename__row .input {
+    flex-basis: 100%;
+  }
+}

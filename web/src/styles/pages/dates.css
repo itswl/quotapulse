@@ -1,0 +1,709 @@
+/* Styles for src/pages/dates. Prefix every class with "dates-" so nothing here
+   can collide with another page or with a shared component. Use the tokens
+   from tokens.css; never a raw colour. */
+
+/* ---------- the summary ---------- */
+
+.dates-summary {
+  margin-bottom: var(--s-6);
+}
+
+.dates-summary__figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-6);
+}
+
+.dates-summary__figure dt {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 20px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+/* one figure per currency, side by side: they are never added together */
+.dates-summary__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-5);
+  font-size: var(--fs-20);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---------- filters and search ---------- */
+
+.dates-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-6);
+}
+
+.dates-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.dates-search {
+  flex: 0 1 240px;
+}
+
+/* ---------- the list ---------- */
+
+/* One grid for the whole page of dates. Every month borrows its columns
+   (subgrid), and every row borrows them from its month, so the amounts, the
+   chips and the buttons line up from the first month to the last. */
+.dates-groups {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  column-gap: var(--s-4);
+}
+
+.dates-group {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  margin-top: var(--s-8);
+}
+
+.dates-group:first-child {
+  margin-top: 0;
+}
+
+.dates-group__title {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-14);
+}
+
+.dates-group__count {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  font-weight: 400;
+}
+
+/* Not a flush Card: that one clips, and a row's menu has to hang out of it. */
+.dates-list {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+.dates-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 10px var(--s-3) 10px var(--s-4);
+}
+
+.dates-row + .dates-row {
+  border-top: 1px solid var(--border);
+}
+
+.dates-row__block {
+  display: flex;
+  flex-direction: column;
+  min-width: 76px;
+  line-height: 1.2;
+}
+
+.dates-row__day {
+  font-size: var(--fs-20);
+  font-weight: 500;
+}
+
+.dates-row__month {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+/* the lunar day that put the date where it is: a step louder than the month */
+.dates-row__lunar {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.dates-row__text {
+  min-width: 0;
+}
+
+.dates-row__title {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.dates-row__icon {
+  margin-top: 3px;
+  color: var(--text-3);
+}
+
+.dates-row__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dates-row__years {
+  flex: none;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.dates-row__detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.dates-row__detail > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dates-row__detail > span + span::before {
+  content: '·';
+  margin-right: 4px;
+  color: var(--text-3);
+}
+
+.dates-row__leads svg {
+  color: var(--text-3);
+}
+
+.dates-row__notes {
+  display: -webkit-box;
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.dates-row__marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-3);
+  margin-top: 3px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.dates-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dates-mark__undo {
+  margin: -2px 0 -2px 2px;
+  padding: 2px 6px;
+  border-radius: var(--r-1);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.dates-mark__undo:hover:not(:disabled) {
+  background: var(--accent-weak);
+}
+
+.dates-row__amount {
+  color: var(--text-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dates-row__when {
+  justify-self: end;
+}
+
+/* near: louder by weight as well as by colour */
+.dates-row__when .chip--accent {
+  font-weight: 600;
+}
+
+.dates-row__done,
+.dates-row__more {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* the gap between "done" and the buttons after it is a small one */
+.dates-row__more {
+  margin-left: calc(var(--s-2) - var(--s-4));
+}
+
+/* turned off, or over: still listed, a step back */
+.dates-row--off .dates-row__day,
+.dates-row--off .dates-row__name,
+.dates-row--over .dates-row__day,
+.dates-row--over .dates-row__name {
+  color: var(--text-3);
+}
+
+.dates-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.dates-loading .skeleton:first-of-type {
+  margin-bottom: var(--s-6);
+}
+
+/* ---------- the add/edit dialog ---------- */
+
+.dates-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.dates-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+/* calendar on the left, the pickers it changes on the right */
+.dates-form__when {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.dates-form__selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.dates-form__selects--one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dates-form__short {
+  max-width: 180px;
+}
+
+.dates-form__reveal {
+  align-self: flex-start;
+  margin-left: -10px;
+}
+
+/* six kinds, each an icon over its name */
+.dates-kinds.segmented {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-self: stretch;
+}
+
+.dates-kinds .segmented__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  height: 52px;
+  padding: 0 2px;
+  font-size: var(--fs-12);
+}
+
+.dates-weekdays.segmented {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-self: stretch;
+}
+
+.dates-weekdays .segmented__option {
+  min-width: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.dates-date input {
+  font-variant-numeric: tabular-nums;
+}
+
+.dates-date input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+.dates-textarea {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  font-size: var(--fs-14);
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    border-color 0.12s var(--ease),
+    box-shadow 0.12s var(--ease);
+}
+
+.dates-textarea:hover {
+  border-color: var(--text-3);
+}
+
+.dates-textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.dates-more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -8px;
+  padding: 4px 8px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dates-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.dates-more summary:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.dates-more__chevron {
+  transition: transform 0.12s var(--ease);
+}
+
+.dates-more[open] .dates-more__chevron {
+  transform: rotate(90deg);
+}
+
+/* what is in there, so nobody has to open it to find out */
+.dates-more__inside {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.dates-more__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-3);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--border);
+}
+
+.dates-leads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dates-leads__custom {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dates-leads__input {
+  width: 148px;
+  height: var(--control-sm);
+}
+
+/* ---------- where the rule lands ---------- */
+
+.dates-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  min-height: 96px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-2);
+  background: var(--accent-weak);
+  transition: opacity 0.12s var(--ease);
+}
+
+/* an answer for an earlier version of the rule: the new one is on its way */
+.dates-preview.is-stale {
+  opacity: 0.55;
+}
+
+.dates-preview__icon {
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.dates-preview__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dates-preview__label {
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+}
+
+.dates-preview__date {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.dates-preview__facts,
+.dates-preview__then {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  font-size: var(--fs-13);
+}
+
+.dates-preview__then,
+.dates-preview__note {
+  margin-top: 2px;
+  color: var(--text-2);
+}
+
+.dates-preview__facts > span + span::before,
+.dates-preview__then > time + time::before {
+  content: '·';
+  margin-right: var(--s-2);
+  color: var(--text-3);
+}
+
+.dates-preview__note {
+  font-size: var(--fs-13);
+  text-wrap: pretty;
+}
+
+.dates-preview__problem {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.dates-preview__wait {
+  margin-top: 8px;
+}
+
+.dates-preview--pending {
+  background: var(--surface-2);
+}
+
+.dates-preview--pending .dates-preview__icon {
+  color: var(--text-3);
+}
+
+.dates-preview--warning {
+  background: var(--warning-bg);
+}
+
+.dates-preview--warning .dates-preview__icon {
+  color: var(--warning);
+}
+
+/* ---------- snoozing ---------- */
+
+.dates-snooze {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.dates-snooze__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.dates-snooze__day {
+  margin-left: 6px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.dates-snooze__pick {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.dates-snooze__pick .input {
+  flex: 1 1 auto;
+}
+
+/* ---------- 720–959px: no room for the shortcut to "edit" ---------- */
+
+@media (max-width: 959px) {
+  .dates-row__edit {
+    display: none;
+  }
+}
+
+/* ---------- < 720px ---------- */
+
+@media (max-width: 719px) {
+  .dates-summary__figures {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-2);
+  }
+
+  .dates-summary__figure {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+
+  .dates-summary__value {
+    justify-content: flex-end;
+    gap: 0 var(--s-3);
+    font-size: var(--fs-16);
+  }
+
+  .dates-search {
+    flex-basis: 100%;
+  }
+
+  /* Each row is a small grid of its own: the day at the left, the words in
+     the middle, and at the right the chip with the menu under it. An amount
+     and "done" get a line below when there is one. */
+  .dates-groups,
+  .dates-group,
+  .dates-list {
+    display: block;
+  }
+
+  .dates-row {
+    grid-template-columns: 76px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--s-1) var(--s-3);
+    padding: var(--s-3) var(--s-2) var(--s-3) var(--s-3);
+  }
+
+  .dates-row__block {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+
+  /* The lunar day stays inside its column, on two lines if it must: after
+     "lunar", never in the middle of 十月初十. */
+  .dates-row__lunar {
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .dates-row__text {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .dates-row__when {
+    grid-column: 3;
+    grid-row: 1;
+    margin-right: var(--s-1);
+  }
+
+  .dates-row__more {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+    margin-left: 0;
+  }
+
+  .dates-row__amount {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: center;
+    text-align: left;
+    font-size: var(--fs-13);
+  }
+
+  .dates-row__done {
+    grid-column: 2 / -1;
+    grid-row: 3;
+    justify-self: end;
+  }
+
+  .dates-row__amount:empty,
+  .dates-row__when:empty,
+  .dates-row__done:empty {
+    display: none;
+  }
+
+  .dates-mark__undo {
+    margin: -4px 0;
+    padding: 6px 8px;
+  }
+
+  /* the form takes the whole screen */
+  .dialog.dates-dialog {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .dates-dialog .dialog__foot {
+    padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dates-form__row,
+  .dates-form__when {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dates-kinds.segmented {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dates-textarea {
+    font-size: var(--fs-16);
+  }
+
+  .dates-leads__input {
+    width: 160px;
+  }
+}

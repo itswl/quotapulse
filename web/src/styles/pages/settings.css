@@ -1,0 +1,1489 @@
+/* The Settings pages (src/pages/settings). Classes are prefixed "st-". */
+
+/* ---------- the sections, as a row of links ---------- */
+
+/* The row scrolls sideways where it does not fit. The padding is room for a
+   focus ring, which a scrolling box would otherwise clip. */
+.st-nav {
+  position: relative;
+  display: flex;
+  margin: calc(-1 * var(--s-2) - 4px) -4px calc(var(--s-6) - 4px);
+  padding: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.st-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.st-nav__row {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.st-nav__item {
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--control) - 4px);
+  padding: 0 12px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s var(--ease),
+    color 0.12s var(--ease);
+}
+
+.st-nav__item:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.st-nav__item.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 1px 1px rgb(15 17 20 / 0.04);
+}
+
+/* ---------- what a section starts with ---------- */
+
+.st-intro {
+  max-width: 72ch;
+  margin-bottom: var(--s-5);
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+/* a button sits in these headings, so they centre rather than share a baseline */
+.st .section__head {
+  align-items: center;
+  min-height: var(--control-sm);
+}
+
+.st-note {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-note--gap {
+  margin-top: var(--s-3);
+}
+
+.st-note--pad {
+  padding: var(--s-4);
+}
+
+.st-card-title {
+  font-size: var(--fs-14);
+}
+
+/* a button that reads as a link, inside a sentence */
+.st-inline {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- this device ---------- */
+
+.st-push {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-3) var(--s-4);
+}
+
+.st-push__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.st-push--on .st-push__icon {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.st-push--off .st-push__icon {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.st-push__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.st-push__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-height: 22px;
+  font-size: var(--fs-14);
+}
+
+.st-push__body,
+.st-push__steps {
+  max-width: 76ch;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.st-push__steps {
+  font-size: var(--fs-13);
+}
+
+.st-push__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: center;
+  gap: var(--s-2);
+}
+
+.st-push__actions:empty {
+  display: none;
+}
+
+/* ---------- rows: a channel, a token, a definition ---------- */
+
+.st-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.st-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+.st-item__icon {
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
+.st-item__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.st-item__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px var(--s-2);
+  min-height: 22px;
+  font-weight: 600;
+}
+
+.st-item__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.st-item.is-off .st-item__title {
+  color: var(--text-2);
+}
+
+.st-item__meta,
+.st-item__health {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.st-item__meta > * + *::before,
+.st-item__health > * + *::before,
+.st-job__meta > * + *::before {
+  content: '·';
+  margin-right: var(--s-2);
+  color: var(--text-3);
+}
+
+.st-item__health {
+  margin-top: 2px;
+}
+
+.st-item__target {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+.st-item__chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.st-item__error {
+  color: var(--critical);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  overflow-wrap: anywhere;
+}
+
+.st-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.st-prefix {
+  font-size: var(--fs-12);
+}
+
+/* what a test came to */
+.st-test {
+  margin-top: 4px;
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.st-test--ok {
+  color: var(--ok);
+}
+
+.st-test--failed {
+  color: var(--critical);
+}
+
+.st-test__error {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+/* ---------- forms, in a dialog or on the page ---------- */
+
+.st-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.st-form__kind {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  min-height: 44px;
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+
+.st-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.st-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+/* the kinds of channel to pick from */
+.st-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: var(--s-2);
+}
+
+.st-types > li {
+  display: flex;
+  min-width: 0;
+}
+
+.st-type {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 68px;
+  padding: var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  transition:
+    border-color 0.12s var(--ease),
+    background-color 0.12s var(--ease);
+}
+
+.st-type:hover {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.st-type__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.st-type__hint {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  line-height: 1.4;
+}
+
+.st-added {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.st-added__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+}
+
+.st-added__title svg {
+  color: var(--ok);
+}
+
+/* a set of controls under one caption */
+.st-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.st-group > legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.st-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.st-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  margin: 0 -8px;
+  padding: 6px 8px;
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+
+.st-check:hover {
+  background: var(--surface-2);
+}
+
+.st-check.is-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.st-check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: inherit;
+}
+
+.st-check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.st-check__label {
+  font-weight: 500;
+}
+
+.st-check__label code {
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+.st-check__help {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  line-height: 1.45;
+}
+
+.st-textarea {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+  tab-size: 2;
+  resize: vertical;
+  transition:
+    border-color 0.12s var(--ease),
+    box-shadow 0.12s var(--ease);
+}
+
+.st-textarea:hover {
+  border-color: var(--text-3);
+}
+
+.st-textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.st-textarea.is-invalid {
+  border-color: var(--critical);
+}
+
+.st-textarea::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+/* the platform's own time and date pickers, in the shared input's frame */
+.st-picker {
+  max-width: 168px;
+}
+
+.st-picker input {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* a switch sits beside its label rather than under it */
+.st-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px var(--s-4);
+}
+
+.st-switch .field__help {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.st-switch .switch {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+/* name and value rows: headers, query parameters */
+.st-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.st-pairs__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.st-pairs__add,
+.st-add {
+  align-self: flex-start;
+}
+
+/* ---------- something to copy ---------- */
+
+.st-snippet {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.st-snippet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.st-snippet__title {
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.st-snippet__note {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-code {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- a token, the one time it is shown ---------- */
+
+.st-fresh {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  border-color: var(--border-strong);
+}
+
+.st-fresh .st-card-title:focus {
+  outline: none;
+}
+
+.st-secret {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+
+.st-secret__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.st-fresh__sub {
+  margin-bottom: calc(-1 * var(--s-1));
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-fresh__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- blocks: what it is beside the card that holds it ---------- */
+
+.st-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+
+.st-block {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 760px);
+  align-items: start;
+  gap: var(--s-3) var(--s-8);
+}
+
+.st-block__title {
+  font-size: var(--fs-16);
+}
+
+.st-block__about {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  text-wrap: pretty;
+}
+
+.st-block__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+/* ---------- preferences ---------- */
+
+.st-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.st-prefs .input,
+.st-prefs .select,
+.st-prefs .st-combo {
+  max-width: 360px;
+}
+
+.st-prefs .st-short,
+.st-prefs .st-picker {
+  max-width: 168px;
+}
+
+.st-prefs__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 168px));
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.st-prefs__pair .select {
+  max-width: none;
+}
+
+/* the note and button that belong to the row above */
+.st-prefs__aside {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  margin-top: calc(-1 * var(--s-3));
+}
+
+.st-prefs__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.st-prefs__changed {
+  min-width: 0;
+  margin-left: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-prefs__changed:empty {
+  display: none;
+}
+
+.st-problems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.st-rates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.st-rate {
+  display: grid;
+  grid-template-columns: auto 76px auto minmax(0, 190px) auto;
+  justify-content: start;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.st-rate__sign {
+  color: var(--text-2);
+}
+
+.st-rate__error {
+  grid-column: 1 / -1;
+}
+
+/* the time zone picker */
+.st-combo {
+  position: relative;
+}
+
+.st-combo__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 284px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.st-combo__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: var(--control);
+  padding: 2px 10px;
+  border-radius: var(--r-1);
+  font-size: var(--fs-13);
+  cursor: pointer;
+}
+
+.st-combo__option.is-active {
+  background: var(--surface-2);
+}
+
+.st-combo__name {
+  min-width: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.st-combo__option.is-current .st-combo__name {
+  font-weight: 600;
+}
+
+.st-combo__offset {
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.st-combo__note {
+  padding: 8px 10px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+/* ---------- system ---------- */
+
+/* label on the left, value on the right, a hairline between rows */
+.st-facts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+
+.st-facts__row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.st-facts__row:last-child {
+  padding-bottom: 0;
+}
+
+.st-facts__row dt {
+  flex: none;
+  max-width: 60%;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-facts__row dd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px var(--s-2);
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.st-job {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.st-job:first-child {
+  border-top: 0;
+}
+
+.st-job__text {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.st-job__name {
+  font-weight: 600;
+}
+
+.st-job__about {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-job__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding-top: 3px;
+}
+
+.st-job__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-jobs__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+/* a card that does one thing: back up, export, import */
+.st-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+
+.st-action > .field,
+.st-action > .banner,
+.st-action > .st-check,
+.st-action > .st-report {
+  align-self: stretch;
+}
+
+.st-action > .st-check {
+  margin: -6px -8px;
+}
+
+.st-action__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+}
+
+.st-result {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.st-file {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  min-width: 0;
+}
+
+.st-file__name {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.st-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  font-size: var(--fs-13);
+}
+
+.st-report__title {
+  font-weight: 600;
+}
+
+.st-report__part h3 {
+  margin-bottom: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+}
+
+.st-report__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-4);
+}
+
+.st-report__notes summary {
+  color: var(--text-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.st-report__notes ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  margin-top: 6px;
+  color: var(--text-2);
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- narrower: the block's name goes above its card ---------- */
+
+/* ---------- small things the sections above share ---------- */
+
+.st-facts__chip {
+  margin-left: var(--s-2);
+}
+
+.st-jobs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.st-path {
+  font-size: var(--fs-12);
+  overflow-wrap: anywhere;
+}
+
+.st-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.st-labelled {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ---------- providers: the catalog ---------- */
+
+.st-legend {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  margin: var(--s-3) 0 var(--s-4);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-legend__row {
+  display: contents;
+}
+
+.st-legend dd {
+  margin: 0;
+}
+
+/* ---------- providers: the editor ---------- */
+
+/* The form on the left; the test bench beside it, staying in view while the
+   form scrolls, so a change and its result can be seen together. */
+.st-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  align-items: start;
+  gap: var(--s-4) var(--s-6);
+}
+
+.st-editor__head {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.st-editor__title {
+  font-size: var(--fs-20);
+  overflow-wrap: anywhere;
+}
+
+.st-editor__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.st-editor__bench {
+  position: sticky;
+  top: var(--s-6);
+  min-width: 0;
+  max-height: calc(100vh - 2 * var(--s-6));
+  overflow-y: auto;
+}
+
+.st-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.st-part > .st-card-title {
+  font-size: var(--fs-16);
+}
+
+.st-part > .st-note {
+  margin-top: calc(-1 * var(--s-2));
+}
+
+/* one credential field being described */
+.st-fielddef {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+
+.st-fielddef__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3) var(--s-4);
+}
+
+.st-fielddef__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+}
+
+.st-fielddef__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+}
+
+.st-fielddef__tools {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* method and address on one line */
+.st-request {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.st-auth {
+  max-width: 320px;
+}
+
+.st-textarea--tall {
+  min-height: 260px;
+}
+
+/* a short list of names and what each means, beside what it explains */
+.st-ref {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.st-ref__title {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.st-ref__list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px var(--s-4);
+  margin: 0;
+}
+
+.st-ref__row {
+  display: contents;
+}
+
+.st-ref__row dt code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.st-ref__row dd {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* what the server would not accept */
+.st-refused {
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--critical);
+  border-radius: var(--r-2);
+  background: var(--critical-bg);
+  font-size: var(--fs-13);
+}
+
+.st-refused__title {
+  color: var(--critical);
+  font-weight: 600;
+}
+
+.st-refused ul {
+  margin: var(--s-1) 0 0;
+  padding-left: 1.2em;
+  overflow-wrap: anywhere;
+}
+
+.st-editor__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.st-editor__delete {
+  margin-right: auto;
+  color: var(--critical);
+}
+
+/* ---------- providers: what a test run came to ---------- */
+
+.st-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.st-outcome__verdict {
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.st-outcome__verdict--ok {
+  border-color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.st-outcome__verdict--failed {
+  border-color: var(--critical);
+  background: var(--critical-bg);
+}
+
+.st-outcome__title {
+  font-weight: 600;
+}
+
+.st-outcome__facts {
+  margin-left: var(--s-1);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: 400;
+}
+
+.st-outcome__error {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.st-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  overflow-x: auto;
+}
+
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-12);
+}
+
+.st-table th,
+.st-table td {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.st-table thead th {
+  border-top: 0;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.st-table tbody th {
+  font-weight: 500;
+}
+
+.st-table .num {
+  text-align: right;
+}
+
+.st-table__key {
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.st-table__name {
+  display: block;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.st-raw > summary {
+  width: fit-content;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.st-raw > summary:hover {
+  color: var(--text);
+}
+
+.st-raw__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.st-raw__body .st-code {
+  align-self: stretch;
+}
+
+@media (max-width: 1099px) {
+  .st-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st-editor__bench {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .st-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 720px) {
+  /* wide enough for two columns of facts */
+  .st-facts--two {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--s-10);
+  }
+
+  .st-facts--two .st-facts__row:nth-child(2) {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .st-facts--two .st-facts__row:nth-last-child(2):nth-child(odd) {
+    padding-bottom: 0;
+  }
+}
+
+/* ---------- a phone ---------- */
+
+@media (max-width: 719px) {
+  .st-fielddef__grid,
+  .st-request {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st-legend {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .st-legend dd {
+    margin-bottom: var(--s-2);
+  }
+
+  .st-ref__list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .st-ref__row dd {
+    margin-bottom: var(--s-2);
+  }
+
+  /* the row of sections runs to the screen's edges, so more of it shows */
+  .st-nav {
+    margin-left: calc(-1 * var(--s-4));
+    margin-right: calc(-1 * var(--s-4));
+    padding-left: var(--s-4);
+    padding-right: var(--s-4);
+  }
+
+  .st-push {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .st-push__actions {
+    grid-column: 1 / -1;
+  }
+
+  .st-push__actions .btn {
+    flex: 1 1 auto;
+  }
+
+  /* the actions drop under the text, the switch at their far end */
+  .st-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding-right: var(--s-4);
+  }
+
+  .st-item__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border);
+  }
+
+  .st-item__actions .switch {
+    margin-right: auto;
+  }
+
+  .st-form__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st-types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .st-form__actions .btn {
+    flex: 1 1 0;
+  }
+
+  .st-textarea {
+    font-size: var(--fs-16);
+  }
+
+  .st-prefs .input,
+  .st-prefs .select,
+  .st-prefs .st-combo {
+    max-width: none;
+  }
+
+  .st-prefs__pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .st-prefs .st-prefs__pair .st-picker {
+    max-width: none;
+  }
+
+  .st-rate {
+    grid-template-columns: auto 84px auto minmax(0, 1fr) auto;
+  }
+
+  .st-job__state {
+    align-items: flex-start;
+  }
+
+  .st-job__meta {
+    justify-content: flex-start;
+  }
+
+  .st-secret {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--s-3);
+  }
+}
