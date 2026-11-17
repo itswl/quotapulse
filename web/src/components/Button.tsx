@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-preact';
-import type { ComponentChildren, JSX } from 'preact';
+import type { ButtonHTMLAttributes, ComponentChildren } from 'preact';
 import { Link } from '../router';
 import { cx } from './cx';
 import { Spinner } from './Spinner';
@@ -23,7 +23,7 @@ function classes({ variant = 'secondary', size = 'md', block, class: extra }: Lo
   return cx('btn', `btn--${variant}`, size === 'sm' && 'btn--sm', block && 'btn--block', extra);
 }
 
-export interface ButtonProps extends Look, Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'size' | 'icon' | 'class'> {
+export interface ButtonProps extends Look, Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'icon' | 'class' | 'type' | 'disabled' | 'form'> {
   /** A request is in flight: shows a spinner and refuses clicks. */
   busy?: boolean;
   type?: 'button' | 'submit' | 'reset';
@@ -76,7 +76,7 @@ export function LinkButton({ variant, size, icon: Icon, block, class: extra, hre
   );
 }
 
-export interface IconButtonProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, 'size' | 'icon' | 'label'> {
+export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'icon' | 'label' | 'type' | 'disabled'> {
   icon: LucideIcon;
   /** What the button does. It is the accessible name and the hover hint. */
   label: string;

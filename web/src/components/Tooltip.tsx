@@ -25,7 +25,7 @@ export function Tooltip({ content, children }: TooltipProps) {
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const anchor = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const show = (delay: number) => {
     clearTimeout(timer.current);

@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { TargetedKeyboardEvent } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { cx } from '../components/cx';
 import { formatAmount } from '../format';
@@ -83,7 +83,7 @@ export function BarChart({ bars, from, to, unit, height = 150, summary }: BarCha
     setActive(best >= 0 && distance <= 12 ? best : null);
   };
 
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     if (bars.length === 0) return;
     const index = active ?? bars.length - 1;
     const moves: Record<string, number> = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: bars.length - 1 };

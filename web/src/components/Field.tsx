@@ -1,4 +1,4 @@
-import { createContext, type ComponentChildren, type JSX } from 'preact';
+import { createContext, type ComponentChildren, type HTMLAttributes, type TargetedKeyboardEvent } from 'preact';
 import { useContext, useId } from 'preact/hooks';
 import { t } from '../i18n';
 import { cx } from './cx';
@@ -63,7 +63,7 @@ function useField(): Partial<FieldIds> {
   return useContext(FieldContext) ?? {};
 }
 
-export interface InputProps extends Omit<JSX.HTMLAttributes<HTMLInputElement>, 'onInput' | 'value' | 'class' | 'size' | 'prefix'> {
+export interface InputProps extends Omit<HTMLAttributes<HTMLInputElement>, 'onInput' | 'value' | 'class' | 'size' | 'prefix' | 'role' | 'list'> {
   value: string;
   onInput: (value: string) => void;
   type?: 'text' | 'password' | 'search' | 'email' | 'url';
@@ -78,15 +78,22 @@ export interface InputProps extends Omit<JSX.HTMLAttributes<HTMLInputElement>, '
   required?: boolean;
   autoComplete?: string;
   name?: string;
+  /** The id of a <datalist> of suggestions. */
   list?: string;
   maxLength?: number;
   /** Numbers and codes read better in the mono face. */
   mono?: boolean;
   class?: string;
+  /** What a text field may also be: the box of a combobox, or a search box. */
+  role?: 'textbox' | 'combobox' | 'searchbox';
 }
 
-export function Input({ value, onInput, type = 'text', suffix, prefix, mono, class: extra, ...rest }: InputProps) {
+export function Input({ value, onInput, type = 'text', suffix, prefix, mono, class: extra, list, ...rest }: InputProps) {
   const field = useField();
+  // Preact types a field with suggestions and one without as two different
+  // elements. Which this is is only known when it runs, so the attribute is
+  // handed over in the shape of the plain one.
+  const suggestions = (list ? { list } : {}) as { list?: undefined };
   return (
     <span class={cx('input', mono && 'input--mono', field.invalid && 'input--invalid', rest.disabled && 'input--disabled', extra)}>
       {prefix != null && <span class="input__affix">{prefix}</span>}
@@ -95,7 +102,11 @@ export function Input({ value, onInput, type = 'text', suffix, prefix, mono, cla
         aria-describedby={field.describedBy}
         aria-invalid={field.invalid || undefined}
         {...rest}
-        type={type}
+        {...suggestions}
+        // Preact types <input> as a union over `type`, each member with the
+        // roles that type allows. The five text-like types this component
+        // offers all take what a text field takes, so it is checked as one.
+        type={type as 'text'}
         value={value}
         onInput={(event) => onInput(event.currentTarget.value)}
       />
@@ -180,7 +191,7 @@ export interface SegmentedProps<V extends string> {
 /** A few mutually exclusive choices, all visible at once. */
 export function Segmented<V extends string>({ value, onChange, options, disabled, ...rest }: SegmentedProps<V>) {
   const field = useField();
-  const move = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const move = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
     if (step === 0) return;
     event.preventDefault();

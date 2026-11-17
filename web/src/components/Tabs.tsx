@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { TargetedKeyboardEvent } from 'preact';
 
 export interface Tab<V extends string> {
   id: V;
@@ -20,7 +20,7 @@ export interface TabsProps<V extends string> {
 /** A row of tabs that switch what is shown below. Arrow keys move between
  *  them, as the tab pattern asks. */
 export function Tabs<V extends string>({ tabs, value, onChange, label, controls }: TabsProps<V>) {
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     const index = tabs.findIndex((tab) => tab.id === value);
     let next = index;
     if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;

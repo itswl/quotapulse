@@ -1,7 +1,7 @@
 // A meter's alert rules. The form sends the whole rules object back
 // (PATCH /meters/{id} replaces it), so a rule this kind of meter does not
 // show keeps whatever value it had.
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { updateMeter } from '../../api/endpoints';
 import type { MeterView, Rules } from '../../api/types';
@@ -108,7 +108,7 @@ export function MeterRules({ meter, onChange }: { meter: MeterView; onChange: (m
     toast(t('meters.rules.saved'));
   });
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };

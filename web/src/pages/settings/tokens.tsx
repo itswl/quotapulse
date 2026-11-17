@@ -1,7 +1,7 @@
 // Tokens: access for scripts and agents. A token is shown exactly once, right
 // after it is made — with what to paste where — and never again.
 import { KeyRound, Plus, Trash2 } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { createToken, deleteToken } from '../../api/endpoints';
@@ -224,7 +224,7 @@ function CreateForm({ onBusy, onCancel, onCreated }: { onBusy: (busy: boolean) =
     }
   });
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void create.run();
   };

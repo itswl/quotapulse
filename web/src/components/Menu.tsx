@@ -1,5 +1,5 @@
 import { Ellipsis, type LucideIcon } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedKeyboardEvent } from 'preact';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { IconButton } from './Button';
 import { cx } from './cx';
@@ -51,7 +51,7 @@ export function Menu({ label, icon = Ellipsis, entries, align = 'end', outlined 
     return () => document.removeEventListener('pointerdown', outside, true);
   }, [open]);
 
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     if (!open) return;
     const list = items();
     const index = list.indexOf(document.activeElement as HTMLButtonElement);

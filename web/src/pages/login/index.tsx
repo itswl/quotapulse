@@ -2,7 +2,7 @@
 // at that page's address — so after signing in, the user is where they were
 // going, with no redirect to remember.
 import { KeyRound, RefreshCw } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { Banner, Button, Field, Input, Logo, Spinner } from '../../components';
@@ -38,7 +38,7 @@ export default function LoginPage() {
     input?.select();
   };
 
-  const submit = async (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = async (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy || wait > 0 || password === '') return;
     setBusy(true);

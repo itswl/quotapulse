@@ -1,7 +1,7 @@
 // The top of a meter's page: its name (which can be changed in place), its
 // value and state, and the things that can be done to it.
 import { BellOff, BellRing, ChevronLeft, Eye, EyeOff, Pencil, RefreshCw, Trash2 } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useState } from 'preact/hooks';
 import { deleteMeter, muteMeter, unmuteMeter, updateMeter } from '../../api/endpoints';
 import type { AccountView, MeterView } from '../../api/types';
@@ -198,7 +198,7 @@ function RenameForm({ meter, onDone, onChange }: { meter: MeterView; onDone: () 
     toast(t('meters.page.renamed'));
     onDone();
   });
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };

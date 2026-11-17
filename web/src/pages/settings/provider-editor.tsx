@@ -5,7 +5,7 @@
 // What the server refuses comes back as "request.url: …; extract: …", and each
 // part is shown at the field it names.
 import { ArrowDown, ArrowLeft, ArrowUp, Compass, Play, Plus, Trash2, X } from 'lucide-preact';
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, TargetedEvent } from 'preact';
 import { useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { deleteProvider, saveProvider, testAccount } from '../../api/endpoints';
@@ -155,7 +155,7 @@ function Editor({ source, editing, all }: { source: Definition | undefined; edit
     navigate(CATALOG, { replace: true });
   });
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };
