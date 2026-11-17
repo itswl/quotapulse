@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // empty opens a critical incident on a fresh pushed meter.

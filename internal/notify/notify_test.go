@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 var fixed = time.Date(2026, 11, 16, 2, 0, 0, 0, time.UTC)

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 func TestNumber(t *testing.T) {

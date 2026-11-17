@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 const channelColumns = `id, name, type, config, topics, min_severity, enabled, created_at, updated_at`

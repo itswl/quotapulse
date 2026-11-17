@@ -17,7 +17,7 @@ import (
 	"strings"
 	"testing"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // browser plays the receiving end of Web Push: it owns the keys a real

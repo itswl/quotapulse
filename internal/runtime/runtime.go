@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/engine"
 )
 
 const (

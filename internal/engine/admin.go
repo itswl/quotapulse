@@ -13,11 +13,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 // Everything a person can change goes through this file. The rules for what

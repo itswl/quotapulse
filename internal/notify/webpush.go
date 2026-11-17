@@ -11,7 +11,7 @@ import (
 
 	"github.com/SherClockHolmes/webpush-go"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // TypeWebPush is a browser that asked for notifications. Unlike the other

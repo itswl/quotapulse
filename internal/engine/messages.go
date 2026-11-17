@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/i18n"
-	"quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/i18n"
+	"github.com/itswl/quotapulse/internal/notify"
 )
 
 // compose writes the message for an incident event. Everything it says comes

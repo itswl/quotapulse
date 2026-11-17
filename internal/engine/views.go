@@ -5,12 +5,12 @@ import (
 	"sort"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/forecast"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/forecast"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 // The views are what the dashboard and the MCP tools read. They are

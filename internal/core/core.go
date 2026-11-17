@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // Kind says how a meter's number behaves over time, which decides how its

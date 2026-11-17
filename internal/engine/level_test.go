@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 func TestLowBalanceIsAnnouncedOnceAndRecoveryToo(t *testing.T) {

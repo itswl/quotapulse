@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/forecast"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/forecast"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // Spend is a calendar month of money: what the meters burned, and which

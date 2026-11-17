@@ -1,4 +1,4 @@
-module quotapulse
+module github.com/itswl/quotapulse
 
 go 1.27
 

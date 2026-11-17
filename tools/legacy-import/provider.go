@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/provider"
 )
 
 // The old version let a platform be described by a row of settings: a URL, a

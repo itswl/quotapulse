@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // birthday adds a lunar birthday on the 16th of the 11th month, which in

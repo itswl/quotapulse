@@ -46,7 +46,7 @@ COPY web/embed.go web/embed.go
 COPY --from=web /web/dist web/dist
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath \
-      -ldflags="-s -w -X quotapulse/internal/buildinfo.Version=${VERSION}" \
+      -ldflags="-s -w -X github.com/itswl/quotapulse/internal/buildinfo.Version=${VERSION}" \
       -o /out/quotapulse ./cmd/quotapulse
 
 # scratch has no mkdir: make the data directory here and copy it with its owner.

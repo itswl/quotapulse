@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 var (

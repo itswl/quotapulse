@@ -14,13 +14,13 @@ import (
 
 	"github.com/fernet/fernet-go"
 
-	"quotapulse/internal/bundle"
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/bundle"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 var (

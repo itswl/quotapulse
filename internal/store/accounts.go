@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/provider"
 )
 
 const accountColumns = `id, name, provider, credential, grp, interval_s, enabled, status, last_error,

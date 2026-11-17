@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/bundle"
-	"quotapulse/internal/core"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/bundle"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // platform says how one of the old built-in platforms maps onto 1.0: which

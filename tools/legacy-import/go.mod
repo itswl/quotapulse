@@ -1,13 +1,13 @@
-module quotapulse/tools/legacy-import
+module github.com/itswl/quotapulse/tools/legacy-import
 
 go 1.27
 
 require (
 	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611
 	github.com/go-sql-driver/mysql v1.10.1
+	github.com/itswl/quotapulse v0.0.0
 	github.com/jackc/pgx/v5 v5.13.0
 	modernc.org/sqlite v1.62.0
-	quotapulse v0.0.0
 )
 
 require (
@@ -34,4 +34,4 @@ require (
 	modernc.org/memory v1.12.1 // indirect
 )
 
-replace quotapulse => ../..
+replace github.com/itswl/quotapulse => ../..

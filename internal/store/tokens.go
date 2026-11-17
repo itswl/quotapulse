@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/secret"
 )
 
 const tokenColumns = `id, name, prefix, scopes, expires_at, last_used_at, created_at`

@@ -18,12 +18,12 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 // Format and Version identify the document.

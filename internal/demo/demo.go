@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // Password signs in to a demo instance.

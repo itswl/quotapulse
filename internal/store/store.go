@@ -26,8 +26,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/secret"
 )
 
 // Errors the rest of the program branches on.

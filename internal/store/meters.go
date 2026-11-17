@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 const meterColumns = `id, account_id, key, name, renamed, kind, unit, value, limit_value, resets_at, window_s,

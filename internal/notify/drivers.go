@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // Field is one setting a channel type needs.

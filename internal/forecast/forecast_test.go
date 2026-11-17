@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 var (
