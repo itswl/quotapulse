@@ -8,7 +8,7 @@
 // The server answers every non-file path with index.html, so any address
 // here can be opened directly or reloaded.
 import { signal } from '@preact/signals';
-import { createElement, type ComponentChildren, type JSX } from 'preact';
+import { createElement, type AnchorHTMLAttributes, type ComponentChildren, type TargetedMouseEvent } from 'preact';
 
 export interface Route {
   /** The path without a trailing slash; "/" for the root. */
@@ -107,7 +107,7 @@ export function matchPath(pattern: string, path: string): Record<string, string>
   return have.length === want.length ? params : null;
 }
 
-export interface LinkProps extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
+export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
   href: string;
   /** Replace the history entry instead of pushing one. */
   replace?: boolean;
@@ -117,7 +117,7 @@ export interface LinkProps extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorEleme
 /** An <a> that navigates in place. Modified clicks, new tabs and other
  *  origins are left to the browser. */
 export function Link({ href, replace, onClick, children, ...rest }: LinkProps) {
-  const handle = (event: JSX.TargetedMouseEvent<HTMLAnchorElement>) => {
+  const handle = (event: TargetedMouseEvent<HTMLAnchorElement>) => {
     if (typeof onClick === 'function') onClick(event);
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

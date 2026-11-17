@@ -6,7 +6,7 @@
 // The form's fields come from the platform's definition (GET /providers),
 // so a platform added tomorrow needs no change here.
 import { ArrowLeft, ExternalLink, FlaskConical, Search } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { createAccount, testAccount, updateAccount } from '../../api/endpoints';
 import type { AccountInput, AccountView, Checked, Definition, Sample, TestResult } from '../../api/types';
@@ -220,7 +220,7 @@ function AccountForm({ definition, account, onBack, onBusy, onDone }: FormProps)
     intervals.push({ value: String(account.interval_seconds), label: formatSpan(account.interval_seconds * 1000) });
   }
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };

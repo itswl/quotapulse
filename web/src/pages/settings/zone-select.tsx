@@ -2,7 +2,7 @@
 // what is left. Used inside a Field, whose label and help it picks up
 // through the Input it is built on.
 import { ChevronsUpDown } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedKeyboardEvent } from 'preact';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import { cx, Input } from '../../components';
 import { zonedParts } from '../../format';
@@ -67,7 +67,7 @@ export function ZoneSelect({ value, onChange }: { value: string; onChange: (zone
     close();
   };
 
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: TargetedKeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) {

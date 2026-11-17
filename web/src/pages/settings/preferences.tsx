@@ -6,7 +6,7 @@
 // server refuses comes back as "field: what is wrong; field: …", and each
 // part is shown under the field it names.
 import { Plus, Send, X } from 'lucide-preact';
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, TargetedEvent } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { listChannels, sendDigest, updateSettings } from '../../api/endpoints';
@@ -130,7 +130,7 @@ function numberOf(text: string, field: string, errors: Errors, whole = false): n
 
 function GroupCard<D>({ title, about, group, children }: { title: string; about: string; group: GroupState<D>; children: ComponentChildren }) {
   const dirty = group.changed.length > 0;
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (dirty) group.save();
   };

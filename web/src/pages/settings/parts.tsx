@@ -2,7 +2,7 @@
 // components do not have: a labelled wrapper for controls of our own, a
 // checkbox, a text area, a time input, a copy button, rows of facts.
 import { Check, Copy, Plus, X } from 'lucide-preact';
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, TargetedEvent } from 'preact';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { Button, cx, IconButton } from '../../components';
 import { t } from '../../i18n';
@@ -189,7 +189,7 @@ async function copyText(text: string): Promise<boolean> {
 /** Copies a text, and says so for a moment. */
 export function CopyButton({ text, label, variant = 'secondary' }: { text: string; label?: string; variant?: 'secondary' | 'primary' | 'ghost' }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   const copy = async () => {
     const done = await copyText(text);
@@ -269,7 +269,7 @@ export interface PairRowsProps {
 
 /** Headers, query parameters: any number of name and value pairs. */
 export function PairRows({ label, rows, onChange, keyPlaceholder, valuePlaceholder, addLabel }: PairRowsProps) {
-  const set = (index: number, part: keyof Pair) => (event: JSX.TargetedEvent<HTMLInputElement>) => {
+  const set = (index: number, part: keyof Pair) => (event: TargetedEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value;
     onChange(rows.map((row, at) => (at === index ? { ...row, [part]: value } : row)));
   };

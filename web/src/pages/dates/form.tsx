@@ -8,7 +8,7 @@
 // server's call: what has not been filled in is simply left out of the rule,
 // and the server's own sentence says what is missing.
 import { ChevronRight, Plus } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import { createReminder, updateReminder } from '../../api/endpoints';
 import type { ReminderKind, ReminderView } from '../../api/types';
@@ -233,7 +233,7 @@ function DateForm({ id, reminder, kind, onBusy, onDone }: FormProps) {
     if (save.error !== undefined) form.current?.querySelector('.form-error')?.scrollIntoView({ block: 'nearest' });
   }, [save.error]);
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };

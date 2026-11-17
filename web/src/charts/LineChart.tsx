@@ -1,4 +1,4 @@
-import type { JSX } from 'preact';
+import type { TargetedKeyboardEvent } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { cx } from '../components/cx';
 import { formatAmount, formatStamp } from '../format';
@@ -107,7 +107,7 @@ export function LineChart({ points, from, to, projection = NONE, threshold, mark
     setActive({ kind: 'point', index: sticky ? sticky.index : nearest(model.times, at) });
   };
 
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     if (points.length === 0) return;
     const index = active?.kind === 'point' ? active.index : points.length - 1;
     const jump = Math.max(1, Math.round(points.length / 10));

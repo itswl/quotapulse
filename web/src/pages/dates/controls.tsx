@@ -3,7 +3,7 @@
 // the shared controls' classes (field, input, segmented), so they look and
 // space themselves like the rest of every form.
 import type { LucideIcon } from 'lucide-preact';
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, TargetedKeyboardEvent } from 'preact';
 import { useId } from 'preact/hooks';
 import { cx } from '../../components';
 import { t } from '../../i18n';
@@ -96,7 +96,7 @@ export interface ChoicesProps<V extends string> {
  *  the choice, as in any radio group. */
 export function Choices<V extends string>({ value, onChange, options, labelledBy, describedBy, class: extra }: ChoicesProps<V>) {
   const chosen = options.findIndex((option) => option.value === value);
-  const move = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+  const move = (event: TargetedKeyboardEvent<HTMLDivElement>) => {
     const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
     if (step === 0) return;
     event.preventDefault();

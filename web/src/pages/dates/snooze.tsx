@@ -5,7 +5,7 @@
 // last quiet day instead (PUT …/snooze { until }), the day before; words.ts
 // converts. The latest day on offer is the date itself: snoozing past it
 // would only mean missing it.
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { snoozeReminder } from '../../api/endpoints';
 import type { Day, ReminderView } from '../../api/types';
@@ -75,7 +75,7 @@ function SnoozeForm({ reminder, last, today, onBusy, onDone }: FormProps) {
   offer(addDays(today, 7), t('dates.snooze.week'));
   offer(last, t('dates.snooze.onDay'));
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (picked < tomorrow || picked > last) {
       setRefused(true);

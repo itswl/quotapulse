@@ -6,7 +6,7 @@
 // The form's fields come from the type (GET /channel-types), so a type added
 // tomorrow needs no change here.
 import { ArrowLeft, CircleCheck, Send } from 'lucide-preact';
-import type { JSX } from 'preact';
+import type { TargetedEvent } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { createChannel, testChannel, updateChannel } from '../../api/endpoints';
@@ -203,7 +203,7 @@ function ChannelForm({ type, channel, onBack, onBusy, onCancel, onSaved }: FormP
     }
   });
 
-  const submit = (event: JSX.TargetedEvent<HTMLFormElement>) => {
+  const submit = (event: TargetedEvent<HTMLFormElement>) => {
     event.preventDefault();
     void save.run();
   };
