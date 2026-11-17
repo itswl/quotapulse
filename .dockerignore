@@ -1,0 +1,21 @@
+.git
+.github
+.env
+.env.*
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# rebuilt inside the image
+web/node_modules/
+web/dist/
+web/.test-dist/
+
+# not part of the image
+docs/
+scripts/
+tools/
+*.md
+**/testdata/
+**/*_test.go

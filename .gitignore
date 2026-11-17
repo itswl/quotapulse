@@ -1,0 +1,41 @@
+# Go
+/quotapulse
+*.test
+*.out
+
+# The dashboard's build output is produced by CI and the container build,
+# never committed. The .gitkeep keeps the directory the binary embeds.
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+web/.test-dist/
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+# …except test fixtures, which hold only fabricated data
+!**/testdata/*.db
+
+# Bundles can hold credentials in the clear
+*bundle*.json
+
+# Host-specific deployment files
+docker-compose.override.yml
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+__pycache__/
+
+# Local tooling
+.playwright-mcp/

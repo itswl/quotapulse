@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The dashboard first: the Go build embeds what this produces.
+      - name: Dashboard
+        run: |
+          npm --prefix web ci
+          npm --prefix web run typecheck
+          npm --prefix web test
+          npm --prefix web run build
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l cmd internal web tools)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
+      - run: go vet ./...
+
+      # -race matters here: the sampler, the outbox and the HTTP handlers all
+      # work on the same state at once.
+      - name: Go tests
+        run: go test -race ./...
+
+      # The migration tool is a module of its own, so the server never
+      # carries the old database drivers.
+      - name: Migration tool
+        working-directory: tools/legacy-import
+        run: |
+          go vet ./...
+          go test ./...
+
+  # The image is what people run; make sure it still builds.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: quotapulse:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: The image starts and answers
+        run: |
+          docker run -d --name qp -e QUOTAPULSE_PASSWORD=ci -p 8080:8080 quotapulse:ci
+          for i in $(seq 1 20); do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' qp)" = "healthy" ]; then break; fi
+            sleep 2
+          done
+          docker logs qp
+          test "$(docker inspect -f '{{.State.Health.Status}}' qp)" = "healthy"
+          curl -fsS http://127.0.0.1:8080/readyz
+          curl -fsS http://127.0.0.1:8080/ | grep -qi '<!doctype html>'
