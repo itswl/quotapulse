@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // readBody reads a request body within the usual size limit.

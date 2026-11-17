@@ -15,13 +15,13 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"quotapulse/internal/api"
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/mcp"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/api"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/mcp"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 var ctx = context.Background()

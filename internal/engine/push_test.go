@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/notify"
 )
 
 // pushService stands in for a browser vendor's push service.

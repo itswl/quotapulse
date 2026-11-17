@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 const reminderColumns = `id, title, kind, rule, lead_days, amount, currency, grp, notes,

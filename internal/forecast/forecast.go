@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // How much history a forecast uses, and how it is weighed.

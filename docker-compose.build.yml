@@ -1,0 +1,11 @@
+# Builds the image from this checkout instead of pulling the published one.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  quotapulse:
+    image: quotapulse:local
+    build:
+      context: .
+      args:
+        VERSION: ${QUOTAPULSE_VERSION:-local}

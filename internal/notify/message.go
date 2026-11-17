@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // Message is one notification.

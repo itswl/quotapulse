@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/forecast"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/forecast"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // condition is one fact about the present that deserves an incident.

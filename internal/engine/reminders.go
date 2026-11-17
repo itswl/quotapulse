@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/recur"
 )
 
 // Occurrence is the date a reminder is about right now.

@@ -17,10 +17,10 @@ import (
 	"testing/fstest"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 const password = "correct horse"

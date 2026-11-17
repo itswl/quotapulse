@@ -24,9 +24,9 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 // Engine holds the pieces together.

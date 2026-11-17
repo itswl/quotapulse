@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/secret"
 )
 
 // Browser push. A browser that asks for notifications becomes a channel of

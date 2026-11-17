@@ -22,11 +22,11 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/runtime"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/runtime"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 const (

@@ -28,18 +28,18 @@ import (
 	"time"
 	_ "time/tzdata" // the runtime image is empty: bring the time zones along
 
-	"quotapulse/internal/api"
-	"quotapulse/internal/buildinfo"
-	"quotapulse/internal/bundle"
-	"quotapulse/internal/demo"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/mcp"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/runtime"
-	"quotapulse/internal/secret"
-	"quotapulse/internal/store"
-	"quotapulse/web"
+	"github.com/itswl/quotapulse/internal/api"
+	"github.com/itswl/quotapulse/internal/buildinfo"
+	"github.com/itswl/quotapulse/internal/bundle"
+	"github.com/itswl/quotapulse/internal/demo"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/mcp"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/runtime"
+	"github.com/itswl/quotapulse/internal/secret"
+	"github.com/itswl/quotapulse/internal/store"
+	"github.com/itswl/quotapulse/web"
 )
 
 // config is everything read from the environment. It is deliberately short:

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/i18n"
-	"quotapulse/internal/notify"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/i18n"
+	"github.com/itswl/quotapulse/internal/notify"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 // How long to wait before each retry of a delivery. After the last one the

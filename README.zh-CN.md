@@ -1,5 +1,8 @@
 # QuotaPulse
 
+[![ci](https://github.com/itswl/quotapulse/actions/workflows/ci.yml/badge.svg)](https://github.com/itswl/quotapulse/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/itswl/quotapulse)](https://github.com/itswl/quotapulse/releases)
+
 **在你依赖的东西用完或到期之前告诉你。**
 
 一个自托管的小服务，盯两类东西：
@@ -55,28 +58,32 @@
 不需要任何密钥 —— 演示模式用真正的引擎对着一个假的互联网跑：
 
 ```bash
-docker compose run --rm -p 8080:8080 quotapulse demo --lang zh
+docker run --rm -p 8080:8080 ghcr.io/itswl/quotapulse demo --lang zh
 # 打开 http://localhost:8080，密码：demo
 ```
 
 ## 部署
 
+一个文件，一项设置：
+
 ```bash
-cp .env.example .env          # 填上 QUOTAPULSE_PASSWORD
-mkdir -p data
-docker compose up -d          # 第一次会从当前代码构建镜像
+curl -fsSLO https://raw.githubusercontent.com/itswl/quotapulse/main/docker-compose.yml
+echo "QUOTAPULSE_PASSWORD=换成你的密码" > .env
+mkdir -p data && sudo chown 65532:65532 data
+docker compose up -d
 ```
 
 打开 http://localhost:8080 登录，然后添加一个账户、一个通知渠道、一个日期。
 所有配置都在看板里完成。
 
-- **用发布好的镜像，不自己构建。** 每个版本都会向 GitHub Container Registry 发布
-  多架构镜像（amd64、arm64），路径是本仓库的名字：
-  `ghcr.io/<owner>/quotapulse:<版本>`。把它写进 `.env` 的 `QUOTAPULSE_IMAGE`，
-  然后 `docker compose pull && docker compose up -d --no-build`。
-- **数据目录要对容器用户（65532）可写**：`sudo chown 65532:65532 data`；
-  或者在 `.env` 里设 `QUOTAPULSE_USER=$(id -u):$(id -g)`，让容器以你自己的身份运行。
-- **不用 Docker：** `npm --prefix web ci && npm --prefix web run build`，然后
+- **固定版本。** 镜像发布在 `ghcr.io/itswl/quotapulse`，支持 amd64 和 arm64。在
+  `.env` 里写上 `QUOTAPULSE_VERSION=1.0.2`，这样拉取镜像不会悄悄换掉正在运行的
+  版本；升级时改掉它，再执行 `docker compose pull && docker compose up -d`。
+- **数据目录要对容器用户（65532）可写** —— 就是上面那句 `chown`；或者在 `.env`
+  里设 `QUOTAPULSE_USER=$(id -u):$(id -g)`，让容器以你自己的身份运行。
+- **从源码构建：**
+  `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`。
+  不用 Docker：`npm --prefix web ci && npm --prefix web run build`，然后
   `go build ./cmd/quotapulse`，再 `QUOTAPULSE_PASSWORD=… ./quotapulse`。
 - **对外暴露之前先在前面加一层 TLS**，任何反向代理都行。看板的实时更新是一个
   长连接响应，不要给它开缓冲。

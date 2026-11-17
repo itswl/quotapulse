@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"quotapulse/internal/core"
-	"quotapulse/internal/forecast"
-	"quotapulse/internal/provider"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/forecast"
+	"github.com/itswl/quotapulse/internal/provider"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 const (

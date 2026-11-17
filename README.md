@@ -1,5 +1,8 @@
 # QuotaPulse
 
+[![ci](https://github.com/itswl/quotapulse/actions/workflows/ci.yml/badge.svg)](https://github.com/itswl/quotapulse/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/itswl/quotapulse)](https://github.com/itswl/quotapulse/releases)
+
 **Tells you before something you depend on runs out or comes due.**
 
 A small self-hosted service that watches two kinds of things:
@@ -62,29 +65,34 @@ account have headroom" before it starts a large job, under a scoped token.
 No credentials needed — the demo runs the real engine against a fake internet:
 
 ```bash
-docker compose run --rm -p 8080:8080 quotapulse demo --lang en
+docker run --rm -p 8080:8080 ghcr.io/itswl/quotapulse demo
 # http://localhost:8080, password: demo
 ```
 
 ## Run it
 
+One file and one setting:
+
 ```bash
-cp .env.example .env          # set QUOTAPULSE_PASSWORD
-mkdir -p data
-docker compose up -d          # builds the image from this checkout the first time
+curl -fsSLO https://raw.githubusercontent.com/itswl/quotapulse/main/docker-compose.yml
+echo "QUOTAPULSE_PASSWORD=choose-one" > .env
+mkdir -p data && sudo chown 65532:65532 data
+docker compose up -d
 ```
 
 Open http://localhost:8080, sign in, then add an account, a notification channel,
 and a date. Everything is configured in the dashboard.
 
-- **A published image instead of building.** Each release publishes a multi-arch
-  image (amd64, arm64) to the GitHub Container Registry under this repository's
-  name: `ghcr.io/<owner>/quotapulse:<version>`. Put that in `.env` as
-  `QUOTAPULSE_IMAGE`, then `docker compose pull && docker compose up -d --no-build`.
-- **The data directory must be writable** by the container's user, 65532:
-  `sudo chown 65532:65532 data` — or run the container as yourself by setting
+- **Pin the release.** Images are published for amd64 and arm64 as
+  `ghcr.io/itswl/quotapulse`. Set `QUOTAPULSE_VERSION=1.0.2` in `.env` so that a
+  pull never changes what is running; to upgrade, change it and run
+  `docker compose pull && docker compose up -d`.
+- **The data directory must be writable** by the container's user, 65532 — the
+  `chown` above — or run the container as yourself by setting
   `QUOTAPULSE_USER=$(id -u):$(id -g)` in `.env`.
-- **Without Docker:** `npm --prefix web ci && npm --prefix web run build`, then
+- **From source:**
+  `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+  Without Docker: `npm --prefix web ci && npm --prefix web run build`, then
   `go build ./cmd/quotapulse` and `QUOTAPULSE_PASSWORD=… ./quotapulse`.
 - **Put TLS in front** before exposing it beyond the machine; any reverse proxy
   will do. The dashboard's live updates are a long-lived response, so do not

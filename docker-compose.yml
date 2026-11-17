@@ -1,21 +1,22 @@
-# QuotaPulse with Docker Compose.
+# QuotaPulse with Docker Compose. This file and a .env are all a host needs.
 #
-#   cp .env.example .env        # set QUOTAPULSE_PASSWORD
-#   docker compose up -d        # builds the image from this checkout the first time
+#   echo "QUOTAPULSE_PASSWORD=choose-one" > .env
+#   mkdir -p data && sudo chown 65532:65532 data
+#   docker compose up -d
 #
-# To run a published image instead of building, set QUOTAPULSE_IMAGE in .env
-# (see the README for where releases are published) and `docker compose pull`.
+# It runs the published image. Pin a release with QUOTAPULSE_VERSION in .env,
+# so that a pull never changes what is running behind your back.
 #
 # Everything QuotaPulse knows lives in ./data: the database, its daily
 # backups, and the key that encrypts stored credentials. Back that directory up.
+#
+# To build from a checkout instead:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 services:
   quotapulse:
-    image: ${QUOTAPULSE_IMAGE:-quotapulse:local}
-    build:
-      context: .
-      args:
-        VERSION: ${QUOTAPULSE_VERSION:-local}
+    # QUOTAPULSE_IMAGE replaces the whole reference: a fork, a mirror.
+    image: ${QUOTAPULSE_IMAGE:-ghcr.io/itswl/quotapulse:${QUOTAPULSE_VERSION:-latest}}
     container_name: quotapulse
     restart: unless-stopped
     # The image runs as 65532. With ./data owned by you instead, set

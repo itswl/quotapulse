@@ -14,7 +14,7 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 // prelude is prepended to every extract program.

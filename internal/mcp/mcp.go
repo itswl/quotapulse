@@ -22,13 +22,13 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"quotapulse/internal/api"
-	"quotapulse/internal/buildinfo"
-	"quotapulse/internal/core"
-	"quotapulse/internal/engine"
-	"quotapulse/internal/i18n"
-	"quotapulse/internal/recur"
-	"quotapulse/internal/store"
+	"github.com/itswl/quotapulse/internal/api"
+	"github.com/itswl/quotapulse/internal/buildinfo"
+	"github.com/itswl/quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/engine"
+	"github.com/itswl/quotapulse/internal/i18n"
+	"github.com/itswl/quotapulse/internal/recur"
+	"github.com/itswl/quotapulse/internal/store"
 )
 
 const instructions = `QuotaPulse watches things that run out (meters: prepaid balances, quotas that reset, running totals of spend) and things that come due (dates: renewals, birthdays, expiries).

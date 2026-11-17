@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"quotapulse/internal/core"
+	"github.com/itswl/quotapulse/internal/core"
 )
 
 const incidentColumns = `id, subject_type, subject_id, kind, dedup, severity, state, reason, title, data,
