@@ -303,7 +303,7 @@ and is removed automatically when the browser unsubscribes.
 | | Scope | |
 | --- | --- | --- |
 | `GET /api/v1/push` | `admin` | `{public_key}` — what a browser subscribes with |
-| `POST /api/v1/push/subscriptions` | `admin` | `{name, subscription}` where `subscription` is the browser's `PushSubscription` as JSON → the channel. Subscribing the same browser again refreshes its channel |
+| `POST /api/v1/push/subscriptions` | `admin` | `{name, subscription}` where `subscription` is the browser's `PushSubscription` as JSON, exactly as `subscription.toJSON()` gives it → the channel. Subscribing the same browser again refreshes its channel |
 
 A `webpush` channel carries `device`: the first 32 hex digits of the SHA-256 of
 its subscription's endpoint. A browser hashes its own endpoint the same way to
