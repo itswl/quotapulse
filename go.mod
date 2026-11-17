@@ -3,14 +3,14 @@ module quotapulse
 go 1.27
 
 require (
-	github.com/6tail/lunar-go v1.4.6
+	github.com/6tail/lunar-go v1.4.7
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/itchyny/gojq v0.12.20
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	modernc.org/sqlite v1.62.0
 )
 
 require (
-	github.com/SherClockHolmes/webpush-go v1.4.0 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
