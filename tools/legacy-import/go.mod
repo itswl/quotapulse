@@ -12,7 +12,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/6tail/lunar-go v1.4.6 // indirect
+	github.com/6tail/lunar-go v1.4.7 // indirect
 	github.com/SherClockHolmes/webpush-go v1.4.0 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect

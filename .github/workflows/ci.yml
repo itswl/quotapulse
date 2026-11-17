@@ -50,9 +50,14 @@ jobs:
         run: go test -race ./...
 
       # The migration tool is a module of its own, so the server never
-      # carries the old database drivers.
+      # carries the old database drivers. It builds against the server's
+      # packages, and so needs at least the versions the server requires:
+      # -mod=mod lets it follow a bump made in the server's go.mod alone,
+      # which is all a dependency bot knows how to make.
       - name: Migration tool
         working-directory: tools/legacy-import
+        env:
+          GOFLAGS: -mod=mod
         run: |
           go vet ./...
           go test ./...

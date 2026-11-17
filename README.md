@@ -172,7 +172,7 @@ it, or the stored credentials cannot be read.
 ```bash
 npm --prefix web ci && npm --prefix web run build
 go test -race ./...
-(cd tools/legacy-import && go test ./...)
+(cd tools/legacy-import && go test -mod=mod ./...)
 npm --prefix web run typecheck && npm --prefix web test
 
 go run ./cmd/quotapulse demo --lang zh                        # try a change

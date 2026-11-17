@@ -59,7 +59,7 @@ run the tool.
 
 ```bash
 cd tools/legacy-import
-go run . --env-file /path/to/old/.env -o /path/to/bundle.json
+go run -mod=mod . --env-file /path/to/old/.env -o /path/to/bundle.json
 ```
 
 It prints what it converted and a note for everything that needs your attention.
@@ -70,7 +70,7 @@ To run it on a server without Go, build it once for that machine and copy the
 binary over:
 
 ```bash
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o legacy-import .
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -mod=mod -o legacy-import .
 ```
 
 **2. Write the new `.env`.** It needs one line; set the password to your old
