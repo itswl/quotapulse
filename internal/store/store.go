@@ -80,6 +80,12 @@ func Open(path string, keys *secret.Keyring) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	// The database names what someone depends on and when the people in
+	// their life were born. It is nobody else's to read, whatever the umask
+	// was when it was made. SQLite gives its side files the same mode.
+	for _, file := range []string{path, path + "-wal", path + "-shm"} {
+		_ = os.Chmod(file, 0o600)
+	}
 	return s, nil
 }
 

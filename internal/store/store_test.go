@@ -5,7 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -753,5 +755,33 @@ func TestBackupStatsAndEmpty(t *testing.T) {
 	must(t, copyDB.QueryRow("SELECT COUNT(*) FROM readings").Scan(&n))
 	if n != 1 {
 		t.Fatalf("backup holds %d readings", n)
+	}
+}
+
+// The database holds what someone depends on and the dates in their life;
+// nobody else on the machine should be able to read it.
+func TestTheDatabaseFileIsPrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes mean something else there")
+	}
+	path := filepath.Join(t.TempDir(), "data", "quotapulse.db")
+	// Made under a permissive umask by an earlier version, say.
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	st, err := Open(path, secret.FromPassphrase("test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode&0o077 != 0 {
+		t.Errorf("the database is readable by others: %v", mode)
 	}
 }
