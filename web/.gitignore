@@ -1,0 +1,7 @@
+node_modules/
+.test-dist/
+
+# dist is build output; only the placeholder that keeps the directory (and the
+# Go embed) alive is committed.
+dist/*
+!dist/.gitkeep
