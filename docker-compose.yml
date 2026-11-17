@@ -1,0 +1,33 @@
+# QuotaPulse with Docker Compose.
+#
+#   cp .env.example .env        # set QUOTAPULSE_PASSWORD
+#   docker compose up -d        # builds the image from this checkout the first time
+#
+# To run a published image instead of building, set QUOTAPULSE_IMAGE in .env
+# (see the README for where releases are published) and `docker compose pull`.
+#
+# Everything QuotaPulse knows lives in ./data: the database, its daily
+# backups, and the key that encrypts stored credentials. Back that directory up.
+
+services:
+  quotapulse:
+    image: ${QUOTAPULSE_IMAGE:-quotapulse:local}
+    build:
+      context: .
+      args:
+        VERSION: ${QUOTAPULSE_VERSION:-local}
+    container_name: quotapulse
+    restart: unless-stopped
+    # The image runs as 65532. With ./data owned by you instead, set
+    # QUOTAPULSE_USER to your own "uid:gid" in .env.
+    user: "${QUOTAPULSE_USER:-65532:65532}"
+    ports:
+      # Put a TLS-terminating proxy in front before exposing this beyond the
+      # machine. With one on the same host, publish to loopback only:
+      # QUOTAPULSE_PORT=127.0.0.1:8080 in .env.
+      - "${QUOTAPULSE_PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: .env
+        required: false
