@@ -13,7 +13,7 @@
   "dependencies": {
     "@preact/signals": "^2.11.4",
     "lucide-preact": "^1.73.0",
-    "preact": "^10.29.8"
+    "preact": "^11.2.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
