@@ -91,10 +91,16 @@ func (e *Engine) ImportPushKeys(ctx context.Context, keys notify.VAPID) (bool, e
 }
 
 // PushSubscription is what a browser hands over when it subscribes: where to
-// send, and the keys to encrypt with.
+// send, and the keys to encrypt with. It is the browser's own
+// PushSubscription.toJSON(), taken as it comes.
 type PushSubscription struct {
 	Endpoint string `json:"endpoint"`
-	Keys     struct {
+	// ExpirationTime is part of what every browser sends, and null in
+	// practice. It is accepted so the browser's JSON can be posted as it is,
+	// and not acted on: a subscription that has run out is found out the
+	// first time the push service refuses it, and removed then.
+	ExpirationTime *float64 `json:"expirationTime,omitempty"`
+	Keys           struct {
 		P256dh string `json:"p256dh"`
 		Auth   string `json:"auth"`
 	} `json:"keys"`

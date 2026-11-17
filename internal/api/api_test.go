@@ -680,6 +680,17 @@ func TestBrowserPushOverHTTP(t *testing.T) {
 	if status != 200 || !bytes.Contains(body, []byte(`"type":"webpush"`)) || bytes.Contains(body, []byte("device-secret-0001")) {
 		t.Fatalf("subscribe: %d %s", status, body)
 	}
+	// What a browser really sends is JSON.stringify(subscription), and that
+	// always carries expirationTime — null, or a time. 1.0.0 refused it as an
+	// unknown field, so nobody could turn notifications on.
+	for _, sent := range []string{
+		`{"name":"Chrome · macOS","subscription":{"endpoint":"https://push.example/send/device-0002","expirationTime":null,"keys":{"p256dh":"BKey","auth":"auth"}}}`,
+		`{"name":"Firefox · Linux","subscription":{"endpoint":"https://push.example/send/device-0003","expirationTime":1794900000000,"keys":{"p256dh":"BKey","auth":"auth"}}}`,
+	} {
+		if status, body := c.do("POST", "/api/v1/push/subscriptions", sent); status != 200 || !bytes.Contains(body, []byte(`"type":"webpush"`)) {
+			t.Errorf("a browser's own subscription was refused: %d %s", status, body)
+		}
+	}
 	subscription["endpoint"] = "http://push.example/x"
 	if status, _ := c.do("POST", "/api/v1/push/subscriptions", map[string]any{"subscription": subscription}); status != 400 {
 		t.Errorf("a plain-http endpoint: %d", status)
