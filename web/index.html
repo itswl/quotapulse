@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>QuotaPulse</title>
+    <meta name="description" content="Know before something you depend on runs out or comes due.">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#f6f7f9">
+    <meta name="robots" content="noindex">
+    <!-- Sets the theme before the first paint. It is a file of its own because
+         the Content-Security-Policy allows no inline script. -->
+    <script src="{{theme.js}}"></script>
+    <link rel="preload" href="{{font.sans}}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{font.mono}}" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="{{app.css}}">
+    <link rel="icon" href="/icons/logo.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <script type="module" src="{{app.js}}"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>QuotaPulse needs JavaScript to run.</noscript>
+  </body>
+</html>

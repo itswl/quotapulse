@@ -1,0 +1,94 @@
+/* The sign-in screen (src/pages/login). */
+
+.login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--s-12) var(--s-4);
+}
+
+.login__tools {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+}
+
+.login__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: min(100%, 360px);
+  padding: var(--s-8) var(--s-6) var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+  /* the logo's pulse line takes the colour of what is behind it */
+  --logo-line: var(--surface);
+}
+
+.login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.login__name {
+  margin-top: var(--s-3);
+  font-size: var(--fs-20);
+  letter-spacing: -0.01em;
+}
+
+.login__tagline {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.login__demo {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  text-align: center;
+}
+
+.login__checking {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  color: var(--text-2);
+}
+
+.login__unreachable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  text-align: center;
+}
+
+.login__unreachable p {
+  margin-bottom: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.login__notice code {
+  display: inline-block;
+  margin-top: var(--s-2);
+}
+
+.login__version {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
