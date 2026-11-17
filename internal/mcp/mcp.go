@@ -48,13 +48,14 @@ func Handler(e *engine.Engine, log *slog.Logger) http.Handler {
 	if log == nil {
 		log = slog.Default()
 	}
+	protocol := protocolLogger(log)
 	return sdk.NewStreamableHTTPHandler(func(r *http.Request) *sdk.Server {
 		name, allows := api.PrincipalScopes(r.Context())
-		return newServer(&tools{e: e, log: log, caller: name, allows: allows})
+		return newServer(&tools{e: e, log: log, protocol: protocol, caller: name, allows: allows})
 	}, &sdk.StreamableHTTPOptions{
 		// Stateless: every request stands alone, so any replica — or a
 		// restart — can answer it.
-		Stateless: true, JSONResponse: true, Logger: log,
+		Stateless: true, JSONResponse: true, Logger: protocol,
 		// The SDK refuses requests that arrive on loopback with a foreign
 		// Host header, to protect unauthenticated local servers from DNS
 		// rebinding. This endpoint only accepts a bearer token — nothing a
@@ -64,17 +65,48 @@ func Handler(e *engine.Engine, log *slog.Logger) http.Handler {
 	})
 }
 
+// protocolLogger is what the protocol library logs through. At Info it
+// announces every session connecting and disconnecting, and here every
+// request is a session of its own: three lines of log for one question from
+// an agent. Its warnings are kept; the rest is shown only when debugging.
+func protocolLogger(log *slog.Logger) *slog.Logger {
+	if log.Enabled(context.Background(), slog.LevelDebug) {
+		return log
+	}
+	return slog.New(atLeast{Handler: log.Handler(), level: slog.LevelWarn})
+}
+
+// atLeast drops records below a level.
+type atLeast struct {
+	slog.Handler
+	level slog.Level
+}
+
+func (h atLeast) Enabled(ctx context.Context, level slog.Level) bool {
+	return level >= h.level && h.Handler.Enabled(ctx, level)
+}
+
+func (h atLeast) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return atLeast{Handler: h.Handler.WithAttrs(attrs), level: h.level}
+}
+
+func (h atLeast) WithGroup(name string) slog.Handler {
+	return atLeast{Handler: h.Handler.WithGroup(name), level: h.level}
+}
+
 type tools struct {
-	e      *engine.Engine
-	log    *slog.Logger
-	caller string
-	allows func(scope string) bool
+	e   *engine.Engine
+	log *slog.Logger
+	// protocol is the logger handed to the protocol library.
+	protocol *slog.Logger
+	caller   string
+	allows   func(scope string) bool
 }
 
 func newServer(t *tools) *sdk.Server {
 	server := sdk.NewServer(
 		&sdk.Implementation{Name: "quotapulse", Title: "QuotaPulse", Version: buildinfo.Version},
-		&sdk.ServerOptions{Instructions: instructions, Logger: t.log, SchemaCache: schemas},
+		&sdk.ServerOptions{Instructions: instructions, Logger: t.protocol, SchemaCache: schemas},
 	)
 	if t.allows(core.ScopeRead) {
 		add(t, server, readOnly("attention", "What needs attention",
