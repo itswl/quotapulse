@@ -81,7 +81,8 @@ export interface InputProps extends Omit<HTMLAttributes<HTMLInputElement>, 'onIn
   /** The id of a <datalist> of suggestions. */
   list?: string;
   maxLength?: number;
-  /** Numbers and codes read better in the mono face. */
+  /** Keys, codes and addresses read better in the mono face. A figure
+   *  (inputMode decimal or numeric) is set like every other figure. */
   mono?: boolean;
   class?: string;
   /** What a text field may also be: the box of a combobox, or a search box. */

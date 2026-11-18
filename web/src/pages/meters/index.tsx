@@ -180,7 +180,7 @@ export default function MetersPage(_props: PageProps) {
   return (
     <>
       {header}
-      <div class="mt-filters" role="group" aria-label={t('meters.list.filter')}>
+      <div class="filter-row mt-filters" role="group" aria-label={t('meters.list.filter')}>
         {FILTERS.map((each) => (
           <FilterChip key={each.id} pressed={filter === each.id} count={count(each.id)} onClick={() => setQuery({ filter: each.id === 'all' ? null : each.id })}>
             {t(each.label)}
@@ -256,7 +256,7 @@ function AccountRow({ account }: { account: AccountView }) {
           <span class="truncate">{account.name}</span>
           <StatusDot status={state.status} />
         </p>
-        <p class="mt-account__note">
+        <p class="mt-account__note dotted">
           {account.provider_name !== account.name && <span>{account.provider_name}</span>}
           <span class={state.status === 'failing' ? 'mt-account__error' : undefined}>{state.note}</span>
           {failures && <span>{failures}</span>}

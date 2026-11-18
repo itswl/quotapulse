@@ -1,14 +1,16 @@
 // The overview: is everything fine, and if not, what needs a person. One
 // request (GET /api/v1/overview) feeds the whole page.
-import { ArrowRight, BellPlus, CalendarPlus, CircleCheck, Plug, RefreshCw, type LucideIcon } from 'lucide-preact';
+import { ArrowRight, BellPlus, CalendarPlus, Check, Plug, RefreshCw, type LucideIcon } from 'lucide-preact';
+import { useEffect } from 'preact/hooks';
 import type { IncidentView, Overview, Severity } from '../../api/types';
 import { Banner, Button, Card, cx, ErrorState, IncidentRow, InfoTip, LinkButton, MeterCard, Section, Skeleton, statusIcon, Amount } from '../../components';
 import { errorText } from '../../errors';
-import { formatAgo, formatDateTime, formatMonth, toMs } from '../../format';
+import { dayOf, formatAgo, formatDateTime, formatDay, formatMonth, toMs } from '../../format';
 import { useTitle } from '../../hooks';
 import { t } from '../../i18n';
 import { Link } from '../../router';
 import type { PageProps } from '../../routes';
+import { now } from '../../state/clock';
 import { overview } from '../../state/overview';
 import { useResource } from '../../state/resource';
 import { isSampling, sampleNow } from '../../state/sampling';
@@ -115,7 +117,8 @@ function Verdict({ data, issues }: { data: Overview; issues: IncidentView[] }) {
 
   let tone: 'ok' | 'neutral' | Severity = 'ok';
   let title = t('overview.verdict.clear');
-  let Icon: LucideIcon = CircleCheck;
+  // The mark is a disc already: a bare tick in it, not the ringed one.
+  let Icon: LucideIcon = Check;
   let note: string | null = null;
   if (fresh.length > 0) {
     tone = worst(fresh);
@@ -142,28 +145,44 @@ function Verdict({ data, issues }: { data: Overview; issues: IncidentView[] }) {
     sampleNow().catch((cause: unknown) => toast.error(errorText(cause)));
   };
 
+  // While this page is up, the top of the window takes the verdict's
+  // colour (styles/pages/overview.css): the answer is there before a word
+  // of it has been read.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.verdict = tone;
+    return () => {
+      delete root.dataset.verdict;
+    };
+  }, [tone]);
+
+  const today = dayOf(now.value);
+
   return (
     <header class={cx('ov-verdict', `ov-verdict--${tone}`)}>
-      <Icon class="ov-verdict__icon" size={32} strokeWidth={1.75} />
-      <div class="ov-verdict__text">
-        <h1 class="ov-verdict__title">{title}</h1>
-        <p class="ov-verdict__sub">
-          {note && <span class="ov-verdict__note">{note}</span>}
-          <span>{watching}</span>
-          {lastRead > 0 ? (
-            <time dateTime={new Date(lastRead).toISOString()} title={formatDateTime(lastRead)}>
-              {t('overview.lastRead', { ago: formatAgo(lastRead) })}
-            </time>
-          ) : (
-            <span>{t('overview.neverRead')}</span>
-          )}
-          {data.counts.accounts > 0 && (
-            <Button class="ov-verdict__read" variant="ghost" size="sm" icon={RefreshCw} busy={reading} onClick={read}>
-              {reading ? t('common.action.reading') : t('common.action.readNow')}
-            </Button>
-          )}
-        </p>
-      </div>
+      <p class="ov-verdict__date">
+        <time dateTime={today}>{formatDay(today, { weekday: true })}</time>
+      </p>
+      <span class="ov-verdict__mark">
+        <Icon size={22} strokeWidth={2} />
+      </span>
+      <h1 class="ov-verdict__title">{title}</h1>
+      <p class="ov-verdict__sub dotted">
+        {note && <span class="ov-verdict__note">{note}</span>}
+        <span>{watching}</span>
+        {lastRead > 0 ? (
+          <time dateTime={new Date(lastRead).toISOString()} title={formatDateTime(lastRead)}>
+            {t('overview.lastRead', { ago: formatAgo(lastRead) })}
+          </time>
+        ) : (
+          <span>{t('overview.neverRead')}</span>
+        )}
+      </p>
+      {data.counts.accounts > 0 && (
+        <Button class="ov-verdict__read" icon={RefreshCw} compact busy={reading} onClick={read}>
+          {reading ? t('common.action.reading') : t('common.action.readNow')}
+        </Button>
+      )}
     </header>
   );
 }

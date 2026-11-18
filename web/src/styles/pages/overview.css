@@ -3,61 +3,94 @@
 
 /* ---------- the verdict ---------- */
 
+/* While the overview is up it sets data-verdict on <html>, and the top of
+   the window takes the verdict's colour: a wash, strongest behind the
+   sentence and gone before the first card. It is a background, so nothing
+   has to be stacked above it; the phone's top bar lets it through. */
+[data-verdict='ok'] {
+  --wash: var(--ok);
+}
+
+[data-verdict='warning'] {
+  --wash: var(--warning);
+}
+
+[data-verdict='critical'] {
+  --wash: var(--critical);
+}
+
+[data-verdict='info'] {
+  --wash: var(--info);
+}
+
+[data-verdict] .shell__body {
+  background-image: radial-gradient(ellipse 64% 100% at 16% 0%, color-mix(in oklab, var(--wash, transparent) 14%, transparent), transparent 76%);
+  background-repeat: no-repeat;
+  background-size: 100% 440px;
+}
+
+/* The date, then the sentence with its mark, then the quiet line; the
+   button to read again stands at the right of all three. */
 .ov-verdict {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-4);
-}
-
-.ov-verdict__icon {
-  margin-top: 8px;
-  color: var(--ok);
-}
-
-.ov-verdict__text {
-  min-width: 0;
-}
-
-.ov-verdict__title {
-  font-size: var(--fs-40);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
-}
-
-.ov-verdict--warning .ov-verdict__title,
-.ov-verdict--warning .ov-verdict__icon {
-  color: var(--warning);
-}
-
-.ov-verdict--critical .ov-verdict__title,
-.ov-verdict--critical .ov-verdict__icon {
-  color: var(--critical);
-}
-
-.ov-verdict--info .ov-verdict__title,
-.ov-verdict--info .ov-verdict__icon {
-  color: var(--info);
-}
-
-.ov-verdict--neutral .ov-verdict__icon {
-  color: var(--text-3);
-}
-
-.ov-verdict__sub {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'date date  read'
+    'mark title read'
+    'sub  sub   read';
   align-items: center;
-  gap: 2px 0;
-  margin-top: var(--s-2);
+  column-gap: var(--s-3);
+}
+
+.ov-verdict__date {
+  grid-area: date;
+  margin-bottom: var(--s-3);
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+/* the state as a solid seal; the sentence beside it stays in ink */
+.ov-verdict__mark {
+  grid-area: mark;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: var(--on-accent);
+}
+
+.ov-verdict--warning .ov-verdict__mark {
+  background: var(--warning);
+}
+
+.ov-verdict--critical .ov-verdict__mark {
+  background: var(--critical);
+}
+
+.ov-verdict--info .ov-verdict__mark {
+  background: var(--info);
+}
+
+.ov-verdict--neutral .ov-verdict__mark {
+  background: var(--surface-2);
   color: var(--text-2);
 }
 
-/* the parts of the quiet line are separated by a middle dot */
-.ov-verdict__sub > :not(:first-child):not(.ov-verdict__read)::before {
-  content: '·';
-  margin: 0 8px;
-  color: var(--text-3);
+.ov-verdict__title {
+  grid-area: title;
+  font-size: var(--fs-32);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.ov-verdict__sub {
+  grid-area: sub;
+  margin-top: var(--s-3);
+  color: var(--text-2);
 }
 
 .ov-verdict__note {
@@ -66,7 +99,7 @@
 }
 
 .ov-verdict__read {
-  margin-left: var(--s-2);
+  grid-area: read;
 }
 
 .ov-hint {
@@ -80,7 +113,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--s-1) var(--s-3);
-  padding: 14px var(--s-4);
+  padding: var(--s-4) var(--s-5);
 }
 
 .incident + .incident {
@@ -98,6 +131,11 @@
 
 .incident__headline a {
   color: inherit;
+  text-decoration: none;
+}
+
+.incident__headline a:hover {
+  text-decoration: underline;
 }
 
 .incident__detail {
@@ -135,6 +173,20 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
+}
+
+/* "Got it" is said often and decides little: a quiet pill, not a button
+   that competes with the sentence it answers */
+.incident__actions .btn--secondary {
+  border-color: transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.incident__actions .btn--secondary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-3);
 }
 
 .incident__acked {
@@ -176,7 +228,7 @@
   grid-template-columns: subgrid;
   align-items: center;
   row-gap: var(--s-1);
-  padding: 10px var(--s-4);
+  padding: var(--s-3) var(--s-5);
   transition: opacity 0.15s var(--ease);
 }
 
@@ -196,7 +248,8 @@
 
 .ov-date__day {
   font-size: var(--fs-20);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .ov-date__month {
@@ -257,9 +310,14 @@
 }
 
 .ov-month__value {
-  font-size: var(--fs-20);
-  font-weight: 500;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+}
+
+.ov-month__value .unit {
+  font-size: var(--fs-13);
 }
 
 .ov-month__note {
@@ -296,6 +354,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
   color: var(--text);
   transition: border-color 0.12s var(--ease);
 }
@@ -355,51 +414,86 @@
 }
 
 @media (max-width: 719px) {
-  .ov-verdict {
-    gap: var(--s-3);
+  [data-verdict] .shell__body {
+    background-image: radial-gradient(ellipse 110% 100% at 20% 0%, color-mix(in oklab, var(--wash, transparent) 16%, transparent), transparent 78%);
+    background-size: 100% 360px;
   }
 
-  .ov-verdict__icon {
-    width: 24px;
-    height: 24px;
-    margin-top: 5px;
+  /* the button to read again goes up beside the date, as an icon */
+  .ov-verdict {
+    grid-template-areas:
+      'date date  read'
+      'mark title title'
+      'sub  sub   sub';
+    padding-top: var(--s-1);
+  }
+
+  .ov-verdict__date {
+    margin-bottom: 0;
+  }
+
+  .ov-verdict__mark {
+    width: 34px;
+    height: 34px;
+    margin-top: var(--s-2);
+  }
+
+  .ov-verdict__mark svg {
+    width: 20px;
+    height: 20px;
   }
 
   .ov-verdict__title {
+    margin-top: var(--s-2);
     font-size: var(--fs-28);
   }
 
-  /* on a narrow screen each part of the quiet line gets a line of its own */
-  .ov-verdict__sub {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .ov-verdict__sub > :not(:first-child):not(.ov-verdict__read)::before {
-    content: none;
-  }
-
   .ov-verdict__read {
-    margin: var(--s-1) 0 0 -10px;
+    margin-right: -6px;
   }
 
-  .incident {
-    grid-template-columns: auto minmax(0, 1fr);
+  /* An incident's last line holds when it appeared and, beside it, the
+     way to say "I know": the text gives up its box so that both can sit
+     in the row's own grid. */
+  .incidents .incident {
+    padding: 14px var(--s-4);
   }
 
-  .incident__actions {
+  .incidents .incident__text {
+    display: contents;
+  }
+
+  .incidents .incident__headline,
+  .incidents .incident__detail,
+  .incidents .incident__facts {
+    grid-column: 2 / -1;
+  }
+
+  .incidents .incident__detail,
+  .incidents .incident__meta {
+    margin-top: 0;
+  }
+
+  .incidents .incident__meta {
     grid-column: 2;
-    margin-top: var(--s-1);
-    margin-left: -2px;
+    align-self: center;
   }
 
+  .incidents .incident__actions {
+    grid-column: 3;
+    align-self: center;
+    margin: 2px -4px -4px 0;
+  }
+
+  /* the first column is as wide as the widest date in the list */
   .ov-dates {
-    grid-template-columns: 64px minmax(0, 1fr) auto;
-    column-gap: var(--s-3);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: var(--s-4);
   }
 
   .ov-date {
     row-gap: 2px;
+    padding: var(--s-3) var(--s-4);
   }
 
   .ov-date__block {
@@ -428,6 +522,7 @@
   .ov-date__action {
     grid-column: 3;
     grid-row: 2;
+    margin-right: -8px;
   }
 
   .ov-date__action:empty,
@@ -445,5 +540,9 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--s-3);
+  }
+
+  .ov-month__value {
+    font-size: var(--fs-18);
   }
 }

@@ -14,16 +14,20 @@
   flex-direction: column;
   gap: var(--s-3);
   min-width: 0;
-  padding: var(--s-4);
+  padding: var(--s-5);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
   color: var(--text);
-  transition: border-color 0.12s var(--ease);
+  transition:
+    border-color 0.12s var(--ease),
+    box-shadow 0.12s var(--ease);
 }
 
 .meter-card:hover {
-  border-color: var(--border-control);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hover);
   text-decoration: none;
 }
 
@@ -78,11 +82,15 @@
   min-height: 38px;
 }
 
+/* The figure is what the card is for. It is not in a column with anything,
+   so its digits keep their own widths: a 1 is narrow, and the number reads
+   as a word would. */
 .meter-card__value {
   font-size: var(--fs-28);
-  font-weight: 500;
+  font-weight: 600;
+  font-variant-numeric: normal;
   line-height: 1.15;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   white-space: nowrap;
 }
 
@@ -138,9 +146,6 @@
 /* ---------- the list ---------- */
 
 .mt-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
   margin-bottom: var(--s-6);
 }
 
@@ -186,6 +191,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .mt-account__icon {
@@ -204,19 +210,10 @@
 }
 
 .mt-account__note {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--s-2);
   margin-top: 1px;
   color: var(--text-2);
   font-size: var(--fs-13);
   overflow-wrap: anywhere;
-}
-
-.mt-account__note > span + span::before {
-  content: '·';
-  margin-right: var(--s-2);
-  color: var(--text-3);
 }
 
 .mt-account__actions {
@@ -441,18 +438,6 @@
   overflow-wrap: anywhere;
 }
 
-.mt-head__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--s-2);
-}
-
-.mt-head__meta > * + *::before {
-  content: '·';
-  margin-right: var(--s-2);
-  color: var(--text-3);
-}
-
 .mt-head__figure {
   display: flex;
   align-items: baseline;
@@ -463,9 +448,10 @@
 
 .mt-head__value {
   font-size: var(--fs-40);
-  font-weight: 500;
+  font-weight: 600;
+  font-variant-numeric: normal;
   line-height: 1.1;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.04em;
 }
 
 .mt-head__value .unit--spaced {
@@ -699,6 +685,134 @@
 }
 
 @media (max-width: 719px) {
+  /* A phone shows meters as a list: one card for the lot, a row for each.
+     The row is the card's own markup — its wrappers give up their boxes,
+     and the parts take their places in the row's grid:
+
+       name ..................  spark  value
+       state  what the number means ......
+       the bar, when there is one ........  */
+  .meter-grid:has(> .meter-card) {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: var(--r-2);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .meter-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 3px var(--s-2);
+    padding: 13px var(--s-4);
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    transition: background-color 0.12s var(--ease);
+  }
+
+  .meter-card:hover {
+    box-shadow: none;
+  }
+
+  .meter-card:active {
+    background-color: var(--surface-2);
+  }
+
+  .meter-card:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* the line between two rows starts where the words do */
+  .meter-card + .meter-card {
+    background-image: linear-gradient(var(--border), var(--border));
+    background-repeat: no-repeat;
+    background-position: var(--s-4) 0;
+    background-size: calc(100% - 2 * var(--s-4)) 1px;
+  }
+
+  .meter-card__head,
+  .meter-card__titles,
+  .meter-card__figure,
+  .meter-card__meaning {
+    display: contents;
+  }
+
+  .meter-card__name {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+  }
+
+  /* a group's heading, or the name itself, already says where it is from */
+  .meter-card__source {
+    display: none;
+  }
+
+  .meter-card__spark {
+    grid-column: 3;
+    grid-row: 1;
+    width: 56px;
+    height: 24px;
+    margin-right: var(--s-1);
+  }
+
+  /* at this height the fade under the line is only a smudge */
+  .meter-card__spark .spark__area {
+    display: none;
+  }
+
+  .meter-card__value,
+  .meter-card__value.is-long {
+    grid-column: 4;
+    grid-row: 1;
+    justify-self: end;
+    font-size: var(--fs-18);
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .meter-card__value .unit--spaced {
+    font-size: var(--fs-11);
+  }
+
+  .meter-card__state {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  .meter-card__line {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  /* runs out in 13 days, or on the 30th: a row says it once */
+  .meter-card__more {
+    display: none;
+  }
+
+  .meter-card .meterbar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin-top: 3px;
+  }
+
+  .meter-card .meterbar--beyond {
+    width: calc(100% - 18px);
+  }
+
+  .mt-filters {
+    margin-bottom: var(--s-5);
+  }
+
+  .mt-group {
+    margin-top: var(--s-6);
+  }
+
   .mt-form__row {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -707,8 +821,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .mt-head__value {
-    font-size: var(--fs-28);
+  /* the figure is the page: it keeps its size */
+  .mt-head__figure {
+    margin: 0 0 var(--s-5);
+  }
+
+  .mt-charts__range .tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .mt-charts__range .tabs__tab {
+    flex: 1 1 0;
+    padding: 0;
+    text-align: center;
   }
 
   .mt-rules__form .input,

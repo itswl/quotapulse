@@ -3,7 +3,8 @@
    One piece of markup, three layouts:
      ≥ 960px   a left rail with labels
      720–959   a rail of icons
-     < 720px   a bottom tab bar, and a slim top bar for the brand and tools */
+     < 720px   a bottom tab bar of five, and a top bar that carries the
+               page's title once the page's own heading has scrolled away */
 
 .shell {
   display: grid;
@@ -20,13 +21,25 @@
 
 .page {
   width: 100%;
-  max-width: calc(var(--content-max) + 2 * var(--s-8));
+  max-width: calc(var(--content-max) + 2 * var(--s-10));
   margin: 0 auto;
-  padding: var(--s-8) var(--s-8) var(--s-12);
+  padding: var(--s-10) var(--s-10) var(--s-12);
 }
 
 .page:focus {
   outline: none;
+}
+
+/* A page arrives rather than snaps in. Opacity only: a transform here would
+   become the containing block of everything fixed inside the page. */
+.page__view {
+  animation: page-in 0.22s var(--ease);
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .skip-link {
@@ -61,8 +74,8 @@
   min-width: 0;
   color: var(--text);
   font-size: var(--fs-16);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .brand__link:hover {
@@ -89,20 +102,22 @@
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--s-5);
+  gap: var(--s-6);
   height: 100vh;
   height: 100dvh;
   padding: var(--s-5) var(--s-3) var(--s-4);
+  padding-left: max(var(--s-3), env(safe-area-inset-left, 0px));
   border-right: 1px solid var(--border);
   overflow-y: auto;
 }
 
 .nav .brand {
-  padding: 0 var(--s-2);
+  padding: 2px var(--s-2);
 }
 
 .nav__items {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 2px;
 }
@@ -111,8 +126,9 @@
   position: relative;
   display: flex;
   align-items: center;
+  flex: none;
   gap: 10px;
-  height: 36px;
+  height: 34px;
   padding: 0 10px;
   border-radius: var(--r-1);
   color: var(--text-2);
@@ -128,10 +144,25 @@
   text-decoration: none;
 }
 
+/* where you are: a slip of the card's own paper, lifted off the rail */
 .nav__item.is-active {
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--border);
+  box-shadow:
+    0 0 0 1px var(--border),
+    var(--shadow-card);
   color: var(--text);
+  font-weight: 600;
+}
+
+/* settings sits at the foot of the rail, away from the pages one visits */
+.nav__item--aside {
+  margin-top: auto;
+}
+
+.nav__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
 }
 
 .nav__badge {
@@ -163,8 +194,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  margin-top: auto;
-  padding: 0 var(--s-1);
+  padding: var(--s-3) var(--s-1) 0;
+  border-top: 1px solid var(--border);
 }
 
 .nav__version {
@@ -191,12 +222,13 @@
   }
 
   .page {
-    padding: var(--s-6) var(--s-6) var(--s-12);
+    padding: var(--s-8) var(--s-6) var(--s-12);
   }
 
   .nav {
     align-items: center;
     padding: var(--s-4) var(--s-2);
+    padding-left: max(var(--s-2), env(safe-area-inset-left, 0px));
   }
 
   .nav .brand {
@@ -233,12 +265,17 @@
     font-size: 0.625rem;
   }
 
+  .nav__foot {
+    align-items: center;
+    padding: var(--s-3) 0 0;
+  }
+
   .nav .tools {
     flex-direction: column;
   }
 }
 
-/* ---------- < 720px: bottom tab bar ---------- */
+/* ---------- < 720px: a top bar and a tab bar ---------- */
 
 @media (max-width: 719px) {
   .shell {
@@ -246,7 +283,19 @@
   }
 
   .page {
-    padding: var(--s-5) var(--s-4) calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-8));
+    padding: var(--s-2) max(var(--s-4), env(safe-area-inset-right, 0px))
+      calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-10)) max(var(--s-4), env(safe-area-inset-left, 0px));
+  }
+
+  /* Both bars are the paper with the page showing faintly through, so what
+     scrolls under them is felt rather than read. The top bar is only that
+     once something has scrolled under it: at the top of a page it is clear,
+     and the page begins at the top of the screen. */
+  .topbar.is-scrolled,
+  .nav {
+    background: var(--bar);
+    -webkit-backdrop-filter: saturate(1.8) blur(20px);
+    backdrop-filter: saturate(1.8) blur(20px);
   }
 
   .topbar {
@@ -256,10 +305,74 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 52px;
-    padding: 0 var(--s-2) 0 var(--s-4);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    height: calc(var(--topbar) + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) max(var(--s-1), env(safe-area-inset-right, 0px)) 0
+      max(var(--s-4), env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color 0.2s var(--ease),
+      border-color 0.2s var(--ease);
+  }
+
+  /* the name is under the icon on the home screen; here the mark is enough */
+  .topbar .brand__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .topbar__title {
+    position: absolute;
+    right: 56px;
+    bottom: 0;
+    left: 56px;
+    height: var(--topbar);
+    font-size: var(--fs-14);
+    font-weight: 600;
+    line-height: var(--topbar);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 0.2s var(--ease),
+      transform 0.2s var(--ease);
+    pointer-events: none;
+  }
+
+  /* the page's heading has gone under the bar: the bar takes it over, and
+     draws the line it did without while the heading was still in sight */
+  .topbar.is-carrying {
+    border-bottom-color: var(--border);
+  }
+
+  .topbar.is-carrying .topbar__title {
+    opacity: 1;
+    transform: none;
+  }
+
+  .topbar .brand__demo {
+    transition: opacity 0.2s var(--ease);
+  }
+
+  .topbar.is-carrying .brand__demo {
+    opacity: 0;
+  }
+
+  .topbar__settings {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .topbar__settings.is-active {
+    color: var(--text);
+  }
+
+  .topbar__settings.is-active svg {
+    stroke-width: 2.1;
   }
 
   .nav {
@@ -269,20 +382,20 @@
     flex-direction: row;
     gap: 0;
     height: auto;
-    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    padding: 0 max(var(--s-1), env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
+      max(var(--s-1), env(safe-area-inset-left, 0px));
     border-top: 1px solid var(--border);
     border-right: 0;
-    background: var(--surface);
     overflow: visible;
   }
 
   .nav .brand,
-  .nav__foot {
+  .nav__foot,
+  .nav__item--aside {
     display: none;
   }
 
   .nav__items {
-    flex: 1 1 auto;
     flex-direction: row;
     gap: 0;
     min-width: 0;
@@ -291,23 +404,54 @@
   .nav__item {
     flex: 1 1 0;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     width: auto;
     min-width: 0;
     height: var(--tabbar);
     border-radius: 0;
     color: var(--text-3);
-    font-size: 0.6875rem;
+    font-size: var(--fs-11);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .nav__item:hover {
     background: none;
   }
 
+  /* The tab you are on: its icon stands on a slip of ink-tinted paper, a
+     stroke heavier. No colour is spent on it. */
   .nav__item.is-active {
     background: none;
-    box-shadow: inset 0 2px 0 var(--accent);
+    box-shadow: none;
     color: var(--text);
+  }
+
+  .nav__icon {
+    width: 52px;
+    height: 28px;
+    border-radius: 14px;
+    transition:
+      background-color 0.2s var(--ease),
+      transform 0.2s var(--ease-out);
+  }
+
+  .nav__icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .nav__item.is-active .nav__icon {
+    background: var(--accent-weak);
+  }
+
+  .nav__item.is-active .nav__icon svg {
+    stroke-width: 2.1;
+  }
+
+  .nav__item:active .nav__icon {
+    transform: scale(0.92);
   }
 
   .nav__label {
@@ -322,7 +466,9 @@
   }
 
   .nav__badge {
-    top: 6px;
-    right: calc(50% - 22px);
+    top: 5px;
+    right: auto;
+    left: calc(50% + 6px);
+    box-shadow: 0 0 0 2px var(--bg);
   }
 }

@@ -9,11 +9,18 @@ import { timeTicks, type TimeTick } from './scale';
 /** Room around the plot: value labels on the left, time labels below. */
 export const PLOT = { left: 44, right: 14, top: 14, bottom: 24 };
 
+/** How much larger than 16px the root type is: a phone steps the whole
+ *  scale up (styles/base.css), and the labels grow with it. */
+function typeScale(): number {
+  if (typeof document === 'undefined') return 1;
+  return (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16;
+}
+
 /** Roughly how wide a label is at the axis size, without measuring it. */
-function textWidth(text: string): number {
+function textWidth(text: string, scale: number): number {
   let width = 0;
   for (const char of text) width += char.charCodeAt(0) > 0x2e7f ? 11 : 6.3;
-  return width;
+  return width * scale;
 }
 
 export function timeLabel(tick: TimeTick, zone: string = timezone.value): string {
@@ -25,9 +32,12 @@ export function timeLabel(tick: TimeTick, zone: string = timezone.value): string
   return monthName(month);
 }
 
-/** The ticks of a time axis that fit a plot of the given width. */
+/** The ticks of a time axis that fit a plot of the given width: one for
+ *  every 64px or so. That is closer than the longest label is wide plus
+ *  air, which is what lets a phone's plot have three or four of them;
+ *  XAxis leaves out any label that would touch its neighbour. */
 export function axisTicks(from: number, to: number, plotWidth: number): TimeTick[] {
-  return timeTicks(from, to, Math.max(2, Math.floor(plotWidth / 78)), timezone.value);
+  return timeTicks(from, to, Math.max(2, Math.floor(plotWidth / 64)), timezone.value);
 }
 
 export interface XAxisProps {
@@ -43,13 +53,14 @@ export interface XAxisProps {
  *  the plot or into its neighbour is left out; its tick mark stays. */
 export function XAxis({ ticks, x, y, x0, x1 }: XAxisProps) {
   let free = x0 - 20;
+  const scale = typeScale();
   return (
     <g class="chart__axis" aria-hidden="true">
       <line class="chart__baseline" x1={x0} x2={x1} y1={y + 0.5} y2={y + 0.5} />
       {ticks.map((tick) => {
         const at = x(tick.t);
         const label = timeLabel(tick);
-        const half = textWidth(label) / 2;
+        const half = textWidth(label, scale) / 2;
         const fits = at - half >= free && at + half <= x1 + PLOT.right;
         if (fits) free = at + half + 10;
         return (

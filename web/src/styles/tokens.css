@@ -1,9 +1,16 @@
 /* Design tokens. Every colour, size and radius in the dashboard comes from
    here; a component that needs a new one adds it here, in both themes.
 
+   The look is ink on paper. Text, buttons, selections and chart marks are
+   all drawn in the one ink, on a warm paper ground, and the only hues are
+   the four that mean something: ok, warning, critical, info. When a colour
+   shows up, it is saying one of those things.
+
    Light is on :root, dark on [data-theme="dark"]. The attribute is always
    set before the first paint (src/theme-boot.ts), so there is no media query:
-   following the system is the script's job.
+   following the system is the script's job. --bg is also written out in
+   index.html, public/manifest.webmanifest, src/theme.ts and
+   src/theme-boot.ts, for the browser's own chrome: change it in all five.
 
    Text contrast, checked against WCAG AA (4.5:1) on bg, surface and
    surface-2 alike: text, text-2, text-3, accent, ok, warning, critical and
@@ -29,56 +36,71 @@
 :root {
   color-scheme: light;
 
-  /* surfaces and lines */
-  --bg: #f6f7f9;
+  /* paper, what lies on it, and the lines between */
+  --bg: #f5f4f0;
   --surface: #ffffff;
-  --surface-2: #f1f3f5;
-  --border: #e3e6ea;
-  --border-strong: #cfd4da;
+  --surface-2: #efede8;
+  /* a tinted control under the pointer: surface-2, a step further */
+  --surface-3: #e5e2db;
+  --border: #e8e5df;
+  --border-strong: #d7d3cb;
   /* the edge of a form control: 3:1 against every surface */
-  --border-control: #888c91;
+  --border-control: #86837b;
 
-  /* text */
-  --text: #15171b;
-  --text-2: #4b525c;
-  --text-3: #696e77;
-  --text-disabled: #8b929c;
+  /* ink */
+  --text: #1a1915;
+  --text-2: #54514a;
+  --text-3: #69665e;
+  --text-disabled: #9c9890;
 
-  /* the one accent */
-  --accent: #2f5bea;
-  --accent-hover: #2449c7;
-  --accent-weak: #eaf0ff;
+  /* The accent is the ink itself: the main action, what is selected, the
+     focus ring. A link is told apart by its underline, not by a colour. */
+  --accent: #1a1915;
+  --accent-hover: #34322c;
+  --accent-weak: #ebe8e2;
   --on-accent: #ffffff;
 
   /* meaning: each is text on its own tint, and a mark on any surface */
-  --ok: #117c59;
-  --ok-bg: #e3f5ee;
-  --warning: #b25209;
-  --warning-bg: #fdf1dc;
-  --critical: #c93434;
-  --critical-bg: #fdecec;
-  --info: #2562e9;
-  --info-bg: #e8f0fe;
+  --ok: #0d7450;
+  --ok-bg: #e3f3ea;
+  --warning: #a04e08;
+  --warning-bg: #fbeeda;
+  --critical: #bd322c;
+  --critical-bg: #fbe9e6;
+  --info: #2455d0;
+  --info-bg: #e7edfb;
 
-  /* charts: one series colour (validated for its lightness band and for 3:1
-     on the surface), and furniture one step off the surface */
-  --chart-1: #2f5bea;
-  --chart-grid: #eceef1;
-  --chart-axis: #cfd4da;
+  /* charts: the series is ink a step softer than text, so a plot full of
+     bars does not shout, and the furniture sits one step off the surface */
+  --chart-1: #2f2d28;
+  --chart-grid: #f0eee9;
+  --chart-axis: #d7d3cb;
 
-  --overlay: rgb(15 17 20 / 0.4);
-  --shadow-float: 0 1px 2px rgb(15 17 20 / 0.06), 0 8px 24px rgb(15 17 20 / 0.1);
+  --overlay: rgb(26 25 21 / 0.36);
+  /* A card lifts a hair off the paper, and a little more under the
+     pointer; the chosen segment and a switch's thumb sit on their track.
+     Only floating things cast a real shadow. */
+  --shadow-card: 0 1px 2px rgb(26 25 21 / 0.04);
+  --shadow-hover: 0 2px 8px rgb(26 25 21 / 0.07);
+  --shadow-lift: 0 1px 2px rgb(26 25 21 / 0.1);
+  --shadow-float: 0 0 0 1px rgb(26 25 21 / 0.03), 0 2px 6px rgb(26 25 21 / 0.06), 0 12px 32px rgb(26 25 21 / 0.12);
+  /* a bar that content scrolls under: the paper, let through a little */
+  --bar: color-mix(in oklab, var(--bg) 80%, transparent);
 
   /* type */
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
     'Segoe UI', sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-11: 0.6875rem;
   --fs-12: 0.75rem;
   --fs-13: 0.8125rem;
   --fs-14: 0.875rem;
   --fs-16: 1rem;
+  --fs-18: 1.125rem;
   --fs-20: 1.25rem;
+  --fs-24: 1.5rem;
   --fs-28: 1.75rem;
+  --fs-32: 2rem;
   --fs-40: 2.5rem;
 
   /* space, on a 4px grid */
@@ -92,57 +114,64 @@
   --s-10: 40px;
   --s-12: 48px;
 
-  /* radii */
-  --r-1: 6px;
-  --r-2: 10px;
-  --r-3: 14px;
+  /* radii: a control, a card, a dialog */
+  --r-1: 8px;
+  --r-2: 12px;
+  --r-3: 16px;
 
   /* layout */
   --content-max: 1200px;
-  --rail: 216px;
+  --rail: 224px;
   --rail-compact: 64px;
+  --topbar: 48px;
   --tabbar: 56px;
   --control: 32px;
   --control-sm: 28px;
 
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  /* for something that arrives: quick off the mark, a long soft landing */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0f1114;
-  --surface: #171a1f;
-  --surface-2: #1e2228;
-  --border: #272c33;
-  --border-strong: #363c45;
-  --border-control: #676c73;
+  --bg: #0e0e0d;
+  --surface: #181817;
+  --surface-2: #222221;
+  --surface-3: #2d2d2b;
+  --border: #2a2a28;
+  --border-strong: #3b3b38;
+  --border-control: #72716b;
 
-  --text: #eceef1;
-  --text-2: #a3aab4;
-  --text-3: #838a94;
-  --text-disabled: #6f7782;
+  --text: #edece8;
+  --text-2: #a9a7a0;
+  --text-3: #8d8b84;
+  --text-disabled: #6f6d67;
 
-  --accent: #7c9cff;
-  --accent-hover: #96b0ff;
-  --accent-weak: #1c2647;
-  --on-accent: #0f1114;
+  --accent: #edece8;
+  --accent-hover: #ffffff;
+  --accent-weak: #2a2a28;
+  --on-accent: #141413;
 
-  --ok: #3ecf98;
-  --ok-bg: #12281f;
-  --warning: #f2a93b;
-  --warning-bg: #2e2210;
-  --critical: #f26d6d;
-  --critical-bg: #301616;
-  --info: #6ea8ff;
-  --info-bg: #152238;
+  --ok: #46c98f;
+  --ok-bg: #11261c;
+  --warning: #eeaa3c;
+  --warning-bg: #2c2110;
+  --critical: #f0726b;
+  --critical-bg: #2f1614;
+  --info: #79a8ff;
+  --info-bg: #14203a;
 
-  /* the accent is too light for a mark on a dark surface; this is the same
-     hue a step darker, inside the dark lightness band */
-  --chart-1: #6a8bfb;
-  --chart-grid: #20252b;
-  --chart-axis: #363c45;
+  /* full-strength ink glares as a filled bar on a dark surface */
+  --chart-1: #cfcdc6;
+  --chart-grid: #232322;
+  --chart-axis: #3b3b38;
 
   --overlay: rgb(0 0 0 / 0.6);
-  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+  /* a shadow cannot be seen on a dark page: surfaces differ by their tone */
+  --shadow-card: 0 0 0 0 transparent;
+  --shadow-hover: 0 0 0 0 transparent;
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.04), 0 2px 6px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.5);
 }

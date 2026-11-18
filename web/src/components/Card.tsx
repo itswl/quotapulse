@@ -9,8 +9,9 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'class'>
   children?: ComponentChildren;
 }
 
-/** A surface with a hairline border. Borders do the separating here; a card
- *  has no shadow. */
+/** A surface: the card's white on the page's paper, a hairline border, and
+ *  the faintest lift (--shadow-card). Real shadows are for things that
+ *  float over the page. */
 export function Card({ flush, class: extra, children, ...rest }: CardProps) {
   return (
     <div {...rest} class={cx('card', flush && 'card--flush', extra)}>

@@ -144,7 +144,7 @@ export default function DatesPage(_props: PageProps) {
       <SummaryCard list={list} />
 
       <div class="dates-tools">
-        <div class="dates-filters" role="group" aria-label={t('dates.filter.label')}>
+        <div class="filter-row dates-filters" role="group" aria-label={t('dates.filter.label')}>
           <FilterChip pressed={kind === 'all'} count={found.length} onClick={() => setQuery({ kind: null })}>
             {t('common.word.all')}
           </FilterChip>

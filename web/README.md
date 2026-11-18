@@ -101,7 +101,8 @@ display.
 - Money `1,234.56 CNY`, percent `38%`, other units `923 calls`:
   `formatAmount(value, unit)`, or `<Amount value unit />` to show the unit
   smaller and muted.
-- Numbers that sit in columns or change get `class="num"` (mono, tabular).
+- Numbers that sit in columns or change get `class="num"`: digits of equal
+  width, in the same face as the words. The mono face is for code and keys.
 
 ## Data
 
@@ -149,7 +150,7 @@ Import from `src/components`. Each file's header says how to use it.
 
 | | |
 |---|---|
-| `Button`, `LinkButton`, `IconButton` | `variant`: primary (one per view), secondary, ghost, danger. An icon-only button needs a `label`. |
+| `Button`, `LinkButton`, `IconButton` | `variant`: primary (one per view), secondary, ghost, danger. `compact` folds the label away on a phone, for an icon that says it all. An icon-only button needs a `label`. |
 | `Chip`, `FilterChip` | a small label with a `tone`; a toggle for a filter row |
 | `Card`, `Section`, `PageHeader` | surface; titled part of a page; top of a page |
 | `Dialog`, `ConfirmDialog` | native `<dialog>`: focus trap, Escape, focus returns. Content mounts only while open. |
@@ -169,17 +170,36 @@ chart must have. Marks take `--chart-1`; text stays in text colours.
 
 ## Styles
 
+The look is ink on paper: text, buttons, selections and chart marks are one
+ink on a warm ground, and the only hues are the four that mean something. A
+colour on screen is always saying ok, warning, critical or info.
+
 - **Tokens only** (`styles/tokens.css`): no raw colours, sizes off the scale
   or shadows of your own. Light is `:root`, dark is `[data-theme='dark']`;
   a new token needs both.
 - Text colours: `--text`, `--text-2`, `--text-3` all pass WCAG AA on every
   surface. `--text-disabled` does not — disabled controls and decoration only.
 - Colour carries meaning only: `--ok`, `--warning`, `--critical`, `--info`,
-  each with a `-bg` tint. `--accent` is for the one main action and for links.
-- Type scale `--fs-12 … --fs-40`; space `--s-1 … --s-12` (4px grid); radii
-  `--r-1/2/3`. Borders separate; only floating things get `--shadow-float`.
-- Breakpoints: `max-width: 959px` (icon rail) and `max-width: 719px` (phone:
-  bottom tab bar, 40px controls). Write the wide layout first.
+  each with a `-bg` tint. `--accent` is the ink itself — the one main action,
+  what is selected, the focus ring — so a link in running text is told apart
+  by its underline: any `<a>` without a class gets one.
+- Type scale `--fs-11 … --fs-40`; space `--s-1 … --s-12` (4px grid); radii
+  `--r-1/2/3` (a control, a card, a dialog). A surface has a hairline border
+  and `--shadow-card`; only floating things get `--shadow-float`.
+- Figures are in the sans face with digits of equal width (`.num`). A big
+  figure that stands alone — a card's value — takes proportional ones
+  (`font-variant-numeric: normal`). The mono face is for code and keys.
+- Breakpoints: `max-width: 959px` (icon rail) and `max-width: 719px` (phone).
+  Write the wide layout first. A phone gets a layout of its own rather than
+  the wide one squeezed: a tab bar of five with Settings in the top bar, type
+  a notch larger (the root size steps up, so `--fs-*` follow by themselves),
+  40px controls, dialogs as sheets from the bottom edge, lists where the wide
+  layout has a grid of cards. Stay clear of the notch and the home indicator
+  with `env(safe-area-inset-*)`.
+- Helpers in `base.css` and `components.css`: `.dotted` (the parts of a quiet
+  line with a middle dot between them; it can wrap without a line starting
+  on a dot), `.filter-row` (a row of FilterChips; scrolls sideways on a
+  phone), `.truncate`, `.sr-only`.
 - Class names: `block__part--variant`, prefixed with the area in page CSS.
 - Motion only where it explains something; `prefers-reduced-motion` is
   already honoured globally.

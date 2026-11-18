@@ -57,7 +57,7 @@ export function Incidents() {
   const waiting = (filter !== 'resolved' && !open.data) || (filter !== 'open' && !history.items);
 
   const filters = (
-    <div class="ac-filters" role="group" aria-label={t('activity.filter.label')}>
+    <div class="filter-row ac-filters" role="group" aria-label={t('activity.filter.label')}>
       {FILTERS.map((each) => (
         <FilterChip
           key={each.id}
@@ -175,7 +175,7 @@ function IncidentItem({ incident, dated, expanded, onToggle }: IncidentItemProps
           <Link href={incident.path}>{incident.headline}</Link>
         </p>
         {incident.detail && <p class="incident__detail">{incident.detail}</p>}
-        <p class="incident__meta ac-meta">
+        <p class="incident__meta dotted">
           <time dateTime={incident.opened_at} title={formatDateTime(since)}>
             {t('activity.meta.opened', { time: dated ? formatTime(since) : formatClock(since) })}
           </time>

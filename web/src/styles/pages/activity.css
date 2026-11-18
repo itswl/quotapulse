@@ -6,9 +6,6 @@
 }
 
 .ac-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
   margin-bottom: var(--s-6);
 }
 
@@ -78,17 +75,6 @@
 
 .ac-incident--over .incident__headline {
   font-weight: 500;
-}
-
-/* the quiet line under a row: its parts, with a dot between them */
-.ac-meta {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.ac-meta > * + *::before {
-  content: '·';
-  margin: 0 6px;
 }
 
 .ac-incident__more {
@@ -287,10 +273,36 @@
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 719px) {
-  /* the actions go under the text, as in IncidentRow; what a row opens to
-     takes the full width */
+  .ac-tabs {
+    margin: 0 0 var(--s-4);
+  }
+
+  .ac-filters {
+    margin-bottom: var(--s-5);
+  }
+
+  /* the actions go under the text; what a row opens to takes the full width */
   .ac-list {
     grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ac-list > .incident {
+    padding: 14px var(--s-4);
+  }
+
+  /* the mark keeps its word for a screen reader; here the icon stands for it */
+  .ac-incident .incident__mark .status__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ac-incident .incident__actions {
+    grid-column: 2;
+    margin: var(--s-1) 0 -2px -2px;
   }
 
   .ac-incident__more {

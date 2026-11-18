@@ -109,7 +109,7 @@ export function MeterHeader({ meter, account, onChange }: MeterHeaderProps) {
               <IconButton icon={Pencil} size="sm" label={t('meters.page.rename')} onClick={() => setRenaming(true)} />
             </div>
           )}
-          <p class="page-head__subtitle mt-head__meta">
+          <p class="page-head__subtitle dotted">
             {meta.map((part) => (
               <span key={part}>{part}</span>
             ))}
@@ -126,6 +126,7 @@ export function MeterHeader({ meter, account, onChange }: MeterHeaderProps) {
           {account?.enabled && (
             <Button
               icon={RefreshCw}
+              compact
               busy={reading}
               onClick={() => {
                 sampleNow(account.id).catch((cause: unknown) => toast.error(errorText(cause)));
