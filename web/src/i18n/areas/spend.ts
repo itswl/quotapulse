@@ -27,6 +27,9 @@ export default defineArea({
     'sum.current': 'With renewals, the month is heading for {amount}.',
     'sum.past': 'With renewals, the month came to {amount}.',
     'base': 'Totals in {base}.',
+    'hero.expected': 'Expected this month',
+    'hero.total': 'Spent this month',
+    'hero.hint': 'What the meters spend by the end of the month at the pace they are going, and the renewals that fall in it. Each part is in the bar below.',
 
     // amounts left out of the totals
     'unconverted': 'Amounts in {list} are not in these totals: no exchange rate is set for them yet.',
@@ -98,6 +101,9 @@ export default defineArea({
     'sum.current': '连同续费，这个月预计共 {amount}。',
     'sum.past': '连同续费，这个月共 {amount}。',
     'base': '合计按 {base} 计。',
+    'hero.expected': '本月预计',
+    'hero.total': '本月共花',
+    'hero.hint': '按现在的速度，各项额度到月底会花掉的，加上落在本月的续费。下面的条按这三部分分开画。',
 
     'unconverted': '{list} 的金额没有计入合计：还没有设置对应的汇率。',
     'unconverted.action': '去设置汇率',

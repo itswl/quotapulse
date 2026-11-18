@@ -3,254 +3,15 @@
 
 /* ---------- MeterCard ---------- */
 
-.meter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
-  gap: var(--s-3);
-}
-
-.meter-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  min-width: 0;
-  padding: var(--s-5);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  color: var(--text);
-  transition:
-    border-color 0.12s var(--ease),
-    box-shadow 0.12s var(--ease);
-}
-
-.meter-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-hover);
-  text-decoration: none;
-}
-
-.meter-card:focus-visible {
-  border-radius: var(--r-2);
-}
-
-.meter-card--hidden {
-  opacity: 0.65;
-}
-
-.meter-card__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--s-3);
-}
-
-.meter-card__titles {
-  min-width: 0;
-}
-
-.meter-card__name {
-  font-size: var(--fs-14);
-  font-weight: 600;
-}
-
-.meter-card__source {
-  margin-top: 1px;
-  color: var(--text-3);
-  font-size: var(--fs-12);
-}
-
-.meter-card__state {
-  display: flex;
-  align-items: center;
-  flex: none;
-  gap: 6px;
-  min-height: 20px;
-}
-
-.meter-card__muted {
-  display: inline-flex;
-  color: var(--text-3);
-}
-
-.meter-card__figure {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--s-3);
-  min-height: 38px;
-}
-
 /* The figure is what the card is for. It is not in a column with anything,
    so its digits keep their own widths: a 1 is narrow, and the number reads
    as a word would. */
-.meter-card__value {
-  font-size: var(--fs-28);
-  font-weight: 600;
-  font-variant-numeric: normal;
-  line-height: 1.15;
-  letter-spacing: -0.035em;
-  white-space: nowrap;
-}
-
-.meter-card__value .unit--spaced {
-  font-size: var(--fs-13);
-}
 
 /* on a big figure the percent sign steps back a little */
-.meter-card__value .unit--tight,
-.mt-head__value .unit--tight {
-  margin-left: 0.04em;
-  color: var(--text-3);
-  font-size: 0.6em;
-  font-weight: 500;
-}
-
-.meter-card__value.is-long {
-  font-size: var(--fs-20);
-  line-height: 1.5;
-}
-
-.meter-card__value.is-dim {
-  color: var(--text-3);
-}
-
-.meter-card__spark {
-  flex: 0 1 116px;
-  min-width: 48px;
-  height: 38px;
-}
-
-.meter-card__meaning {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: auto;
-}
-
-.meter-card__line {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0 var(--s-2);
-  min-height: 1.5em;
-  color: var(--text-2);
-  font-size: var(--fs-13);
-  overflow-wrap: anywhere;
-  /* an error from a platform can be long; two lines is where a card stops */
-  max-height: 3em;
-  overflow: hidden;
-}
 
 /* ---------- the list ---------- */
 
-.mt-filters {
-  margin-bottom: var(--s-6);
-}
-
-.mt-group {
-  margin-top: var(--s-8);
-}
-
-.mt-filters + .mt-group {
-  margin-top: 0;
-}
-
-.mt-group__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: var(--s-3);
-  font-size: var(--fs-14);
-}
-
-.mt-group__count {
-  color: var(--text-3);
-  font-size: var(--fs-13);
-  font-weight: 400;
-}
-
-.mt-accounts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.meter-grid + .mt-accounts {
-  margin-top: var(--s-3);
-}
-
 /* an account with no meters: a row, since there is no card to give it */
-.mt-account {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-}
-
-.mt-account__icon {
-  color: var(--text-3);
-}
-
-.mt-account__text {
-  min-width: 0;
-}
-
-.mt-account__name {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-weight: 600;
-}
-
-.mt-account__note {
-  margin-top: 1px;
-  color: var(--text-2);
-  font-size: var(--fs-13);
-  overflow-wrap: anywhere;
-}
-
-.mt-account__actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.mt-hidden {
-  margin-top: var(--s-8);
-}
-
-.mt-hidden summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  margin-left: -8px;
-  border-radius: var(--r-1);
-  color: var(--text-2);
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-}
-
-.mt-hidden summary::-webkit-details-marker {
-  display: none;
-}
-
-.mt-hidden summary:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.mt-hidden[open] summary {
-  margin-bottom: var(--s-3);
-}
 
 /* ---------- the account dialog ---------- */
 
@@ -423,63 +184,6 @@
 
 /* ---------- a meter's page ---------- */
 
-.mt-loading {
-  margin-top: var(--s-8);
-}
-
-.mt-head__name {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  min-width: 0;
-}
-
-.mt-head__name .page-head__title {
-  overflow-wrap: anywhere;
-}
-
-.mt-head__figure {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-3);
-  margin: calc(-1 * var(--s-2)) 0 var(--s-6);
-}
-
-.mt-head__value {
-  font-size: var(--fs-40);
-  font-weight: 600;
-  font-variant-numeric: normal;
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-}
-
-.mt-head__value .unit--spaced {
-  font-size: var(--fs-16);
-  letter-spacing: 0;
-}
-
-.mt-head__limit {
-  color: var(--text-3);
-  font-size: var(--fs-20);
-}
-
-.mt-head__states {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  margin-left: var(--s-2);
-}
-
-.mt-head__states .status {
-  font-size: var(--fs-13);
-}
-
-.mt-head__hidden {
-  margin-bottom: var(--s-6);
-}
-
 .mt-rename {
   display: flex;
   flex-direction: column;
@@ -497,11 +201,6 @@
   min-width: 0;
 }
 
-.mt-page__incidents {
-  margin-top: 0;
-  margin-bottom: var(--s-6);
-}
-
 .mt-charts {
   display: flex;
   flex-direction: column;
@@ -516,14 +215,6 @@
   margin-top: var(--s-2);
   color: var(--text-3);
   font-size: var(--fs-13);
-}
-
-.mt-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--s-3);
-  margin-top: var(--s-3);
 }
 
 .mt-card-title {
@@ -678,12 +369,6 @@
   border-top: 1px solid var(--border);
 }
 
-@media (max-width: 959px) {
-  .mt-columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 719px) {
   /* A phone shows meters as a list: one card for the lot, a row for each.
      The row is the card's own markup — its wrappers give up their boxes,
@@ -692,126 +377,14 @@
        name ..................  spark  value
        state  what the number means ......
        the bar, when there is one ........  */
-  .meter-grid:has(> .meter-card) {
-    display: block;
-    border: 1px solid var(--border);
-    border-radius: var(--r-2);
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-  }
-
-  .meter-card {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 3px var(--s-2);
-    padding: 13px var(--s-4);
-    border: 0;
-    border-radius: 0;
-    background-color: transparent;
-    box-shadow: none;
-    transition: background-color 0.12s var(--ease);
-  }
-
-  .meter-card:hover {
-    box-shadow: none;
-  }
-
-  .meter-card:active {
-    background-color: var(--surface-2);
-  }
-
-  .meter-card:focus-visible {
-    outline-offset: -2px;
-  }
 
   /* the line between two rows starts where the words do */
-  .meter-card + .meter-card {
-    background-image: linear-gradient(var(--border), var(--border));
-    background-repeat: no-repeat;
-    background-position: var(--s-4) 0;
-    background-size: calc(100% - 2 * var(--s-4)) 1px;
-  }
-
-  .meter-card__head,
-  .meter-card__titles,
-  .meter-card__figure,
-  .meter-card__meaning {
-    display: contents;
-  }
-
-  .meter-card__name {
-    grid-column: 1 / span 2;
-    grid-row: 1;
-  }
 
   /* a group's heading, or the name itself, already says where it is from */
-  .meter-card__source {
-    display: none;
-  }
-
-  .meter-card__spark {
-    grid-column: 3;
-    grid-row: 1;
-    width: 56px;
-    height: 24px;
-    margin-right: var(--s-1);
-  }
 
   /* at this height the fade under the line is only a smudge */
-  .meter-card__spark .spark__area {
-    display: none;
-  }
-
-  .meter-card__value,
-  .meter-card__value.is-long {
-    grid-column: 4;
-    grid-row: 1;
-    justify-self: end;
-    font-size: var(--fs-18);
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-  }
-
-  .meter-card__value .unit--spaced {
-    font-size: var(--fs-11);
-  }
-
-  .meter-card__state {
-    grid-column: 1;
-    grid-row: 2;
-    min-height: 0;
-  }
-
-  .meter-card__line {
-    grid-column: 2 / -1;
-    grid-row: 2;
-    min-height: 0;
-  }
 
   /* runs out in 13 days, or on the 30th: a row says it once */
-  .meter-card__more {
-    display: none;
-  }
-
-  .meter-card .meterbar {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    margin-top: 3px;
-  }
-
-  .meter-card .meterbar--beyond {
-    width: calc(100% - 18px);
-  }
-
-  .mt-filters {
-    margin-bottom: var(--s-5);
-  }
-
-  .mt-group {
-    margin-top: var(--s-6);
-  }
 
   .mt-form__row {
     grid-template-columns: minmax(0, 1fr);
@@ -822,9 +395,6 @@
   }
 
   /* the figure is the page: it keeps its size */
-  .mt-head__figure {
-    margin: 0 0 var(--s-5);
-  }
 
   .mt-charts__range .tabs {
     display: flex;

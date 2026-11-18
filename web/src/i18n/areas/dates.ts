@@ -90,6 +90,11 @@ export default defineArea({
 
     'delete.title': 'Delete “{title}”?',
     'delete.body': 'It stops reminding and is gone from this list. This cannot be undone.',
+    'detail.repeats': 'Repeats',
+    'detail.perMonth': '{amount} a month',
+    'detail.following': 'After that',
+    'detail.over': 'Nothing ahead: its day has passed.',
+    'pick': 'Open a date to see when it repeats and what it reminds.',
 
     // snoozing
     'snooze.title': 'Snooze “{title}”',
@@ -254,6 +259,11 @@ export default defineArea({
 
     'delete.title': '删除「{title}」？',
     'delete.body': '删除后不再提醒，也不会留在这个列表里，无法恢复。',
+    'detail.repeats': '重复',
+    'detail.perMonth': '折合每月 {amount}',
+    'detail.following': '再往后',
+    'detail.over': '已经过去，后面没有了。',
+    'pick': '打开一个日期，查看它怎么重复、什么时候提醒。',
 
     'snooze.title': '稍后提醒「{title}」',
     'snooze.body': '到你选的那天再提醒，在那之前不发通知。它仍然留在列表里。',

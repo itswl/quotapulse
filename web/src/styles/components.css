@@ -1029,6 +1029,240 @@ html:has(dialog[open]) {
   margin-top: 0;
 }
 
+/* ---------- seg-links: a row of links, one track with the current one lifted out ---------- */
+
+/* Watching's meters | dates, History's events | notifications: places that
+   are one place seen two ways. Links, so each view has an address. */
+.seg-links {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: calc(var(--r-1) + 3px);
+  background: var(--surface-2);
+}
+
+.seg-links__item {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  font-size: var(--fs-14);
+  font-weight: 550;
+  transition:
+    background-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+
+.seg-links__item:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.seg-links__item.is-active {
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--border),
+    var(--shadow-lift);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.seg-links__count {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  font-weight: 500;
+}
+
+/* ---------- DayBlock ---------- */
+
+.dayblock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.dayblock__day {
+  font-size: var(--fs-24);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.dayblock__sub {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  white-space: nowrap;
+}
+
+/* ---------- the add chooser (src/app.tsx) ---------- */
+
+.add-chooser__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.add-chooser__choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color 0.12s var(--ease),
+    background-color 0.12s var(--ease),
+    transform 0.12s var(--ease);
+}
+
+.add-chooser__choice:hover {
+  border-color: var(--border-strong);
+  background: color-mix(in oklab, var(--surface-2) 50%, var(--surface));
+}
+
+.add-chooser__choice:active {
+  transform: scale(0.99);
+}
+
+.add-chooser__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.add-chooser__title {
+  display: block;
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.add-chooser__hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  text-wrap: pretty;
+}
+
+/* ---------- IncidentRow: inside a <ul class="incidents"> ---------- */
+
+.incident {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-4) var(--s-5);
+}
+
+.incident + .incident {
+  border-top: 1px solid var(--border);
+}
+
+.incident__mark {
+  margin-top: 1px;
+}
+
+.incident__headline {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.incident__headline a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.incident__headline a:hover {
+  text-decoration: underline;
+}
+
+.incident__detail {
+  margin-top: 2px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.incident__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-5);
+  margin-top: var(--s-2);
+  font-size: var(--fs-13);
+}
+
+.incident__facts dt,
+.incident__facts dd {
+  display: inline;
+}
+
+.incident__facts dt {
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.incident__meta {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.incident__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* "Got it" is said often and decides little: a quiet pill, not a button
+   that competes with the sentence it answers */
+.incident__actions .btn--secondary {
+  border-color: transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.incident__actions .btn--secondary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-3);
+}
+
+.incident__acked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+/* acknowledged: still there, but out of the way */
+.incident--acked .incident__mark {
+  color: var(--text-3);
+}
+
+.incident--acked .incident__headline {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.incident--acked .incident__detail {
+  color: var(--text-3);
+}
+
 /* ---------- touch: larger targets, and inputs big enough not to zoom ---------- */
 
 @media (max-width: 719px) {
@@ -1171,7 +1405,45 @@ html:has(dialog[open]) {
   }
 
   .toaster {
-    bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-3));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4));
+  }
+
+  /* the bar at the top has the way back on a phone */
+  .page-head .page-head__back {
+    display: none;
+  }
+
+  /* An incident's last line holds when it appeared and, beside it, the
+     way to say "I know": the text gives up its box so that both can sit
+     in the row's own grid. */
+  .incidents .incident {
+    padding: 14px var(--s-4);
+  }
+
+  .incidents .incident__text {
+    display: contents;
+  }
+
+  .incidents .incident__headline,
+  .incidents .incident__detail,
+  .incidents .incident__facts {
+    grid-column: 2 / -1;
+  }
+
+  .incidents .incident__detail,
+  .incidents .incident__meta {
+    margin-top: 0;
+  }
+
+  .incidents .incident__meta {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .incidents .incident__actions {
+    grid-column: 3;
+    align-self: center;
+    margin: 2px -4px -4px 0;
   }
 }
 

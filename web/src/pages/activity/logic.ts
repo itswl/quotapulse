@@ -75,6 +75,19 @@ export async function loadWindow<T>(fetchOlder: FetchOlder<T>, count: number, ch
 
 // ---------- days ----------
 
+/**
+ * The events as one feed, newest first: the open ones among the resolved,
+ * each where it opened. Resolved events are loaded a page at a time going
+ * back; while there are more to load, an open event older than every one
+ * loaded so far waits with them, so the feed never jumps over a stretch of
+ * time it has not loaded yet.
+ */
+export function eventFeed(open: readonly IncidentView[], resolved: readonly IncidentView[], more: boolean): IncidentView[] {
+  const oldest = resolved.reduce((least, each) => Math.min(least, Date.parse(each.opened_at)), Infinity);
+  const shown = more ? open.filter((each) => Date.parse(each.opened_at) >= oldest) : open;
+  return [...shown, ...resolved].sort((a, b) => Date.parse(b.opened_at) - Date.parse(a.opened_at) || a.id.localeCompare(b.id));
+}
+
 export interface DayGroup<T> {
   day: Day;
   items: T[];

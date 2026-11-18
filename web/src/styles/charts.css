@@ -126,6 +126,105 @@
   stroke-linejoin: round;
 }
 
+/* ---------- RunwayBar ---------- */
+
+.runway {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+  --runway: var(--chart-1);
+}
+
+.runway--warning {
+  --runway: var(--warning);
+}
+
+.runway--critical {
+  --runway: var(--critical);
+}
+
+.runway--neutral {
+  --runway: var(--text-disabled);
+}
+
+.runway__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--runway);
+}
+
+/* it lasts past the scale: the bar fades out to say it goes on */
+.runway--beyond .runway__fill {
+  -webkit-mask-image: linear-gradient(to right, black 72%, transparent);
+  mask-image: linear-gradient(to right, black 72%, transparent);
+}
+
+/* not known yet: a dashed track, nothing on it */
+.runway--unknown {
+  background: repeating-linear-gradient(90deg, var(--surface-2) 0 6px, transparent 6px 10px);
+}
+
+/* ---------- MonthBar (src/pages/spend/month-bar.tsx) ---------- */
+
+.month-bar__track {
+  display: flex;
+  gap: 3px;
+  height: 10px;
+}
+
+.month-bar__part {
+  min-width: 4px;
+  border-radius: 3px;
+}
+
+.month-bar__part--spent {
+  background: var(--chart-1);
+}
+
+.month-bar__part--coming {
+  background: color-mix(in oklab, var(--chart-1) 32%, var(--surface));
+}
+
+/* fixed payments: hatched, so they read as a different kind of money */
+.month-bar__part--renewals {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--chart-1) 60%, var(--surface)) 0 2px,
+    color-mix(in oklab, var(--chart-1) 16%, var(--surface)) 2px 5px
+  );
+}
+
+.month-bar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--s-4);
+  margin-top: 10px;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.month-bar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-bar__key {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.month-bar__value {
+  color: var(--text);
+  font-weight: 500;
+}
+
 /* ---------- ChartFrame ---------- */
 
 .chart-frame {

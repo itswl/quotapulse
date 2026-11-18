@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DeliveryQuery, IncidentQuery } from '../src/api/endpoints';
 import type { Delivery, IncidentView } from '../src/api/types';
-import { boldRuns, deliveryPager, deliveryState, dropReason, groupByDay, incidentPager, isLocalPath, loadWindow } from '../src/pages/activity/logic';
+import { boldRuns, deliveryPager, deliveryState, dropReason, eventFeed, groupByDay, incidentPager, isLocalPath, loadWindow } from '../src/pages/activity/logic';
 
 const SHANGHAI = 'Asia/Shanghai';
 
@@ -133,6 +133,32 @@ describe('loading several pages at once', () => {
 
   it('copes with an empty list', async () => {
     assert.deepEqual(await loadWindow(deliveryPager(deliveryServer(0)), 50), { items: [], more: false });
+  });
+});
+
+describe('the feed of events', () => {
+  const open = [incident('open-new', '2026-11-18T09:00:00Z'), incident('open-old', '2026-10-01T09:00:00Z')];
+  const resolved = [incident('done-a', '2026-11-17T09:00:00Z'), incident('done-b', '2026-11-10T09:00:00Z')];
+
+  it('puts the open events among the resolved ones, newest first', () => {
+    assert.deepEqual(
+      eventFeed(open, resolved, false).map((each) => each.id),
+      ['open-new', 'done-a', 'done-b', 'open-old'],
+    );
+  });
+
+  it('holds back an open event older than everything loaded while there is more to load', () => {
+    assert.deepEqual(
+      eventFeed(open, resolved, true).map((each) => each.id),
+      ['open-new', 'done-a', 'done-b'],
+    );
+  });
+
+  it('shows every open event when nothing has been resolved yet', () => {
+    assert.deepEqual(
+      eventFeed(open, [], false).map((each) => each.id),
+      ['open-new', 'open-old'],
+    );
   });
 });
 

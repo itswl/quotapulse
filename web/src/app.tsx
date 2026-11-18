@@ -1,28 +1,21 @@
-// The shell: navigation, the standing banners, toasts, and the outlet where
-// the current page renders. Signed out, the sign-in screen stands in for all
-// of it.
-import {
-  Activity,
-  BellOff,
-  CalendarDays,
-  Compass,
-  Gauge,
-  LayoutDashboard,
-  LucideProvider,
-  Settings,
-  Wallet,
-  WifiOff,
-  type LucideIcon,
-} from 'lucide-preact';
+// The shell: the bars around the page, the standing banners, toasts, and the
+// outlet where the page renders. Signed out, the sign-in screen stands in for
+// all of it.
+//
+// Now is home. Watching, Money, History and the settings are a step down
+// from it, and everything opened from them a step further. A phone has one
+// slim bar at the top: at home the mark, adding and the settings; a step
+// down, the way back. Anything wider has room for the three places to go in
+// the bar as well, and keeps them there.
+import { BellOff, CalendarPlus, ChevronLeft, Compass, LucideProvider, Plug, Plus, Settings, SquareTerminal, WifiOff, type LucideIcon } from 'lucide-preact';
 import { useEffect, useState } from 'preact/hooks';
-import type { Severity } from './api/types';
-import { Banner, Chip, cx, EmptyState, LinkButton, Logo, Toaster } from './components';
+import { Banner, Button, Chip, cx, Dialog, EmptyState, LinkButton, Logo, Toaster } from './components';
 import { useTitle } from './hooks';
 import { lang, t, type TKey } from './i18n';
 import LoginPage from './pages/login';
-import { isActive, Link, route } from './router';
+import { verdictOf } from './pages/now/horizon';
+import { goBack, Link, navigate, openedFrom, route } from './router';
 import { resolve, type Area } from './routes';
-import { ShellTools } from './shell-tools';
 import { online } from './state/live';
 import { overview } from './state/overview';
 import { useResource } from './state/resource';
@@ -36,15 +29,10 @@ export function App() {
   );
 }
 
-const NAV: { area: Area; href: string; label: TKey; icon: LucideIcon; aside?: boolean }[] = [
-  { area: 'overview', href: '/', label: 'common.nav.overview', icon: LayoutDashboard },
-  { area: 'meters', href: '/meters', label: 'common.nav.meters', icon: Gauge },
-  { area: 'dates', href: '/dates', label: 'common.nav.dates', icon: CalendarDays },
-  { area: 'spend', href: '/spend', label: 'common.nav.spend', icon: Wallet },
-  { area: 'activity', href: '/activity', label: 'common.nav.activity', icon: Activity },
-  // Set apart in the rail. A phone's tab bar holds five, so there it is the
-  // gear in the top bar instead.
-  { area: 'settings', href: '/settings', label: 'common.nav.settings', icon: Settings, aside: true },
+const NAV: { area: Area; href: string; label: TKey }[] = [
+  { area: 'now', href: '/', label: 'common.nav.now' },
+  { area: 'watching', href: '/meters', label: 'common.nav.watching' },
+  { area: 'money', href: '/spend', label: 'common.nav.money' },
 ];
 
 /** Going where you already are takes you back to the top of it. */
@@ -52,61 +40,146 @@ function toTop(): void {
   scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+const AREA_LABEL: Record<Area, TKey> = {
+  now: 'common.nav.now',
+  watching: 'common.nav.watching',
+  money: 'common.nav.money',
+  history: 'common.nav.history',
+  settings: 'common.nav.settings',
+};
+
+/** The page a step up from this one: a meter's list, a settings section's
+ *  settings, and home for the rest. */
+function parentOf(path: string): string {
+  if (/^\/meters\/[^/]+/.test(path)) return '/meters';
+  if (/^\/settings\/[^/]+/.test(path)) return '/settings';
+  return '/';
+}
+
+/** Where the way back goes, and what it is called: the page this one was
+ *  opened from, or the one a step up when it was opened from a link. */
+function backTo(path: string): { href: string; label: string } {
+  const href = openedFrom() ?? parentOf(path);
+  const area = resolve(new URL(href, location.origin).pathname)?.area ?? 'now';
+  return { href, label: t(AREA_LABEL[area]) };
+}
+
+/** Open problems that ask for a person: what the badge on Now counts, and
+ *  the number on the app's icon. */
+function openIssues(): { count: number; tone: string } {
+  const open = (overview.data.value?.attention ?? []).filter((incident) => incident.state === 'open' && incident.kind !== 'due');
+  const verdict = verdictOf(open);
+  return { count: verdict.fresh, tone: verdict.tone };
+}
+
 function Shell() {
   // The overview is the source of the server's clock and time zone, which
-  // every page needs; the navigation also counts its open issues.
+  // every page needs; the bars also count its open issues.
   useResource(overview);
   const current = route.value;
   const match = resolve(current.path);
   const Page = match?.page;
+  const area = match?.area;
+  const home = area === 'now';
+  // Adding belongs where the things added show up.
+  const adds = home || (area === 'watching' && !match?.params.id);
+  const back = home ? null : backTo(current.path);
   const bar = useTopBar(current.path);
+  const issues = openIssues();
+  const [adding, setAdding] = useState(false);
+
+  // An installed app shows the count on its icon, as a native one would.
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (count?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    if (!nav.setAppBadge) return;
+    (issues.count > 0 ? nav.setAppBadge(issues.count) : nav.clearAppBadge?.())?.catch(() => undefined);
+  }, [issues.count]);
+
   const settings = t('common.nav.settings');
   return (
     <div class="shell">
       <a class="skip-link" href="#main">
         {t('common.nav.skip')}
       </a>
-      <Navigation path={current.path} />
-      <div class="shell__body">
-        <header class={cx('topbar', bar.scrolled && 'is-scrolled', bar.title !== null && 'is-carrying')}>
-          <Brand path={current.path} />
-          {/* Decoration: the heading it repeats is still in the page. */}
-          <p class="topbar__title truncate" aria-hidden="true">
-            {bar.title}
-          </p>
+      <header class={cx('topbar', home && 'is-home', adds && 'can-add', bar.scrolled && 'is-scrolled', bar.title !== null && 'is-carrying')}>
+        {back && (
+          <a
+            class="topbar__back"
+            href={back.href}
+            onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              goBack(back.href);
+            }}
+          >
+            <ChevronLeft size={22} />
+            <span class="truncate">{back.label}</span>
+          </a>
+        )}
+        <Brand path={current.path} />
+        <nav class="topnav" aria-label={t('common.nav.label')}>
+          {NAV.map((item) => (
+            <NavLink key={item.area} item={item} active={area === item.area} path={current.path} issues={issues} class="topnav__item" />
+          ))}
+        </nav>
+        {/* Decoration: the heading it repeats is still in the page. */}
+        <p class="topbar__title truncate" aria-hidden="true">
+          {bar.title}
+        </p>
+        <div class="topbar__actions">
+          <Button class="topbar__add" icon={Plus} compact onClick={() => setAdding(true)}>
+            {t('common.add.label')}
+          </Button>
           <Link
             href="/settings"
-            class={cx('icon-btn topbar__settings', isActive('/settings', current.path) && 'is-active')}
+            class={cx('icon-btn topbar__settings', area === 'settings' && 'is-active')}
             aria-label={settings}
-            aria-current={isActive('/settings', current.path) ? 'page' : undefined}
+            aria-current={area === 'settings' ? 'page' : undefined}
             title={settings}
           >
-            <Settings size={20} />
+            <Settings size={18} />
           </Link>
-        </header>
-        {muted.value && (
-          <Banner slim tone="warning" icon={BellOff} class="shell__banner">
-            {t('common.shell.muted')}
-          </Banner>
-        )}
-        {!online.value && (
-          <Banner slim tone="warning" icon={WifiOff} class="shell__banner">
-            {t('common.shell.offline')}
-          </Banner>
-        )}
-        <main class="page" id="main" tabIndex={-1}>
-          {/* The key remounts the page when the address moves to another
-              meter, so no state leaks from one to the next — and the new
-              page fades in. Within an area that does its own routing
-              (settings sections), the page stays mounted and only its
-              params change. */}
-          <div class="page__view" key={match ? `${match.area}/${match.params.id ?? ''}` : 'missing'}>
-            {Page && match ? <Page params={match.params} /> : <NotFound />}
-          </div>
-        </main>
-      </div>
+        </div>
+      </header>
+      {muted.value && (
+        <Banner slim tone="warning" icon={BellOff} class="shell__banner">
+          {t('common.shell.muted')}
+        </Banner>
+      )}
+      {!online.value && (
+        <Banner slim tone="warning" icon={WifiOff} class="shell__banner">
+          {t('common.shell.offline')}
+        </Banner>
+      )}
+      <main class={cx('page', area && `page--${area}`)} id="main" tabIndex={-1}>
+        {/* A new area mounts afresh, so no state leaks from one to the next.
+            Within an area the page stays mounted and only its params change:
+            Watching keeps its list while one meter after another opens. */}
+        <div class="page__view" key={area ?? 'missing'}>
+          {Page && match ? <Page params={match.params} /> : <NotFound />}
+        </div>
+      </main>
+      <AddChooser open={adding} onClose={() => setAdding(false)} />
       <Toaster />
     </div>
+  );
+}
+
+function NavLink({ item, active, path, issues, class: extra }: { item: (typeof NAV)[number]; active: boolean; path: string; issues: { count: number; tone: string }; class: string }) {
+  const label = t(item.label);
+  const badge = item.area === 'now' && issues.count > 0;
+  return (
+    <Link href={item.href} class={cx(extra, active && 'is-active')} aria-current={active ? 'page' : undefined} onClick={path === item.href ? toTop : undefined}>
+      <span class="nav-label">{label}</span>
+      {badge && (
+        <>
+          <span class={cx('nav-badge num', `nav-badge--${issues.tone}`)} aria-hidden="true">
+            {issues.count}
+          </span>
+          <span class="sr-only">{t('common.nav.attention', { n: issues.count })}</span>
+        </>
+      )}
+    </Link>
   );
 }
 
@@ -123,12 +196,12 @@ function useTopBar(path: string): { scrolled: boolean; title: string | null } {
     const read = () => {
       frame = 0;
       setScrolled(scrollY > 4);
-      const bar = document.querySelector('.topbar');
+      const slot = document.querySelector('.topbar__title');
       const heading = document.querySelector('#main h1');
-      // The bar is display: none on wider screens, and then has no box.
-      if (!bar || !heading || bar.getClientRects().length === 0) return setTitle(null);
-      const gone = heading.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom;
-      setTitle(gone ? heading.textContent : null);
+      // The title slot only has a box on a phone.
+      if (!slot || !heading || getComputedStyle(slot).display === 'none') return setTitle(null);
+      const top = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;
+      setTitle(heading.getBoundingClientRect().bottom < top ? heading.textContent : null);
     };
     const later = () => {
       if (frame === 0) frame = requestAnimationFrame(read);
@@ -162,62 +235,40 @@ function Brand({ path }: { path: string }) {
   );
 }
 
-function Navigation({ path }: { path: string }) {
-  const info = sessionInfo.value;
-  const open = openIssues();
+/** One way in for everything that can be watched: a platform's account, a
+ *  date, or a number a script reports. */
+function AddChooser({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const choices: { icon: LucideIcon; title: TKey; hint: TKey; href: string }[] = [
+    { icon: Plug, title: 'common.add.account', hint: 'common.add.account.hint', href: '/meters?add=1' },
+    { icon: CalendarPlus, title: 'common.add.date', hint: 'common.add.date.hint', href: '/dates?add=1' },
+    { icon: SquareTerminal, title: 'common.add.script', hint: 'common.add.script.hint', href: '/settings/tokens' },
+  ];
   return (
-    <aside class="nav">
-      <Brand path={path} />
-      <nav class="nav__items" aria-label={t('common.nav.label')}>
-        {NAV.map((item) => {
-          const active = isActive(item.href, path);
-          const label = t(item.label);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.area}
-              href={item.href}
-              class={cx('nav__item', active && 'is-active', item.aside && 'nav__item--aside')}
-              aria-current={active ? 'page' : undefined}
-              title={label}
-              onClick={path === item.href ? toTop : undefined}
+    <Dialog open={open} onClose={onClose} title={t('common.add.title')} size="sm" class="add-chooser">
+      <ul class="add-chooser__list">
+        {choices.map((choice) => (
+          <li key={choice.href}>
+            <button
+              type="button"
+              class="add-chooser__choice"
+              onClick={() => {
+                onClose();
+                navigate(choice.href);
+              }}
             >
-              <span class="nav__icon">
-                <Icon size={18} />
+              <span class="add-chooser__icon">
+                <choice.icon size={20} />
               </span>
-              <span class="nav__label">{label}</span>
-              {item.area === 'overview' && open.count > 0 && (
-                <>
-                  <span class={cx('nav__badge num', `nav__badge--${open.worst}`)} aria-hidden="true">
-                    {open.count}
-                  </span>
-                  <span class="sr-only">{t('common.nav.attention', { n: open.count })}</span>
-                </>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-      <div class="nav__foot">
-        <ShellTools />
-        {info?.version && <p class="nav__version num">{t('common.shell.version', { v: info.version })}</p>}
-      </div>
-    </aside>
+              <span class="add-chooser__text">
+                <span class="add-chooser__title">{t(choice.title)}</span>
+                <span class="add-chooser__hint">{t(choice.hint)}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Dialog>
   );
-}
-
-/** Open, unacknowledged issues: what the badge on Overview counts. Dates
- *  that are merely near are not issues. */
-function openIssues(): { count: number; worst: Severity } {
-  let count = 0;
-  let worst: Severity = 'info';
-  const rank: Record<Severity, number> = { info: 1, warning: 2, critical: 3 };
-  for (const incident of overview.data.value?.attention ?? []) {
-    if (incident.kind === 'due' || incident.acked_at) continue;
-    count += 1;
-    if (rank[incident.severity] > rank[worst]) worst = incident.severity;
-  }
-  return { count, worst };
 }
 
 function NotFound() {
