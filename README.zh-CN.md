@@ -77,7 +77,7 @@ docker compose up -d
 所有配置都在看板里完成。
 
 - **固定版本。** 镜像发布在 `ghcr.io/itswl/quotapulse`，支持 amd64 和 arm64。在
-  `.env` 里写上 `QUOTAPULSE_VERSION=1.2.0`，这样拉取镜像不会悄悄换掉正在运行的
+  `.env` 里写上 `QUOTAPULSE_VERSION=1.2.1`，这样拉取镜像不会悄悄换掉正在运行的
   版本；升级时改掉它，再执行 `docker compose pull && docker compose up -d`。
 - **数据目录要对容器用户（65532）可写** —— 就是上面那句 `chown`；或者在 `.env`
   里设 `QUOTAPULSE_USER=$(id -u):$(id -g)`，让容器以你自己的身份运行。
