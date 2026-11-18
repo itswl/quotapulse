@@ -1,6 +1,6 @@
 # QuotaPulse dashboard
 
-Preact 10 + TypeScript, `@preact/signals` for state, esbuild for the build,
+Preact 11 + TypeScript, `@preact/signals` for state, esbuild for the build,
 `lucide-preact` for icons. No router library, no UI kit, no CSS framework, no
 chart library — and no new dependency without a very good reason.
 
