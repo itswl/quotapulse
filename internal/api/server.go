@@ -386,7 +386,7 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	if body.Password == "" || !secret.Equal(body.Password, s.Password) {
+	if body.Password == "" || !s.Keys.CheckPassword(body.Password, s.Password) {
 		s.logins.failed(client, time.Now())
 		s.log().Warn("failed sign-in", "client", client)
 		fail(w, http.StatusUnauthorized, "wrong_password", "that is not the password")

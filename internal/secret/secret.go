@@ -16,7 +16,6 @@ import (
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
@@ -27,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -49,6 +49,12 @@ var ErrUnreadable = errors.New("sealed with a different secret")
 type Keyring struct {
 	aead    cipher.AEAD
 	session []byte
+	// salt stretches the dashboard password (see stretch).
+	salt []byte
+
+	mu        sync.Mutex
+	password  string // the password last stretched, and what that came to
+	stretched []byte
 }
 
 // Load builds the keyring from a passphrase, or from the key file in dataDir
@@ -92,6 +98,10 @@ func fromMaster(master []byte) (*Keyring, error) {
 	if err != nil {
 		return nil, err
 	}
+	salt, err := derive("password")
+	if err != nil {
+		return nil, err
+	}
 	block, err := aes.NewCipher(dataKey)
 	if err != nil {
 		return nil, err
@@ -100,7 +110,7 @@ func fromMaster(master []byte) (*Keyring, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Keyring{aead: aead, session: sessionKey}, nil
+	return &Keyring{aead: aead, session: sessionKey, salt: salt}, nil
 }
 
 func loadOrCreateKeyFile(path string) ([]byte, error) {
@@ -185,8 +195,8 @@ func (k *Keyring) OpenJSON(sealed []byte, v any) error {
 
 // Session returns a signed session token that expires at the given time.
 //
-// The password is mixed into the signing key, so changing the password signs
-// everyone out without keeping a list of sessions.
+// The password, stretched, is mixed into the signing key, so changing the
+// password signs everyone out without keeping a list of sessions.
 func (k *Keyring) Session(password string, expires time.Time) string {
 	payload := make([]byte, 16)
 	binary.BigEndian.PutUint64(payload, uint64(expires.Unix()))
@@ -217,12 +227,41 @@ func (k *Keyring) CheckSession(password, token string, now time.Time) (time.Time
 }
 
 func (k *Keyring) sign(password, body string) []byte {
-	passwordHash := sha256.Sum256([]byte(password))
 	key := hmac.New(sha256.New, k.session)
-	key.Write(passwordHash[:])
+	key.Write(k.stretch(password))
 	mac := hmac.New(sha256.New, key.Sum(nil))
 	mac.Write([]byte(body))
 	return mac.Sum(nil)
+}
+
+// CheckPassword reports whether a guess at signing in is the password. The
+// guess is stretched as the password is and the two compared in constant
+// time, so how long the answer takes says nothing about the password, not
+// even its length, and every guess costs a stretch.
+func (k *Keyring) CheckPassword(guess, password string) bool {
+	return hmac.Equal(k.stretchOf(guess), k.stretch(password))
+}
+
+// stretch is the dashboard password as it is used: stretched as a
+// passphrase is, with a salt of this installation's own. Nothing is checked
+// against anything cheaper — not a session cookie, not a guess — so even
+// with the master key and a cookie in hand, every guess at the password
+// costs a stretch. The password is set once, so its stretch is kept.
+func (k *Keyring) stretch(password string) []byte {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.stretched == nil || k.password != password {
+		k.password, k.stretched = password, k.stretchOf(password)
+	}
+	return k.stretched
+}
+
+func (k *Keyring) stretchOf(password string) []byte {
+	stretched, err := pbkdf2.Key(sha256.New, password, k.salt, stretchIterations, 32)
+	if err != nil {
+		panic(err) // unreachable: SHA-256, a 32-byte salt and a 32-byte key are allowed everywhere
+	}
+	return stretched
 }
 
 // TokenPrefix marks an API token, so one can be recognised in a config file
@@ -243,11 +282,4 @@ func NewToken() string {
 func HashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
-}
-
-// Equal compares two secrets without leaking, through timing, how much of a
-// guess was right — or how long the real one is.
-func Equal(a, b string) bool {
-	ha, hb := sha256.Sum256([]byte(a)), sha256.Sum256([]byte(b))
-	return subtle.ConstantTimeCompare(ha[:], hb[:]) == 1
 }

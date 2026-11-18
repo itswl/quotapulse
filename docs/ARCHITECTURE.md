@@ -205,6 +205,8 @@ migrates a pre-1.0 install produces.
 - **The dashboard** signs in with one password and gets an HttpOnly, SameSite=Strict
   session cookie. The cookie is a signed expiry, not a server-side session; the
   password is mixed into the signing key, so changing it signs everyone out.
+  The password is only ever used stretched (PBKDF2, with a salt of the install's
+  own): neither a cookie nor a sign-in is checked against anything cheaper.
   Requests that change something must also come from the dashboard's own origin.
 - **Scripts and agents** use API tokens, of which only a hash is stored, with
   scopes: `read`, `act` (acknowledge, complete, manage dates), `ingest` (push
