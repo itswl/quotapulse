@@ -84,7 +84,7 @@ Open http://localhost:8080, sign in, then add an account, a notification channel
 and a date. Everything is configured in the dashboard.
 
 - **Pin the release.** Images are published for amd64 and arm64 as
-  `ghcr.io/itswl/quotapulse`. Set `QUOTAPULSE_VERSION=1.1.0` in `.env` so that a
+  `ghcr.io/itswl/quotapulse`. Set `QUOTAPULSE_VERSION=1.2.0` in `.env` so that a
   pull never changes what is running; to upgrade, change it and run
   `docker compose pull && docker compose up -d`.
 - **The data directory must be writable** by the container's user, 65532 — the
