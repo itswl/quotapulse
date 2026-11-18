@@ -360,6 +360,12 @@ html:has(dialog[open]) {
   animation: fade-in 0.18s var(--ease);
 }
 
+/* Opened with a page a swipe has already slid in (src/components/Dialog.tsx). */
+.dialog[data-still][open],
+.dialog[data-still]::backdrop {
+  animation: none;
+}
+
 .dialog--sm {
   width: min(100vw - 24px, 420px);
 }

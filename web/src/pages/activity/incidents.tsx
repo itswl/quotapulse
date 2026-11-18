@@ -39,9 +39,9 @@ export function Incidents() {
 
   // What is open is never much, so all of it is fetched at once; history
   // pages backwards.
-  const open = useQuery('open', () => listIncidents({ state: 'open', limit: 500 }), TOPICS);
+  const open = useQuery('incidents:open', () => listIncidents({ state: 'open', limit: 500 }), TOPICS);
   const pager = useMemo(() => incidentPager(listIncidents, 'resolved'), []);
-  const history = usePaged('resolved', pager, TOPICS);
+  const history = usePaged('incidents:resolved', pager, TOPICS);
 
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) =>
@@ -216,7 +216,7 @@ function IncidentItem({ incident, dated, expanded, onToggle }: IncidentItemProps
 
 /** What a row shows when opened: the facts, and what was sent about it. */
 function IncidentDetails({ incident }: { incident: IncidentView }) {
-  const sent = useQuery(incident.id, () => listDeliveries({ incident: incident.id, limit: 200 }), SENT_TOPICS);
+  const sent = useQuery(`sent:${incident.id}`, () => listDeliveries({ incident: incident.id, limit: 200 }), SENT_TOPICS);
   const list = sent.data;
   return (
     <>

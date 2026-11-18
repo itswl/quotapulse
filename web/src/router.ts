@@ -64,16 +64,46 @@ export function directionOf(from: string, to: string): Direction {
   return b > a ? 'forward' : b < a ? 'back' : 'swap';
 }
 
-/** Preact renders on the next microtask: after this, the page is the new one. */
-const rendered = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+/** Preact renders on a microtask it queues as the route changes. One queued
+ *  after it runs once the new page is in the document, and before the
+ *  browser paints it. */
+const rendered = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+
+/**
+ * Whether the browser has already drawn the way from one page to the next. A
+ * swipe from the edge of a phone's screen slides the page in by itself, and
+ * the history step it takes says so (Safari 18, Chrome 118, Firefox 149).
+ * Handing over again on top of that would bring back, for a moment, the page
+ * just left. A browser that cannot say is taken to have drawn it.
+ */
+export function drawnByBrowser(event: { hasUAVisualTransition?: boolean }): boolean {
+  return event.hasUAVisualTransition !== false;
+}
+
+/** Until the next touch, click, wheel or key, the page on screen has just
+ *  arrived: what stands differently on it from the last one stands so at
+ *  once rather than fading there, as the top bar does (styles/shell.css).
+ *  Fades are for what is done on a page, not for the change of page. */
+function arrive(drawn: boolean): void {
+  document.documentElement.dataset.arriving = drawn ? 'drawn' : '';
+}
+
+/** Whether the page on screen was slid in by the browser — a swipe — and
+ *  has not been touched since. A sheet the address opens with it is then
+ *  already where the browser drew it, and does not come up again. */
+export function slidIn(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.dataset.arriving === 'drawn';
+}
 
 /**
  * Changes what is on screen. Where the browser has view transitions and the
  * user has not asked for less motion, the old page hands over to the new one
  * (styles/shell.css draws it, by direction); elsewhere it simply changes.
- * `after` runs once the new page is rendered.
+ * `after` runs once the new page is rendered, before it is painted.
+ * `drawn` says the browser has already slid the new page in.
  */
-function commit(direction: Direction | null, update: () => void, after?: () => void): void {
+function commit(direction: Direction | null, update: () => void, after?: () => void, drawn = false): void {
+  arrive(drawn);
   const run = async () => {
     update();
     await rendered();
@@ -81,26 +111,51 @@ function commit(direction: Direction | null, update: () => void, after?: () => v
   };
   const doc = document as Document & { startViewTransition?: (update: () => Promise<void>) => unknown };
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!direction || !doc.startViewTransition || still || document.visibilityState !== 'visible') {
+  const handover = direction && !still && document.visibilityState === 'visible' ? direction : null;
+  if (!doc.startViewTransition) {
+    // The page fades in instead, and only when it is handed over.
+    document.documentElement.dataset.nav = handover ?? 'none';
     void run();
     return;
   }
-  document.documentElement.dataset.nav = direction;
+  if (!handover) {
+    void run();
+    return;
+  }
+  document.documentElement.dataset.nav = handover;
   doc.startViewTransition(run);
 }
 
 /** The state each history entry carries: where the page was scrolled to, so
- *  going back returns there; how many steps into the app it is; and the page
- *  it was opened from. */
+ *  going back returns there; how many steps into the app it is; the page it
+ *  was opened from; and a key of its own. */
 interface EntryState {
   y?: number;
   depth?: number;
   from?: string;
+  key?: string;
 }
 
 function entryState(): EntryState {
   const state: unknown = typeof history === 'undefined' ? null : history.state;
   return state && typeof state === 'object' ? (state as EntryState) : {};
+}
+
+const newKey = () => Math.random().toString(36).slice(2, 10);
+
+/** The key of the entry on screen. */
+let here: string | undefined;
+
+/** Where each page was left, by its entry's key. A page left by a step
+ *  through history can no longer write that into its own entry, and the
+ *  way back to it may as well be the way forward. */
+const left = new Map<string, number>();
+
+function leave(): void {
+  if (here === undefined) return;
+  left.delete(here);
+  left.set(here, scrollY);
+  if (left.size > 200) left.delete(left.keys().next().value!);
 }
 
 /** The page the current one was opened from inside the app, or null when it
@@ -137,11 +192,14 @@ export function navigate(to: string, options: NavigateOptions = {}): void {
     );
     return;
   }
-  // Remember where this page was, for the way back.
-  const here = entryState();
-  history.replaceState({ ...here, y: scrollY }, '');
+  // Remember where this page was, for the way back: in its entry as well,
+  // which outlasts a reload.
+  const current = entryState();
+  history.replaceState({ ...current, y: scrollY }, '');
+  leave();
   const from = route.peek().path;
-  history.pushState({ depth: (here.depth ?? 0) + 1, from: location.pathname + location.search }, '', target.href);
+  here = newKey();
+  history.pushState({ depth: (current.depth ?? 0) + 1, from: location.pathname + location.search, key: here }, '', target.href);
   const next = read();
   commit(
     // The same page with another query (a sheet over the list) is not a
@@ -172,19 +230,34 @@ export function setQuery(changes: Record<string, string | null | undefined>): vo
 }
 
 if (typeof window !== 'undefined') {
-  // The way back restores the scroll position itself (EntryState), after the
-  // page it returns to has rendered.
+  // A step through history restores the scroll position itself, once the
+  // page it lands on has rendered and before it is painted: back and
+  // forward both land where the page was left.
   history.scrollRestoration = 'manual';
-  addEventListener('popstate', () => {
+  here = entryState().key;
+  if (here === undefined) {
+    here = newKey();
+    history.replaceState({ ...entryState(), key: here }, '');
+  }
+  arrive(false);
+  const settle = () => {
+    delete document.documentElement.dataset.arriving;
+  };
+  for (const type of ['pointerdown', 'wheel', 'keydown']) addEventListener(type, settle, { capture: true, passive: true });
+  addEventListener('popstate', (event) => {
+    leave();
+    here = entryState().key;
     const from = route.peek().path;
     const next = read();
-    const y = entryState().y ?? 0;
+    const y = (here === undefined ? undefined : left.get(here)) ?? entryState().y ?? 0;
+    const drawn = drawnByBrowser(event);
     commit(
-      next.path === from ? null : directionOf(from, next.path),
+      next.path === from || drawn ? null : directionOf(from, next.path),
       () => {
         route.value = next;
       },
       () => restoreScroll(y),
+      drawn,
     );
   });
 }

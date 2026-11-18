@@ -16,7 +16,7 @@ const TOPICS = ['activity'] as const;
 
 export function Notifications() {
   const pager = useMemo(() => deliveryPager(listDeliveries), []);
-  const log = usePaged('log', pager, TOPICS);
+  const log = usePaged('deliveries', pager, TOPICS);
   const items = log.items;
 
   if (!items) return log.error ? <ErrorState error={log.error} onRetry={log.reload} /> : <ListSkeleton />;

@@ -9,7 +9,7 @@ import meters from '../src/i18n/areas/meters';
 import overview from '../src/i18n/areas/overview';
 import settings from '../src/i18n/areas/settings';
 import spend from '../src/i18n/areas/spend';
-import { isActive, matchPath } from '../src/router';
+import { drawnByBrowser, isActive, matchPath } from '../src/router';
 
 describe('matchPath', () => {
   it('matches fixed paths exactly', () => {
@@ -31,6 +31,22 @@ describe('matchPath', () => {
     assert.deepEqual(matchPath('/dates/*', '/dates/new'), { rest: 'new' });
     assert.deepEqual(matchPath('/settings/:section/*', '/settings/channels/ch_1/edit'), { section: 'channels', rest: 'ch_1/edit' });
     assert.deepEqual(matchPath('/dates/*', '/dates'), { rest: '' });
+  });
+});
+
+describe('drawnByBrowser', () => {
+  it('leaves a step through history to the browser when it has slid the page in itself', () => {
+    // A swipe from the edge of a phone's screen.
+    assert.equal(drawnByBrowser({ hasUAVisualTransition: true }), true);
+  });
+
+  it('hands over itself when the browser says it drew nothing', () => {
+    // The way back in the top bar, or a back button.
+    assert.equal(drawnByBrowser({ hasUAVisualTransition: false }), false);
+  });
+
+  it('takes a browser that cannot say to have drawn it', () => {
+    assert.equal(drawnByBrowser({}), true);
   });
 });
 

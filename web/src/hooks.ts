@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from './api/client';
 import { lang } from './i18n';
+import { keep, recall } from './state/kept';
 import { onChange, type LiveTopic } from './state/live';
 
 /** Names the browser tab after the page: "Meters · QuotaPulse". */
@@ -25,20 +26,26 @@ export interface Query<T> {
   set: (next: T) => void;
 }
 
+interface QueryState<T> {
+  data: T | undefined;
+  error: ApiError | undefined;
+  loading: boolean;
+  key: string | null;
+}
+
 /**
  * Fetches something that depends on a key — one meter's series, one month's
  * spend — and keeps it current: it fetches again when the key changes, when
  * one of the live topics changes, and when the language does.
  *
+ * The last answer for each key outlasts the page (state/kept.ts): a page
+ * come back to shows it at once, settled, while it is asked again. Keys are
+ * app-wide, so name what is asked: 'spend:2026-11'.
+ *
  * For data with no key, shared between pages, use a resource (state/resource.ts).
  */
 export function useQuery<T>(key: string, fetcher: (signal: AbortSignal) => Promise<T>, topics: readonly LiveTopic[]): Query<T> {
-  const [state, setState] = useState<{ data: T | undefined; error: ApiError | undefined; loading: boolean; key: string | null }>({
-    data: undefined,
-    error: undefined,
-    loading: true,
-    key: null,
-  });
+  const [state, setState] = useState<QueryState<T>>({ data: undefined, error: undefined, loading: true, key: null });
   const [tick, setTick] = useState(0);
   const latest = useRef(fetcher);
   latest.current = fetcher;
@@ -50,13 +57,16 @@ export function useQuery<T>(key: string, fetcher: (signal: AbortSignal) => Promi
     latest
       .current(abort.signal)
       .then((data) => {
-        if (!abort.signal.aborted) setState({ data, error: undefined, loading: false, key });
+        if (abort.signal.aborted) return;
+        keep(key, data);
+        setState({ data, error: undefined, loading: false, key });
       })
       .catch((cause: unknown) => {
         if (abort.signal.aborted) return;
         const error = cause instanceof ApiError ? cause : new ApiError(0, 'unknown', String(cause));
-        // An answer for another key would be shown under the wrong heading.
-        setState((was) => ({ data: was.key === key ? was.data : undefined, error, loading: false, key }));
+        // An answer for another key would be shown under the wrong heading;
+        // the last one for this key would not.
+        setState((was) => ({ data: was.key === key ? was.data : recall<T>(key), error, loading: false, key }));
       });
     return () => abort.abort();
   }, [key, tick, language]);
@@ -74,13 +84,19 @@ export function useQuery<T>(key: string, fetcher: (signal: AbortSignal) => Promi
     };
   }, [topics.join(',')]);
 
+  // Until this key's answer comes, the one it had last time stands in.
+  const last = state.key === key ? undefined : recall<T>(key);
+  const shown: QueryState<T> = last === undefined ? state : { data: last, error: undefined, loading: true, key };
   return {
-    data: state.data,
-    error: state.error,
-    loading: state.loading,
-    settled: state.key === key,
+    data: shown.data,
+    error: shown.error,
+    loading: shown.loading,
+    settled: shown.key === key,
     reload: () => setTick((n) => n + 1),
-    set: (next) => setState({ data: next, error: undefined, loading: false, key }),
+    set: (next) => {
+      keep(key, next);
+      setState({ data: next, error: undefined, loading: false, key });
+    },
   };
 }
 

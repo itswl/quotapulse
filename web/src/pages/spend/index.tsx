@@ -57,7 +57,7 @@ function SpendMonth({ title }: { title: string }) {
 
   // The running month is asked for without a name: what "now" is, is for
   // the server to decide.
-  const spend = useQuery(month, (signal) => getSpend(current ? undefined : month, signal), TOPICS);
+  const spend = useQuery(`spend:${month}`, (signal) => getSpend(current ? undefined : month, signal), TOPICS);
   const data = spend.data;
   const go = (to: string) => setQuery({ month: to >= thisMonth ? null : to });
 

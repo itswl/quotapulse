@@ -1,7 +1,7 @@
 // A list that pages backwards — the newest first, older ones on request —
 // and stays current while it is on screen.
 //
-//   const log = usePaged('log', deliveryPager(listDeliveries), ['activity']);
+//   const log = usePaged('deliveries', deliveryPager(listDeliveries), ['activity']);
 //   log.items          undefined until the first answer
 //   log.more           there are older ones: show "Load more"
 //   log.loadMore()     fetches the next page and appends it
@@ -9,9 +9,14 @@
 // A live change, or a change of language, fetches again everything that is
 // shown, however many pages that is. Fetches run one at a time, in the order
 // they were asked for, so a refresh and a "load more" cannot cross.
+//
+// What a list shows outlasts the page (state/kept.ts): coming back to it
+// shows as much of it at once as there was, while it is fetched again. The
+// key is app-wide: name the list.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
 import { lang } from '../../i18n';
+import { keep, recall } from '../../state/kept';
 import { onChange, type LiveTopic } from '../../state/live';
 import { loadWindow, type FetchOlder } from './logic';
 
@@ -50,10 +55,22 @@ interface Control<T> {
   replace(same: (item: T) => boolean, next: T): void;
 }
 
+/** What is kept of a list for coming back to it. */
+interface Kept<T> {
+  items: T[];
+  more: boolean;
+}
+
+/** Where a list starts: what it showed when it was last on screen, if it was. */
+function seeded<T>(key: string): State<T> {
+  const last = recall<Kept<T>>(key);
+  return { key: last ? key : null, items: last?.items, error: undefined, more: last?.more ?? false, loadingMore: false, moreError: undefined };
+}
+
 const toError = (cause: unknown) => (cause instanceof ApiError ? cause : new ApiError(0, 'unknown', String(cause)));
 
 export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: readonly LiveTopic[]): Paged<T> {
-  const [state, setState] = useState<State<T>>({ key: null, items: undefined, error: undefined, more: false, loadingMore: false, moreError: undefined });
+  const [state, setState] = useState<State<T>>(() => seeded<T>(key));
   const latest = useRef(fetchOlder);
   latest.current = fetchOlder;
   const control = useRef<Control<T> | null>(null);
@@ -64,7 +81,11 @@ export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: read
 
   useEffect(() => {
     let alive = true;
-    let items: T[] | undefined;
+    // As much as was shown last time is fetched again, and "load more" goes
+    // on from there.
+    const last = recall<Kept<T>>(key);
+    let items: T[] | undefined = last?.items;
+    let older = last?.more ?? false;
     let refreshWaiting = false;
     let queue: Promise<void> = Promise.resolve();
     if (depth.current.key !== key) depth.current = { key, count: 0 };
@@ -82,7 +103,9 @@ export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: read
           const next = await loadWindow<T>((shown, limit) => latest.current(shown, limit), Math.max(PAGE, items?.length ?? depth.current.count));
           if (!alive) return;
           items = next.items;
+          older = next.more;
           depth.current.count = next.items.length;
+          keep(key, { items, more: older });
           setState((was) => ({ ...was, key, items: next.items, error: undefined, more: next.more, moreError: undefined }));
         } catch (cause) {
           if (!alive) return;
@@ -103,8 +126,10 @@ export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: read
           if (!alive) return;
           const next = shown.concat(page.items);
           items = next;
+          older = page.more && page.items.length > 0;
           depth.current.count = next.length;
-          setState((was) => ({ ...was, items: next, more: page.more && page.items.length > 0, loadingMore: false }));
+          keep(key, { items, more: older });
+          setState((was) => ({ ...was, items: next, more: older, loadingMore: false }));
         } catch (cause) {
           if (alive) setState((was) => ({ ...was, loadingMore: false, moreError: toError(cause) }));
         }
@@ -115,6 +140,7 @@ export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: read
       if (!items) return;
       const swapped = items.map((each) => (same(each) ? next : each));
       items = swapped;
+      keep(key, { items, more: older });
       setState((was) => ({ ...was, items: swapped }));
     };
 
@@ -139,13 +165,14 @@ export function usePaged<T>(key: string, fetchOlder: FetchOlder<T>, topics: read
     };
   }, [topics.join(',')]);
 
-  const mine = state.key === key;
+  const shown = state.key === key ? state : seeded<T>(key);
+  const mine = shown.key === key;
   return {
-    items: mine ? state.items : undefined,
-    error: mine ? state.error : undefined,
-    more: mine && state.more,
-    loadingMore: mine && state.loadingMore,
-    moreError: mine ? state.moreError : undefined,
+    items: mine ? shown.items : undefined,
+    error: mine ? shown.error : undefined,
+    more: mine && shown.more,
+    loadingMore: mine && shown.loadingMore,
+    moreError: mine ? shown.moreError : undefined,
     loadMore: () => control.current?.more(),
     reload: () => control.current?.refresh(),
     replace: (same, next) => control.current?.replace(same, next),
