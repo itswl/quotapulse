@@ -1,39 +1,47 @@
-/* The shell (src/app.tsx): navigation, top bar, the page outlet.
+/* The shell (src/app.tsx): the bar at the top, and the page.
 
-   One piece of markup, three layouts:
-     ≥ 960px   a left rail with labels
-     720–959   a rail of icons
-     < 720px   a bottom tab bar of five, and a top bar that carries the
-               page's title once the page's own heading has scrolled away */
+     ≥ 720px   the brand, the three places to go in the middle, adding and
+               the settings at the right
+     < 720px   at home, the mark, adding and the settings; a step down, the
+               way back, and the page's title once its own has scrolled away
+
+   The bar is clear glass at the top of a page and frosted once something
+   has scrolled under it. */
 
 .shell {
-  display: grid;
-  grid-template-columns: var(--rail) minmax(0, 1fr);
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-.shell__body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .page {
   width: 100%;
-  max-width: calc(var(--content-max) + 2 * var(--s-10));
+  max-width: calc(1120px + 2 * var(--s-8));
   margin: 0 auto;
-  padding: var(--s-10) var(--s-10) var(--s-12);
+  padding: var(--s-3) var(--s-8) var(--s-12);
+  padding-right: max(var(--s-8), env(safe-area-inset-right, 0px));
+  padding-left: max(var(--s-8), env(safe-area-inset-left, 0px));
+}
+
+.page--watching {
+  max-width: calc(1400px + 2 * var(--s-8));
+}
+
+.page--money,
+.page--history,
+.page--settings {
+  max-width: calc(1040px + 2 * var(--s-8));
 }
 
 .page:focus {
   outline: none;
 }
 
-/* A page arrives rather than snaps in. Opacity only: a transform here would
-   become the containing block of everything fixed inside the page. */
-.page__view {
-  animation: page-in 0.22s var(--ease);
+/* A page arrives rather than snaps in — where the browser cannot hand one
+   page over to the next itself (see the view transitions below). */
+@supports not (view-transition-name: none) {
+  .page__view {
+    animation: page-in 0.22s var(--ease);
+  }
 }
 
 @keyframes page-in {
@@ -56,6 +64,10 @@
 
 .skip-link:focus {
   top: var(--s-2);
+}
+
+.shell__banner {
+  border-bottom: 1px solid var(--border);
 }
 
 /* ---------- brand ---------- */
@@ -82,236 +94,145 @@
   text-decoration: none;
 }
 
-/* ---------- tools: theme, language, sign out ---------- */
+/* ---------- the bar at the top ---------- */
 
-.tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.tools__lang {
-  font-size: var(--fs-12);
-  font-weight: 600;
-}
-
-/* ---------- the rail ---------- */
-
-.nav {
+.topbar {
   position: sticky;
   top: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-6);
-  height: 100vh;
-  height: 100dvh;
-  padding: var(--s-5) var(--s-3) var(--s-4);
-  padding-left: max(var(--s-3), env(safe-area-inset-left, 0px));
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-4);
+  height: calc(60px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) max(var(--s-6), env(safe-area-inset-right, 0px)) 0 max(var(--s-6), env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid transparent;
+  view-transition-name: topbar;
+  transition:
+    background-color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
 }
 
-.nav .brand {
-  padding: 2px var(--s-2);
+.topbar.is-scrolled {
+  border-bottom-color: var(--border);
+  background: var(--bar);
+  -webkit-backdrop-filter: saturate(1.8) blur(20px);
+  backdrop-filter: saturate(1.8) blur(20px);
 }
 
-.nav__items {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 2px;
+.topbar .brand {
+  justify-self: start;
 }
 
-.nav__item {
-  position: relative;
+.topbar__actions {
   display: flex;
   align-items: center;
-  flex: none;
-  gap: 10px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: var(--r-1);
-  color: var(--text-2);
-  font-weight: 500;
-  transition:
-    background-color 0.12s var(--ease),
-    color 0.12s var(--ease);
+  justify-self: end;
+  gap: var(--s-2);
 }
 
-.nav__item:hover {
+.topbar__settings.is-active {
   background: var(--surface-2);
+  color: var(--text);
+}
+
+/* the title it carries, and the way back, are a phone's */
+.topbar__title,
+.topbar__back {
+  display: none;
+}
+
+/* the three places, as one pill with the current one lifted out of it */
+.topnav {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.topnav__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: var(--fs-14);
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+
+.topnav__item:hover {
   color: var(--text);
   text-decoration: none;
 }
 
-/* where you are: a slip of the card's own paper, lifted off the rail */
-.nav__item.is-active {
+.topnav__item.is-active {
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--border),
-    var(--shadow-card);
+    var(--shadow-lift);
   color: var(--text);
   font-weight: 600;
 }
 
-/* settings sits at the foot of the rail, away from the pages one visits */
-.nav__item--aside {
-  margin-top: auto;
-}
-
-.nav__icon {
-  display: grid;
+/* the count of open problems, on Now */
+.nav-badge {
+  display: inline-grid;
   place-items: center;
-  flex: none;
-}
-
-.nav__badge {
-  display: grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  margin-left: auto;
-  padding: 0 6px;
-  border-radius: 10px;
-  background: var(--info-bg);
-  color: var(--info);
-  font-size: var(--fs-12);
-  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--info);
+  color: var(--on-accent);
+  font-size: var(--fs-11);
+  font-weight: 650;
   line-height: 1;
 }
 
-.nav__badge--warning {
-  background: var(--warning-bg);
-  color: var(--warning);
+.nav-badge--warning {
+  background: var(--warning);
 }
 
-.nav__badge--critical {
-  background: var(--critical-bg);
-  color: var(--critical);
+.nav-badge--critical {
+  background: var(--critical);
 }
 
-.nav__foot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-1) 0;
-  border-top: 1px solid var(--border);
+/* ---------- one page handing over to the next ---------- */
+
+/* The bar is a layer of its own in a transition: it holds still while the
+   page under it changes. */
+::view-transition-group(topbar) {
+  animation-duration: 0s;
 }
 
-.nav__version {
-  padding: 0 6px;
-  color: var(--text-3);
-  font-size: var(--fs-12);
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.18s;
+  animation-timing-function: var(--ease);
 }
 
-/* ---------- the top bar: phones only ---------- */
-
-.topbar {
-  display: none;
-}
-
-.shell__banner {
-  border-bottom: 1px solid var(--border);
-}
-
-/* ---------- 720–959px: a rail of icons ---------- */
-
-@media (max-width: 959px) {
-  .shell {
-    grid-template-columns: var(--rail-compact) minmax(0, 1fr);
-  }
-
-  .page {
-    padding: var(--s-8) var(--s-6) var(--s-12);
-  }
-
-  .nav {
-    align-items: center;
-    padding: var(--s-4) var(--s-2);
-    padding-left: max(var(--s-2), env(safe-area-inset-left, 0px));
-  }
-
-  .nav .brand {
-    padding: 0;
-  }
-
-  /* The labels stay in the page for screen readers and as each link's name. */
-  .nav .brand__name,
-  .nav .brand__demo,
-  .nav__label,
-  .nav__version {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .nav__item {
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-  }
-
-  .nav__badge {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    font-size: 0.625rem;
-  }
-
-  .nav__foot {
-    align-items: center;
-    padding: var(--s-3) 0 0;
-  }
-
-  .nav .tools {
-    flex-direction: column;
-  }
-}
-
-/* ---------- < 720px: a top bar and a tab bar ---------- */
+/* ---------- < 720px ---------- */
 
 @media (max-width: 719px) {
-  .shell {
-    display: block;
-  }
-
   .page {
-    padding: var(--s-2) max(var(--s-4), env(safe-area-inset-right, 0px))
-      calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-10)) max(var(--s-4), env(safe-area-inset-left, 0px));
-  }
-
-  /* Both bars are the paper with the page showing faintly through, so what
-     scrolls under them is felt rather than read. The top bar is only that
-     once something has scrolled under it: at the top of a page it is clear,
-     and the page begins at the top of the screen. */
-  .topbar.is-scrolled,
-  .nav {
-    background: var(--bar);
-    -webkit-backdrop-filter: saturate(1.8) blur(20px);
-    backdrop-filter: saturate(1.8) blur(20px);
+    padding: var(--s-1) max(var(--s-4), env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + var(--s-10))
+      max(var(--s-4), env(safe-area-inset-left, 0px));
   }
 
   .topbar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--s-2);
     height: calc(var(--topbar) + env(safe-area-inset-top, 0px));
-    padding: env(safe-area-inset-top, 0px) max(var(--s-1), env(safe-area-inset-right, 0px)) 0
-      max(var(--s-4), env(safe-area-inset-left, 0px));
-    border-bottom: 1px solid transparent;
-    transition:
-      background-color 0.2s var(--ease),
-      border-color 0.2s var(--ease);
+    padding-right: max(var(--s-2), env(safe-area-inset-right, 0px));
+    padding-left: max(var(--s-4), env(safe-area-inset-left, 0px));
   }
 
   /* the name is under the icon on the home screen; here the mark is enough */
@@ -324,15 +245,16 @@
     white-space: nowrap;
   }
 
+  .topnav {
+    display: none;
+  }
+
   .topbar__title {
-    position: absolute;
-    right: 56px;
-    bottom: 0;
-    left: 56px;
-    height: var(--topbar);
+    display: block;
+    grid-column: 2;
+    min-width: 0;
     font-size: var(--fs-14);
     font-weight: 600;
-    line-height: var(--topbar);
     text-align: center;
     opacity: 0;
     transform: translateY(6px);
@@ -340,12 +262,6 @@
       opacity 0.2s var(--ease),
       transform 0.2s var(--ease);
     pointer-events: none;
-  }
-
-  /* the page's heading has gone under the bar: the bar takes it over, and
-     draws the line it did without while the heading was still in sight */
-  .topbar.is-carrying {
-    border-bottom-color: var(--border);
   }
 
   .topbar.is-carrying .topbar__title {
@@ -361,114 +277,119 @@
     opacity: 0;
   }
 
+  .topbar__actions {
+    gap: 0;
+  }
+
+  /* add and the settings are two quiet icons up here */
+  .topbar__add.btn,
   .topbar__settings {
     width: 44px;
     height: 44px;
+    border: 0;
     border-radius: 50%;
-  }
-
-  .topbar__settings.is-active {
-    color: var(--text);
-  }
-
-  .topbar__settings.is-active svg {
-    stroke-width: 2.1;
-  }
-
-  .nav {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: 20;
-    flex-direction: row;
-    gap: 0;
-    height: auto;
-    padding: 0 max(var(--s-1), env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
-      max(var(--s-1), env(safe-area-inset-left, 0px));
-    border-top: 1px solid var(--border);
-    border-right: 0;
-    overflow: visible;
-  }
-
-  .nav .brand,
-  .nav__foot,
-  .nav__item--aside {
-    display: none;
-  }
-
-  .nav__items {
-    flex-direction: row;
-    gap: 0;
-    min-width: 0;
-  }
-
-  .nav__item {
-    flex: 1 1 0;
-    flex-direction: column;
-    gap: 2px;
-    width: auto;
-    min-width: 0;
-    height: var(--tabbar);
-    border-radius: 0;
-    color: var(--text-3);
-    font-size: var(--fs-11);
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-  }
-
-  .nav__item:hover {
-    background: none;
-  }
-
-  /* The tab you are on: its icon stands on a slip of ink-tinted paper, a
-     stroke heavier. No colour is spent on it. */
-  .nav__item.is-active {
     background: none;
     box-shadow: none;
-    color: var(--text);
+    color: var(--text-2);
   }
 
-  .nav__icon {
-    width: 52px;
-    height: 28px;
-    border-radius: 14px;
-    transition:
-      background-color 0.2s var(--ease),
-      transform 0.2s var(--ease-out);
-  }
-
-  .nav__icon svg {
+  .topbar__add svg {
     width: 22px;
     height: 22px;
   }
 
-  .nav__item.is-active .nav__icon {
-    background: var(--accent-weak);
+  .topbar__settings svg {
+    width: 20px;
+    height: 20px;
   }
 
-  .nav__item.is-active .nav__icon svg {
-    stroke-width: 2.1;
+  .topbar__settings.is-active {
+    background: none;
+    color: var(--text);
   }
 
-  .nav__item:active .nav__icon {
-    transform: scale(0.92);
+  /* A step down from home, the bar is for going back: the mark gives way,
+     and adding and the settings stay where they belong. */
+  .topbar:not(.is-home) .brand,
+  .topbar:not(.is-home) .topbar__settings,
+  .topbar:not(.can-add) .topbar__add {
+    display: none;
   }
 
-  .nav__label {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: hidden;
-    clip-path: none;
-    max-width: 100%;
-    padding: 0 2px;
-    text-overflow: ellipsis;
+  .topbar__back {
+    display: inline-flex;
+    grid-column: 1;
+    align-items: center;
+    gap: 0;
+    max-width: 9em;
+    height: 44px;
+    margin-left: -10px;
+    padding-right: 6px;
+    color: var(--text);
+    font-size: var(--fs-16);
+    font-weight: 500;
   }
 
-  .nav__badge {
-    top: 5px;
-    right: auto;
-    left: calc(50% + 6px);
-    box-shadow: 0 0 0 2px var(--bg);
+  .topbar__back:hover {
+    text-decoration: none;
   }
+
+  .topbar__back:active {
+    opacity: 0.6;
+  }
+
+  .topbar__actions {
+    grid-column: 3;
+  }
+
+
+  /* Deeper goes in from the right and back comes in from the left, as on
+     any phone; across tabs, the pages cross-fade. */
+  html[data-nav='forward']::view-transition-old(root) {
+    animation: 0.32s var(--ease-out) both vt-out-left;
+  }
+
+  html[data-nav='forward']::view-transition-new(root) {
+    animation: 0.32s var(--ease-out) both vt-in-right;
+  }
+
+  html[data-nav='back']::view-transition-old(root) {
+    animation: 0.32s var(--ease-out) both vt-out-right;
+  }
+
+  html[data-nav='back']::view-transition-new(root) {
+    animation: 0.32s var(--ease-out) both vt-in-left;
+  }
+}
+
+@keyframes vt-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes vt-out-left {
+  to {
+    opacity: 0.6;
+    transform: translateX(-24%);
+  }
+}
+
+@keyframes vt-in-left {
+  from {
+    opacity: 0.6;
+    transform: translateX(-24%);
+  }
+}
+
+@keyframes vt-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* the new page slides over the old one, not under it */
+html[data-nav='forward']::view-transition-new(root),
+html[data-nav='back']::view-transition-old(root) {
+  z-index: 1;
 }

@@ -1,5 +1,5 @@
-// Words for the overview: the verdict, what needs attention, what is coming
-// up, and the month in one line.
+// Words for Now (pages/now): the verdict, the problems that ask for a person,
+// what is ahead, and the month and the runways at the side.
 import { defineArea } from '../define';
 
 export default defineArea({
@@ -58,6 +58,45 @@ export default defineArea({
     // a standing hint
     'noChannel': 'There is no notification channel yet, so alerts have nowhere to go.',
     'noChannel.action': 'Add one',
+
+    // what is ahead
+    'next': 'Next: {what}, {when}.',
+    'next.none': 'Nothing comes due in the next {n} days.',
+    'bucket.today': 'Today',
+    'bucket.tomorrow': 'Tomorrow',
+    'bucket.week': 'Within a week',
+    'bucket.month': 'Within a month',
+    'bucket.later': 'Later',
+    'event.runout': '{name} runs out',
+    'event.runout.detail': '{amount} left, about {burn} a day',
+    'event.exhaust': '{name} runs out before it resets',
+    'event.exhaust.detail': '{left} left, resets {when}',
+    'event.exhaust.detail.noReset': '{left} left',
+    'event.budget': '{name} passes its budget',
+    'event.budget.detail': '{spent} of {budget}, heading for {projected}',
+    'event.about': '≈ {when}',
+    'steady': 'Nothing ahead for the other one | Nothing ahead for the other {n}',
+    'steady.more': ' and {n} more',
+    'history': 'History',
+    'history.hint': 'What happened, and what was sent',
+    'action.open': 'Open {name}',
+    'action.account': 'Check the account',
+    'action.channels': 'Open the channels',
+
+    // the side of a wide screen
+    'month.expected': 'expected this month',
+    'month.part.spent': 'Spent',
+    'month.part.coming': 'Still to come',
+    'month.part.renewals': 'Renewals',
+    'runway.title': 'How long they last',
+    'runway.scale': 'next {n} days',
+    'runway.collecting': 'collecting',
+    'quotas.title': 'Quotas',
+    'library': 'Everything watched',
+    'library.look': '{n} needs a look | {n} need a look',
+    'library.fine': 'all fine',
+    'library.soon': '{n} within a week',
+    'library.quiet': 'nothing this week',
   },
   zh: {
     'verdict.clear': '一切正常',
@@ -107,5 +146,42 @@ export default defineArea({
 
     'noChannel': '还没有通知渠道，提醒发不出去。',
     'noChannel.action': '去添加',
+
+    'next': '接下来：{what}，{when}。',
+    'next.none': '接下来 {n} 天没有要到来的事。',
+    'bucket.today': '今天',
+    'bucket.tomorrow': '明天',
+    'bucket.week': '一周内',
+    'bucket.month': '一个月内',
+    'bucket.later': '更远',
+    'event.runout': '{name} 用完',
+    'event.runout.detail': '还剩 {amount}，每天约 {burn}',
+    'event.exhaust': '{name} 会在重置前用完',
+    'event.exhaust.detail': '还剩 {left}，{when}重置',
+    'event.exhaust.detail.noReset': '还剩 {left}',
+    'event.budget': '{name} 超出月度预算',
+    'event.budget.detail': '已花 {spent}，预算 {budget}，预计到 {projected}',
+    'event.about': '≈ {when}',
+    'steady': '其余 {n} 项近期都没事',
+    'steady.more': '等 {n} 项',
+    'history': '历史',
+    'history.hint': '发生过什么、发出过哪些通知',
+    'action.open': '打开 {name}',
+    'action.account': '检查账户',
+    'action.channels': '打开通知渠道',
+
+    'month.expected': '本月预计',
+    'month.part.spent': '已花',
+    'month.part.coming': '还会花',
+    'month.part.renewals': '续费',
+    'runway.title': '还能撑多久',
+    'runway.scale': '未来 {n} 天',
+    'runway.collecting': '收集中',
+    'quotas.title': '配额',
+    'library': '全部关注',
+    'library.look': '{n} 项需要看看',
+    'library.fine': '都正常',
+    'library.soon': '{n} 个在一周内',
+    'library.quiet': '一周内没有',
   },
 });

@@ -1,13 +1,14 @@
 /* The one stylesheet. Order matters: tokens, then the ground, then
    components, then pages. A new page area adds its file under pages/ and one
-   line here — the six areas of the product are already listed. */
+   line here. */
 @import './tokens.css';
 @import './base.css';
 @import './components.css';
 @import './charts.css';
 @import './shell.css';
 @import './pages/login.css';
-@import './pages/overview.css';
+@import './pages/now.css';
+@import './pages/watching.css';
 @import './pages/meters.css';
 @import './pages/dates.css';
 @import './pages/spend.css';

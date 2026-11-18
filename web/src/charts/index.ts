@@ -9,6 +9,7 @@ export type { ChartTable, LegendEntry } from './ChartFrame';
 export { LineChart } from './LineChart';
 export type { LineMarker, LinePoint } from './LineChart';
 export { QuotaBar } from './QuotaBar';
+export { RunwayBar } from './RunwayBar';
 export type { BarTone } from './QuotaBar';
 export { bucketDays, chooseBucket } from './scale';
 export type { Bucket, BucketSize } from './scale';

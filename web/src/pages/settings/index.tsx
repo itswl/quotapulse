@@ -1,6 +1,8 @@
-// The Settings pages: one area, five sections, each at its own address.
+// The Settings pages: a list of the sections, and each section at its own
+// address beneath it.
 //
-//   /settings/channels      where notifications go (also what /settings shows)
+//   /settings               the list
+//   /settings/channels      where notifications go
 //   /settings/providers     how platforms are read; the editor lives beneath it
 //   /settings/tokens        access for scripts and agents
 //   /settings/preferences   the defaults
@@ -9,13 +11,14 @@
 // `params.section` names the section and `params.rest` anything deeper.
 // Other pages link to /settings/channels, /settings/providers and
 // /settings/preferences.
-import { Compass } from 'lucide-preact';
+import { Bell, ChevronRight, Compass, History, KeyRound, LogOut, Plug, Server, SlidersHorizontal, type LucideIcon } from 'lucide-preact';
 import { useEffect, useRef } from 'preact/hooks';
-import { cx, EmptyState, LinkButton, PageHeader } from '../../components';
+import { Button, cx, EmptyState, LinkButton, PageHeader } from '../../components';
 import { useTitle } from '../../hooks';
 import { t, type TKey } from '../../i18n';
-import { Link, navigate } from '../../router';
+import { Link } from '../../router';
 import type { PageProps } from '../../routes';
+import { sessionInfo, signOut } from '../../state/session';
 import { ChannelsSection } from './channels';
 import { PreferencesSection } from './preferences';
 import { ProvidersSection } from './providers';
@@ -33,19 +36,15 @@ const SECTIONS: readonly { id: SectionId; label: TKey }[] = [
 ];
 
 export default function SettingsPage({ params }: PageProps) {
-  const section = SECTIONS.find((each) => each.id === (params.section ?? 'channels'));
+  const section = SECTIONS.find((each) => each.id === params.section);
   const title = t('common.nav.settings');
   useTitle(section ? `${t(section.label)} · ${title}` : title);
 
-  // /settings is the channels: say so in the address, so that a reload or a
-  // copied link lands on the same section.
-  useEffect(() => {
-    if (params.section === undefined) navigate('/settings/channels', { replace: true });
-  }, [params.section]);
+  if (params.section === undefined) return <SettingsHome />;
 
   return (
     <div class="st">
-      <PageHeader title={title} />
+      <PageHeader title={section ? t(section.label) : title} back={{ href: '/settings', label: title }} />
       <SectionNav current={section?.id} />
       {!section ? (
         <EmptyState icon={Compass} title={t('common.state.notFound.title')} action={<LinkButton href="/settings/channels">{t('settings.nav.channels')}</LinkButton>}>
@@ -66,8 +65,71 @@ export default function SettingsPage({ params }: PageProps) {
   );
 }
 
-/** The sections as links. On a phone the row scrolls sideways, and brings
- *  the current section into view. */
+const HOME: { title: TKey; items: { href: string; label: TKey; hint: TKey; icon: LucideIcon }[] }[] = [
+  {
+    title: 'settings.home.notify',
+    items: [
+      { href: '/settings/channels', label: 'settings.nav.channels', hint: 'settings.home.channels', icon: Bell },
+      { href: '/activity/notifications', label: 'settings.home.log.title', hint: 'settings.home.log', icon: History },
+    ],
+  },
+  {
+    title: 'settings.home.connect',
+    items: [
+      { href: '/settings/providers', label: 'settings.nav.providers', hint: 'settings.home.providers', icon: Plug },
+      { href: '/settings/tokens', label: 'settings.nav.tokens', hint: 'settings.home.tokens', icon: KeyRound },
+    ],
+  },
+  {
+    title: 'settings.home.this',
+    items: [
+      { href: '/settings/preferences', label: 'settings.nav.preferences', hint: 'settings.home.preferences', icon: SlidersHorizontal },
+      { href: '/settings/system', label: 'settings.nav.system', hint: 'settings.home.system', icon: Server },
+    ],
+  },
+];
+
+/** The sections as a list, the way a phone's own settings are: grouped,
+ *  each with a line saying what is in it. */
+function SettingsHome() {
+  const info = sessionInfo.value;
+  return (
+    <div class="st st-home">
+      <PageHeader title={t('common.nav.settings')} />
+      {HOME.map((group) => (
+        <section key={group.title} class="st-home__group" aria-label={t(group.title)}>
+          <h2 class="st-home__title">{t(group.title)}</h2>
+          <ul class="st-home__list">
+            {group.items.map((item) => (
+              <li key={item.href}>
+                <Link class="st-home__item" href={item.href}>
+                  <span class="st-home__icon" aria-hidden="true">
+                    <item.icon size={18} />
+                  </span>
+                  <span class="st-home__text">
+                    <span class="st-home__label">{t(item.label)}</span>
+                    <span class="st-home__hint">{t(item.hint)}</span>
+                  </span>
+                  <ChevronRight class="st-home__go" size={16} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <div class="st-home__foot">
+        <Button icon={LogOut} onClick={() => void signOut().catch(() => undefined)}>
+          {t('common.shell.signOut')}
+        </Button>
+        {info?.version && <p class="st-home__version num">{t('common.shell.version', { v: info.version })}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** The sections as links, for moving between them without going back to
+ *  the list. On a narrow screen the row scrolls sideways, and brings the
+ *  current section into view. */
 function SectionNav({ current }: { current: SectionId | undefined }) {
   const nav = useRef<HTMLElement>(null);
   useEffect(() => {

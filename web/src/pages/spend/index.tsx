@@ -26,7 +26,7 @@ import { MetersTable, Renewals } from './tables';
 const TOPICS = ['meters', 'reminders', 'settings'] as const;
 
 export default function SpendPage(_props: PageProps) {
-  const title = t('common.nav.spend');
+  const title = t('common.nav.money');
   useTitle(title);
   // Which month "this month" is, is the server's to say: its clock and its
   // zone, which the overview carries. Until that has answered there is no

@@ -1,42 +1,40 @@
-// The Dates page: every date being watched — birthdays, renewals, expiries,
+// The dates side of Watching: every date — birthdays, renewals, expiries,
 // on the solar or the lunar calendar — soonest first and grouped by month.
-// It answers "what is coming, and when exactly", and it is where a date is
-// added or put right.
+// A date opens beside the list on a wide screen, and as a sheet from the
+// bottom on a narrow one; the way back closes it.
 //
 //   /dates                 the list
 //   /dates?kind=birthday   one kind only
+//   /dates?open=<id>       the list, with that date open
 //   /dates?add=1           the list, with the form for a new date open
-import { CalendarHeart, Plus, Search } from 'lucide-preact';
-import { useId, useState } from 'preact/hooks';
+import { CalendarHeart, Plus } from 'lucide-preact';
+import { useState } from 'preact/hooks';
 import { deleteReminder } from '../../api/endpoints';
-import type { Day, ReminderKind, ReminderView } from '../../api/types';
-import { Amount, Button, Card, ConfirmDialog, EmptyState, ErrorState, FilterChip, InfoTip, Input, PageHeader, Skeleton, toast } from '../../components';
+import type { ReminderKind, ReminderView } from '../../api/types';
+import { Amount, Button, Card, ConfirmDialog, Dialog, EmptyState, ErrorState, FilterChip, InfoTip, Skeleton, toast } from '../../components';
 import { errorText } from '../../errors';
-import { dayOf, DASH, parseDay } from '../../format';
-import { useAction, useTitle } from '../../hooks';
+import { DASH, dayOf, parseDay } from '../../format';
+import { useAction } from '../../hooks';
 import { t } from '../../i18n';
-import { route, setQuery } from '../../router';
-import type { PageProps } from '../../routes';
+import { navigate, route, setQuery } from '../../router';
 import { now } from '../../state/clock';
 import { reminders } from '../../state/reminders';
 import { useResource } from '../../state/resource';
 import { dropReminder } from './changes';
+import { DateDetail, DateItem } from './detail';
 import { DateDialog } from './form';
 import { isKind, KIND_ICON, kindLabel, KINDS } from './kinds';
-import { DateRow } from './row';
 import { SnoozeDialog } from './snooze';
-import { groupByMonth, matchesTitle, monthTitle, summarise, type MonthGroup } from './words';
+import { groupByMonth, matchesTitle, monthTitle, summarise } from './words';
 
-export default function DatesPage(_props: PageProps) {
-  const title = t('common.nav.dates');
-  useTitle(title);
+export function DatesSegment({ search, wide }: { search: string; wide: boolean }) {
   useResource(reminders);
 
   const query = route.value.query;
   const requested = query.get('kind');
   const kind: ReminderKind | 'all' = isKind(requested) ? requested : 'all';
   const adding = query.has('add');
-  const [search, setSearch] = useState('');
+  const openId = query.get('open');
   // The dialogs work on the date as it was when they opened: a refresh of
   // the list behind them must not pull the form out from under the user.
   const [editing, setEditing] = useState<ReminderView | null>(null);
@@ -47,25 +45,25 @@ export default function DatesPage(_props: PageProps) {
     if (!deleting) return;
     await deleteReminder(deleting.id);
     dropReminder(deleting.id);
+    if (deleting.id === openId) setQuery({ open: null });
     setDeleting(null);
     toast(t('dates.toast.deleted', { title: deleting.title }));
   });
 
   // "Today" is the server's, in the zone set under Settings.
   const today = dayOf(now.value);
-  const add = () => setQuery({ add: '1' });
   const list = reminders.data.value;
+  const open = (openId && list?.find((each) => each.id === openId)) || null;
 
-  const header = (
-    <PageHeader
-      title={title}
-      actions={
-        <Button variant="primary" icon={Plus} onClick={add}>
-          {t('dates.add')}
-        </Button>
-      }
-    />
-  );
+  // On a narrow screen the open date is a sheet over the list, and a step in
+  // the history, so the way back closes it.
+  const openDate = (reminder: ReminderView) => {
+    if (wide) setQuery({ open: reminder.id });
+    else navigate(`/dates?${new URLSearchParams({ ...Object.fromEntries(query), open: reminder.id }).toString()}`, { keepScroll: true });
+  };
+  const closeDate = () => (wide ? setQuery({ open: null }) : history.back());
+  const handlers = { onEdit: setEditing, onSnooze: setSnoozing, onDelete: setDeleting };
+
   const dialogs = (
     <>
       <DateDialog
@@ -89,24 +87,29 @@ export default function DatesPage(_props: PageProps) {
       >
         <p>{t('dates.delete.body')}</p>
       </ConfirmDialog>
+      {!wide && (
+        <Dialog open={open !== null} onClose={closeDate} title={open?.title ?? ''} class="date-sheet">
+          {open && <DateDetail reminder={open} today={today} heading={false} {...handlers} />}
+        </Dialog>
+      )}
     </>
   );
 
   if (!list) {
     return (
       <>
-        {header}
-        {reminders.error.value ? (
-          <ErrorState error={reminders.error.value} onRetry={() => void reminders.load()} />
-        ) : (
-          <div class="dates-loading" aria-busy="true">
-            <span class="sr-only">{t('common.state.loading')}</span>
-            <Skeleton height="78px" />
-            {[0, 1, 2, 3, 4].map((index) => (
-              <Skeleton key={index} height="62px" />
-            ))}
-          </div>
-        )}
+        <div class="watching__list">
+          {reminders.error.value ? (
+            <ErrorState error={reminders.error.value} onRetry={() => void reminders.load()} />
+          ) : (
+            <div class="w-skeleton" aria-busy="true">
+              <span class="sr-only">{t('common.state.loading')}</span>
+              {[0, 1, 2, 3, 4].map((index) => (
+                <Skeleton key={index} height="64px" />
+              ))}
+            </div>
+          )}
+        </div>
         {dialogs}
       </>
     );
@@ -115,18 +118,19 @@ export default function DatesPage(_props: PageProps) {
   if (list.length === 0) {
     return (
       <>
-        {header}
-        <EmptyState
-          icon={CalendarHeart}
-          title={t('dates.empty.title')}
-          action={
-            <Button variant="primary" icon={Plus} onClick={add}>
-              {t('dates.add')}
-            </Button>
-          }
-        >
-          {t('dates.empty.body')}
-        </EmptyState>
+        <div class="watching__list">
+          <EmptyState
+            icon={CalendarHeart}
+            title={t('dates.empty.title')}
+            action={
+              <Button variant="primary" icon={Plus} onClick={() => setQuery({ add: '1' })}>
+                {t('dates.add')}
+              </Button>
+            }
+          >
+            {t('dates.empty.body')}
+          </EmptyState>
+        </div>
         {dialogs}
       </>
     );
@@ -140,11 +144,8 @@ export default function DatesPage(_props: PageProps) {
 
   return (
     <>
-      {header}
-      <SummaryCard list={list} />
-
-      <div class="dates-tools">
-        <div class="filter-row dates-filters" role="group" aria-label={t('dates.filter.label')}>
+      <div class="watching__list">
+        <div class="filter-row w-filters" role="group" aria-label={t('dates.filter.label')}>
           <FilterChip pressed={kind === 'all'} count={found.length} onClick={() => setQuery({ kind: null })}>
             {t('common.word.all')}
           </FilterChip>
@@ -159,60 +160,45 @@ export default function DatesPage(_props: PageProps) {
             );
           })}
         </div>
-        <Input class="dates-search" type="search" value={search} onInput={setSearch} placeholder={t('dates.search')} aria-label={t('dates.search')} prefix={<Search size={14} />} />
-      </div>
 
-      {groups.length === 0 ? (
-        <EmptyState
-          compact
-          title={t('dates.noMatch')}
-          action={
-            <Button
-              onClick={() => {
-                setSearch('');
-                setQuery({ kind: null });
-              }}
-            >
-              {t('dates.noMatch.clear')}
-            </Button>
-          }
-        />
-      ) : (
-        <div class="dates-groups">
-          {groups.map((group) => (
-            <Group key={group.key} group={group} today={today} thisYear={thisYear} onEdit={setEditing} onSnooze={setSnoozing} onDelete={setDeleting} />
-          ))}
+        {!wide && <SummaryCard list={list} />}
+
+        {groups.length === 0 ? (
+          <EmptyState
+            compact
+            title={t('dates.noMatch')}
+            action={<Button onClick={() => setQuery({ kind: null })}>{t('dates.noMatch.clear')}</Button>}
+          />
+        ) : (
+          groups.map((group) => (
+            <section key={group.key} class="w-group" aria-labelledby={`w-month-${group.key}`}>
+              <h2 class="w-group__title" id={`w-month-${group.key}`}>
+                {monthTitle(group.key, thisYear)}
+                <span class="w-group__count num">{group.items.length}</span>
+              </h2>
+              <ul class="w-list">
+                {group.items.map((reminder) => (
+                  <DateItem key={reminder.id} reminder={reminder} today={today} selected={wide && reminder.id === openId} onOpen={() => openDate(reminder)} />
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
+      </div>
+      {wide && (
+        <div class="watching__detail">
+          {open ? (
+            <DateDetail key={open.id} reminder={open} today={today} onClose={closeDate} {...handlers} />
+          ) : (
+            <div class="watching__overview">
+              <SummaryCard list={list} />
+              <p class="watching__hint">{t('dates.pick')}</p>
+            </div>
+          )}
         </div>
       )}
       {dialogs}
     </>
-  );
-}
-
-interface GroupProps {
-  group: MonthGroup;
-  today: Day;
-  thisYear: number;
-  onEdit: (reminder: ReminderView) => void;
-  onSnooze: (reminder: ReminderView) => void;
-  onDelete: (reminder: ReminderView) => void;
-}
-
-/** One month of dates, under its name. */
-function Group({ group, today, thisYear, onEdit, onSnooze, onDelete }: GroupProps) {
-  const id = useId();
-  return (
-    <section class="dates-group" aria-labelledby={id}>
-      <h2 class="dates-group__title" id={id}>
-        {monthTitle(group.key, thisYear)}
-        <span class="dates-group__count num">{group.items.length}</span>
-      </h2>
-      <ul class="dates-list">
-        {group.items.map((reminder) => (
-          <DateRow key={reminder.id} reminder={reminder} today={today} onEdit={onEdit} onSnooze={onSnooze} onDelete={onDelete} />
-        ))}
-      </ul>
-    </section>
   );
 }
 

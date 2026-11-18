@@ -1,16 +1,14 @@
-/* The Activity page (src/pages/activity): the two views, the events with
-   their rows that open, the notification log, and a message as it was sent. */
+/* History (src/pages/activity): the two views, the events as one feed by
+   day with rows that open, the notification log, and a message as it was
+   sent. */
 
-.ac-tabs {
-  margin: calc(var(--s-2) * -1) 0 var(--s-5);
+.ac-views {
+  max-width: 420px;
+  margin-bottom: var(--s-4);
 }
 
 .ac-filters {
-  margin-bottom: var(--s-6);
-}
-
-.ac-filters + .section {
-  margin-top: 0;
+  margin-bottom: var(--s-2);
 }
 
 .ac-loading {
@@ -21,7 +19,8 @@
 
 /* ---------- a day's worth of rows ---------- */
 
-.ac-daygroup + .ac-daygroup {
+/* a day is a group, headed the way Watching heads its groups */
+.ac-daygroup {
   margin-top: var(--s-5);
 }
 
@@ -29,7 +28,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--s-2);
-  margin-bottom: var(--s-2);
+  margin: 0 0 var(--s-2) var(--s-1);
   color: var(--text-2);
   font-size: var(--fs-13);
   font-weight: 500;
@@ -273,12 +272,8 @@
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 719px) {
-  .ac-tabs {
-    margin: 0 0 var(--s-4);
-  }
-
-  .ac-filters {
-    margin-bottom: var(--s-5);
+  .ac-views {
+    max-width: none;
   }
 
   /* the actions go under the text; what a row opens to takes the full width */

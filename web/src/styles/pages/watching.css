@@ -1,0 +1,793 @@
+/* Watching (src/pages/watching), and what it shows: the meter rows and the
+   date rows, a meter opened (src/pages/meters/meter*.tsx), a date opened
+   (src/pages/dates/detail.tsx).
+
+     ≥ 1024px   the list at the left, the open thing at the right, which
+                stays in view and scrolls on its own
+     < 1024px   the list; a meter opens in its place, a date as a sheet */
+
+.watching {
+  min-width: 0;
+}
+
+.watching__head {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+  padding-top: var(--s-4);
+}
+
+.watching__title {
+  font-size: var(--fs-32);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.watching__list {
+  min-width: 0;
+}
+
+.watching__detail {
+  min-width: 0;
+}
+
+.watching__overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+}
+
+.watching__hint {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  text-align: center;
+}
+
+.w-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.w-filters {
+  margin-top: var(--s-3);
+}
+
+/* ---------- groups of rows ---------- */
+
+.w-group {
+  margin-top: var(--s-5);
+}
+
+.w-group__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--s-2) var(--s-1);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.w-group__count {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+details.w-group > summary {
+  width: max-content;
+  padding: 2px 6px 2px 4px;
+  margin-left: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+  list-style: none;
+}
+
+details.w-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.w-group > summary:hover {
+  background: var(--surface-2);
+}
+
+/* A list is one card: hairlines between the rows, inset from the left as a
+   native list draws them. */
+.w-list {
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.w-list > li {
+  position: relative;
+}
+
+.w-list > li + li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--s-4);
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- a meter row ---------- */
+
+.meter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name figure'
+    'facts facts'
+    'bar bar';
+  align-items: baseline;
+  column-gap: var(--s-3);
+  padding: 13px var(--s-4) 14px;
+  color: var(--text);
+  transition: background-color 0.12s var(--ease);
+}
+
+.meter-row:hover {
+  background: color-mix(in oklab, var(--surface-2) 60%, var(--surface));
+  text-decoration: none;
+}
+
+.meter-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.meter-row.is-selected {
+  background: var(--accent-weak);
+}
+
+.meter-row__name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.meter-row__muted {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-3);
+}
+
+.meter-row__figure {
+  grid-area: figure;
+  font-size: var(--fs-20);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.meter-row__figure .unit--spaced {
+  font-size: var(--fs-12);
+  letter-spacing: 0;
+}
+
+.meter-row__figure .unit--tight {
+  margin-left: 0.04em;
+  color: var(--text-3);
+  font-size: 0.62em;
+}
+
+.meter-row__words {
+  color: var(--text-2);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.meter-row__facts {
+  grid-area: facts;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.meter-row__line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meter-row__bar {
+  grid-area: bar;
+  display: block;
+  margin-top: 10px;
+}
+
+.meter-row.is-dim .meter-row__figure {
+  color: var(--text-3);
+}
+
+.meter-row--hidden {
+  opacity: 0.7;
+}
+
+/* ---------- an account with no meters ---------- */
+
+.mt-account {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+}
+
+.mt-account__icon {
+  color: var(--text-3);
+}
+
+.mt-account__text {
+  min-width: 0;
+}
+
+.mt-account__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+}
+
+.mt-account__note {
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.mt-account__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ---------- a date row ---------- */
+
+.date-item {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  color: var(--text);
+  text-align: left;
+  transition: background-color 0.12s var(--ease);
+}
+
+.date-item:hover {
+  background: color-mix(in oklab, var(--surface-2) 60%, var(--surface));
+}
+
+.date-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.date-item.is-selected {
+  background: var(--accent-weak);
+}
+
+.date-item__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.date-item__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.date-item__icon {
+  color: var(--text-3);
+}
+
+.date-item__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-item__years {
+  flex: none;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.date-item__detail {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-item__marks {
+  margin-top: 1px;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+/* turned off, or over: still listed, a step back */
+.date-item.is-off .dayblock__day,
+.date-item.is-off .date-item__name,
+.date-item.is-over .dayblock__day,
+.date-item.is-over .date-item__name {
+  color: var(--text-3);
+}
+
+/* ---------- a meter, opened ---------- */
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+  padding-top: var(--s-4);
+}
+
+.meter__loading {
+  margin-top: var(--s-2);
+}
+
+.meter-head__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  margin: 0 0 var(--s-1) -4px;
+  padding-right: 6px;
+  color: var(--text-2);
+  font-size: var(--fs-14);
+}
+
+.meter-head__back:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.meter-head__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.meter-head__titles {
+  min-width: 0;
+}
+
+.meter-head__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.meter-head__title {
+  font-size: var(--fs-28);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.meter-head__meta {
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.meter-head__actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: var(--s-1);
+}
+
+.meter-head__hidden {
+  margin-top: 0;
+}
+
+/* where it stands: two figures, what they come to, and the bar */
+.meter-hero {
+  margin-top: var(--s-5);
+  padding: var(--s-5) var(--s-6) var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.meter-hero__states {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.meter-hero__states .status {
+  font-size: var(--fs-13);
+}
+
+.meter-hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4) var(--s-10);
+}
+
+.meter-stat__label {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.meter-stat__value {
+  font-size: var(--fs-40);
+  font-weight: 650;
+  font-variant-numeric: normal;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.meter-stat__value .unit--spaced {
+  font-size: var(--fs-16);
+  letter-spacing: 0;
+}
+
+.meter-stat__value .unit--tight {
+  margin-left: 0.04em;
+  color: var(--text-3);
+  font-size: 0.55em;
+}
+
+.meter-hero__facts {
+  margin-top: var(--s-2);
+  color: var(--text-2);
+}
+
+.meter-hero .runway,
+.meter-hero .meterbar {
+  margin-top: var(--s-4);
+}
+
+.meter-hero .runway {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.meter-hero__remedy {
+  margin-top: var(--s-5);
+}
+
+.meter-hero__remedy svg {
+  color: var(--text-3);
+}
+
+.meter__incidents {
+  margin-top: var(--s-2);
+}
+
+.meter__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+}
+
+.meter-history__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.meter-history__none {
+  color: var(--text-3);
+}
+
+.meter-history__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.meter-history__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--s-3);
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.meter-history__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.meter-history__mark {
+  grid-row: span 2;
+  margin-top: 2px;
+}
+
+.meter-history__headline {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.meter-history__when {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* ---------- a date, opened ---------- */
+
+.date-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.watching__detail .date-detail {
+  padding-top: var(--s-4);
+}
+
+.date-detail__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-3);
+}
+
+.date-detail__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+.date-detail__titles {
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.date-detail__title {
+  font-size: var(--fs-24);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.date-detail__years {
+  margin-left: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-18);
+  font-weight: 400;
+}
+
+.date-detail__kind {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.date-detail__when {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.date-detail__day .dayblock__day {
+  font-size: var(--fs-32);
+}
+
+.date-detail__date {
+  min-width: 0;
+}
+
+.date-detail__lunar,
+.date-detail__year {
+  display: block;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.date-detail__over {
+  grid-column: 1 / -1;
+  color: var(--text-2);
+}
+
+.date-detail__marks {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.date-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.date-detail__actions:empty {
+  display: none;
+}
+
+.date-detail__facts {
+  padding: 2px var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.date-detail__fact {
+  display: grid;
+  grid-template-columns: 6.5em minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: 11px 0;
+}
+
+.date-detail__fact + .date-detail__fact {
+  border-top: 1px solid var(--border);
+}
+
+.date-detail__fact dt {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.date-detail__fact dd {
+  overflow-wrap: anywhere;
+}
+
+.date-detail__per {
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.date-detail__manage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-left: -10px;
+}
+
+.date-detail__delete.btn {
+  color: var(--critical);
+}
+
+/* in a sheet, the sheet's title is the date's; the details follow */
+.date-sheet .dialog__body {
+  padding-top: 0;
+}
+
+/* ---------- a wide screen: the list and the open thing side by side ---------- */
+
+@media (min-width: 1024px) {
+  .watching--wide {
+    display: grid;
+    grid-template-columns: 400px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    column-gap: var(--s-8);
+  }
+
+  .watching--wide .watching__head {
+    grid-column: 1;
+  }
+
+  .watching--wide .watching__list {
+    grid-column: 1;
+    grid-row: 2;
+    padding-bottom: var(--s-8);
+  }
+
+  .watching--wide .watching__detail {
+    position: sticky;
+    top: 60px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    max-height: calc(100vh - 60px);
+    max-height: calc(100dvh - 60px);
+    margin-right: calc(-1 * var(--s-4));
+    padding: 0 var(--s-4) var(--s-10) var(--s-1);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
+/* ---------- a phone ---------- */
+
+@media (max-width: 719px) {
+  .watching__head {
+    padding-top: var(--s-2);
+  }
+
+  .watching__title {
+    font-size: var(--fs-28);
+  }
+
+  .meter-row {
+    padding: 12px var(--s-4) 13px;
+  }
+
+  .meter-row__name {
+    font-size: var(--fs-16);
+  }
+
+  .meter-row__figure {
+    font-size: var(--fs-18);
+  }
+
+  .date-item {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+  }
+
+  .meter {
+    padding-top: var(--s-1);
+  }
+
+  .meter-head__back {
+    display: none;
+  }
+
+  .meter-head__title {
+    font-size: var(--fs-28);
+  }
+
+  .meter-hero {
+    padding: var(--s-4) var(--s-4) var(--s-5);
+  }
+
+  .meter-hero__stats {
+    column-gap: var(--s-8);
+  }
+
+  .meter-stat__value {
+    font-size: var(--fs-32);
+  }
+
+  .meter-hero__remedy {
+    width: 100%;
+  }
+
+  .date-detail__actions .btn {
+    flex: 1 1 auto;
+  }
+}

@@ -1,22 +1,23 @@
-// The map from addresses to pages. Every area of the product is already
-// here; adding a page inside an area never means editing this file — the
-// area's own index.tsx reads `params` and decides what to show.
+// The map from addresses to pages.
 //
-//   /                    overview
-//   /meters              the list            /meters/:id      one meter
-//   /dates[/…]           params.rest holds anything after /dates
-//   /spend[/…]           likewise
-//   /activity[/…]        likewise
-//   /settings            params.section is undefined
-//   /settings/:section   params.section, and params.rest for anything deeper
+// Three places to go, and two that are reached from them:
+//
+//   /                     now: what asks for you, and what is ahead
+//   /meters[/:id]         watching: everything watched; :id opens a meter
+//   /dates                watching, the dates
+//   /spend[/…]            money
+//   /activity[/…]         history: what happened, and what was sent
+//   /settings[/:section]  settings; params.rest for anything deeper
+//
+// The addresses are the ones notifications have always linked to
+// (/meters/:id, /meters#account, /dates, /settings/channels), so a link in
+// an old message still lands on the right thing.
 import type { ComponentType } from 'preact';
 import ActivityPage from './pages/activity';
-import DatesPage from './pages/dates';
-import MeterPage from './pages/meters/meter';
-import MetersPage from './pages/meters';
-import OverviewPage from './pages/overview';
+import NowPage from './pages/now';
 import SettingsPage from './pages/settings';
 import SpendPage from './pages/spend';
+import WatchingPage from './pages/watching';
 import { matchPath } from './router';
 
 /** What every page component receives. */
@@ -25,7 +26,7 @@ export interface PageProps {
   params: Record<string, string>;
 }
 
-export type Area = 'overview' | 'meters' | 'dates' | 'spend' | 'activity' | 'settings';
+export type Area = 'now' | 'watching' | 'money' | 'history' | 'settings';
 
 interface RouteDef {
   pattern: string;
@@ -34,15 +35,15 @@ interface RouteDef {
 }
 
 const routes: RouteDef[] = [
-  { pattern: '/', area: 'overview', page: OverviewPage },
-  { pattern: '/meters', area: 'meters', page: MetersPage },
-  { pattern: '/meters/:id', area: 'meters', page: MeterPage },
-  { pattern: '/dates', area: 'dates', page: DatesPage },
-  { pattern: '/dates/*', area: 'dates', page: DatesPage },
-  { pattern: '/spend', area: 'spend', page: SpendPage },
-  { pattern: '/spend/*', area: 'spend', page: SpendPage },
-  { pattern: '/activity', area: 'activity', page: ActivityPage },
-  { pattern: '/activity/*', area: 'activity', page: ActivityPage },
+  { pattern: '/', area: 'now', page: NowPage },
+  { pattern: '/meters', area: 'watching', page: WatchingPage },
+  { pattern: '/meters/:id', area: 'watching', page: WatchingPage },
+  { pattern: '/dates', area: 'watching', page: WatchingPage },
+  { pattern: '/dates/*', area: 'watching', page: WatchingPage },
+  { pattern: '/spend', area: 'money', page: SpendPage },
+  { pattern: '/spend/*', area: 'money', page: SpendPage },
+  { pattern: '/activity', area: 'history', page: ActivityPage },
+  { pattern: '/activity/*', area: 'history', page: ActivityPage },
   { pattern: '/settings', area: 'settings', page: SettingsPage },
   { pattern: '/settings/:section', area: 'settings', page: SettingsPage },
   { pattern: '/settings/:section/*', area: 'settings', page: SettingsPage },

@@ -121,3 +121,18 @@ export function useAction<A extends unknown[]>(action: (...args: A) => Promise<u
     },
   };
 }
+
+/** Whether a media query matches, kept current as the window changes:
+ *  `useMedia('(min-width: 1024px)')`. For what CSS cannot decide alone, such
+ *  as whether a list and its detail fit side by side. */
+export function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches);
+  useEffect(() => {
+    const list = matchMedia(query);
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
+}

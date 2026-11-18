@@ -30,35 +30,52 @@ index.html            template; build.mjs fills in the hashed file names
 public/               copied to dist/ as is: icons, manifest, sw.js
 src/
   main.tsx            boot
-  app.tsx             the shell: navigation, banners, toasts, the page outlet
-  routes.ts           address -> page; every area is already registered
-  router.ts           route, navigate(), setQuery(), <Link>, matchPath()
-  hooks.ts            useTitle, useQuery, useAction
+  app.tsx             the shell: the top bar, banners, toasts, the page outlet
+  routes.ts           address -> page, and the area each page belongs to
+  router.ts           route, navigate(), goBack(), setQuery(), <Link>, matchPath()
+  hooks.ts            useTitle, useQuery, useAction, useMedia
   format.ts           numbers, amounts, durations, dates
   errors.ts           errorText(): a failure as a sentence
   api/                client.ts (fetch), types.ts (the Go JSON), endpoints.ts
   state/              signal stores; resource.ts, live.ts, clock.ts, session.ts
   i18n/               index.ts (t, lang), areas/<area>.ts (the words)
   components/         shared components; import from '../../components'
-  charts/             Sparkline, LineChart, BarChart, QuotaBar, BudgetBar, ChartFrame
-  pages/<area>/       overview, meters, dates, spend, activity, settings, login
+  charts/             Sparkline, LineChart, BarChart, QuotaBar, BudgetBar, RunwayBar, ChartFrame
+  pages/              now (home), watching (meters/ and dates/ side by side),
+                      spend (Money), activity (History), settings, login
   styles/             tokens.css, base.css, components.css, charts.css, shell.css,
                       pages/<area>.css; index.css imports them all
 test/                 unit tests for pure logic
 ```
 
+## How the dashboard is put together
+
+Now is home: what asks for a person, and what is ahead on one time line
+(`pages/now/horizon.ts`). Watching lists everything watched — meters soonest to
+be a problem first, dates soonest first — and opens one beside the list on a
+wide screen, in its place on a narrow one. Money is the month; History is
+what happened; Settings is a list of sections.
+
+A phone has no tab bar: home is where everything else is reached from, and
+every page beneath it has the way back in the top bar (`goBack()` returns to
+the page it was opened from, or a step up when it was opened from a link).
+From 720 px the top bar also holds Now, Watching and Money.
+
+The addresses are the ones notifications link to (`/meters/:id`,
+`/meters#account`, `/dates`, `/settings/channels`): keep them working.
+
 ## Adding a page
 
-An area owns three places, all already wired into the router, the navigation,
-the i18n index and the stylesheet:
+An area owns three places, all wired into the router, the i18n index and the
+stylesheet:
 
     src/pages/<area>/   src/i18n/areas/<area>.ts   src/styles/pages/<area>.css
 
 1. **The component.** `src/pages/<area>/index.tsx` default-exports the page;
    it receives `{ params }` (`PageProps`). Pages beneath it need no route:
-   read `params.rest` (dates, spend, activity) or `params.section` and
-   `params.rest` (settings) and decide what to render. Put further files
-   next to `index.tsx`.
+   read `params.rest` (spend, activity), `params.id` (meters) or
+   `params.section` and `params.rest` (settings) and decide what to render.
+   Put further files next to `index.tsx`.
 2. **The frame.** Start with `<PageHeader title=… actions=… />` (it holds the
    page's only `<h1>`) and call `useTitle(title)`.
 3. **The words.** Add keys to both languages in `i18n/areas/<area>.ts` and
@@ -162,7 +179,7 @@ Import from `src/components`. Each file's header says how to use it.
 | `EmptyState`, `ErrorState`, `Skeleton` | nothing to show; failed to load; first load only |
 | `StatusDot` | a state as icon **and** word, never colour alone |
 | `Amount`, `Ago` | a number with its unit; "5 min ago" with the exact time on hover |
-| `IncidentRow`, `MeterCard` | an open incident with acknowledge/undo; a meter at a glance |
+| `IncidentRow`, `MeterRow`, `DayBlock` | an open incident with acknowledge/undo; a meter as a row of a list, led by how long it lasts; a calendar day at the start of a row |
 
 Charts (`src/charts`) are hand-drawn SVG sized by their container. Wrap a
 chart in `<ChartFrame title legend table>`: it adds the table view that every
@@ -189,13 +206,14 @@ colour on screen is always saying ok, warning, critical or info.
 - Figures are in the sans face with digits of equal width (`.num`). A big
   figure that stands alone — a card's value — takes proportional ones
   (`font-variant-numeric: normal`). The mono face is for code and keys.
-- Breakpoints: `max-width: 959px` (icon rail) and `max-width: 719px` (phone).
-  Write the wide layout first. A phone gets a layout of its own rather than
-  the wide one squeezed: a tab bar of five with Settings in the top bar, type
-  a notch larger (the root size steps up, so `--fs-*` follow by themselves),
-  40px controls, dialogs as sheets from the bottom edge, lists where the wide
-  layout has a grid of cards. Stay clear of the notch and the home indicator
-  with `env(safe-area-inset-*)`.
+- Breakpoints: `min-width: 1024px` (a list and what is open beside it; the
+  side of Now) and `max-width: 719px` (phone). Write the wide layout first.
+  A phone gets a layout of its own rather than the wide one squeezed: no tab
+  bar, a top bar that goes back and carries the page's title once it has
+  scrolled away, type a notch larger (the root size steps up, so `--fs-*`
+  follow by themselves), 40px controls, dialogs as sheets from the bottom
+  edge. Stay clear of the notch and the home indicator with
+  `env(safe-area-inset-*)`.
 - Helpers in `base.css` and `components.css`: `.dotted` (the parts of a quiet
   line with a middle dot between them; it can wrap without a line starting
   on a dot), `.filter-row` (a row of FilterChips; scrolls sideways on a
@@ -211,6 +229,11 @@ inside a `Field` or with an `aria-label`; state never by colour alone;
 dialogs through `Dialog`; the focus ring is global — do not remove outlines.
 
 ## Routing
+
+A change of page runs as a view transition where the browser has them:
+deeper slides in from the right on a phone, back slides out, and anything
+else cross-fades (`styles/shell.css`). Going back restores the scroll
+position the page was left at.
 
 `route.value` is `{ path, segments, query }`. `navigate('/dates')` pushes;
 `setQuery({ filter: 'due' })` replaces — use it for filters and tabs so they

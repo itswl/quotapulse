@@ -1,6 +1,8 @@
-// The record of what happened: what is open now, then history by day. A row
-// opens to show the numbers behind the sentence and the notifications that
-// were sent about it.
+// The record of what happened, as one feed by day, newest first: what is
+// still open stands on the day it opened, among what is over. A row opens to
+// show the numbers behind the sentence and the notifications that were sent
+// about it. Now is where the open ones ask for a person; this is where they
+// are looked back on.
 //
 // The headline, the detail and the facts are the server's own sentences, in
 // the language the dashboard asked for; nothing here rewrites them.
@@ -8,7 +10,7 @@ import { Activity, Check, ChevronDown, ChevronUp } from 'lucide-preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ackIncident, listDeliveries, listIncidents, unackIncident } from '../../api/endpoints';
 import type { IncidentView } from '../../api/types';
-import { Button, Card, cx, EmptyState, ErrorState, FilterChip, Section, Skeleton, StatusDot, toast } from '../../components';
+import { Button, Card, cx, EmptyState, ErrorState, FilterChip, Skeleton, StatusDot, toast } from '../../components';
 import { errorText } from '../../errors';
 import { formatClock, formatDateTime, formatSpan, formatTime, toMs } from '../../format';
 import { useQuery } from '../../hooks';
@@ -16,7 +18,7 @@ import { t, type TKey } from '../../i18n';
 import { Link, route, setQuery } from '../../router';
 import { now, timezone } from '../../state/clock';
 import { DeliveryItem } from './delivery';
-import { groupByDay, incidentPager } from './logic';
+import { eventFeed, groupByDay, incidentPager } from './logic';
 import { usePaged } from './paged';
 import { DayHeading, ListSkeleton, LoadMore } from './parts';
 
@@ -52,8 +54,6 @@ export function Incidents() {
     <IncidentItem key={incident.id} incident={incident} dated={dated} expanded={opened.has(incident.id)} onToggle={() => toggle(incident.id)} />
   );
 
-  const current = filter === 'resolved' ? undefined : open.data;
-  const past = filter === 'open' ? undefined : history.items;
   const waiting = (filter !== 'resolved' && !open.data) || (filter !== 'open' && !history.items);
 
   const filters = (
@@ -91,7 +91,11 @@ export function Incidents() {
     );
   }
 
-  if (filter === 'all' && current?.length === 0 && past?.length === 0) {
+  const current = filter === 'resolved' ? [] : (open.data ?? []);
+  const past = filter === 'open' ? [] : (history.items ?? []);
+  const feed = filter === 'open' ? current : filter === 'resolved' ? past : eventFeed(current, past, history.more);
+
+  if (filter === 'all' && feed.length === 0) {
     return (
       <EmptyState icon={Activity} title={t('activity.none.title')}>
         {t('activity.none.body')}
@@ -102,36 +106,19 @@ export function Incidents() {
   return (
     <>
       {filters}
-      {current && (
-        <Section title={t('activity.open.title')} meta={<span class="num">{current.length}</span>}>
-          {current.length === 0 ? (
-            <EmptyState compact title={t('activity.open.none')} />
-          ) : (
+      {feed.length === 0 ? (
+        <EmptyState compact title={t(filter === 'open' ? 'activity.open.none' : 'activity.history.none')} />
+      ) : (
+        groupByDay(feed, (each) => each.opened_at, timezone.value).map((group) => (
+          <section key={group.day} class="ac-daygroup">
+            <DayHeading day={group.day} level={2} />
             <Card flush>
-              <ul class="ac-list">{current.map((incident) => row(incident, false))}</ul>
+              <ul class="ac-list">{group.items.map((incident) => row(incident, true))}</ul>
             </Card>
-          )}
-        </Section>
+          </section>
+        ))
       )}
-      {past && (
-        <Section title={t('activity.history.title')}>
-          {past.length === 0 ? (
-            <EmptyState compact title={t('activity.history.none')} />
-          ) : (
-            <>
-              {groupByDay(past, (each) => each.opened_at, timezone.value).map((group) => (
-                <div key={group.day} class="ac-daygroup">
-                  <DayHeading day={group.day} level={3} />
-                  <Card flush>
-                    <ul class="ac-list">{group.items.map((incident) => row(incident, true))}</ul>
-                  </Card>
-                </div>
-              ))}
-              <LoadMore paged={history} />
-            </>
-          )}
-        </Section>
-      )}
+      {filter !== 'open' && <LoadMore paged={history} />}
     </>
   );
 }
