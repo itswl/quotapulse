@@ -49,7 +49,7 @@
 /* the area under the line fades out towards the floor */
 .spark__fade-top {
   stop-color: var(--text-3);
-  stop-opacity: 0.2;
+  stop-opacity: 0.14;
 }
 
 .spark__fade-bottom {
@@ -132,21 +132,39 @@
   min-width: 0;
 }
 
+/* The title, the legend beside it, and at the far end the switch to the
+   table. On a phone the legend takes a line of its own underneath, so the
+   switch stays level with the title. */
 .chart-frame__head {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'title legend toggle';
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--s-1) var(--s-4);
   min-height: var(--control-sm);
   margin-bottom: var(--s-2);
 }
 
 .chart-frame__title {
+  grid-area: title;
   font-size: var(--fs-14);
 }
 
+.chart-frame__head .chart-legend {
+  grid-area: legend;
+}
+
 .chart-frame__toggle {
-  margin-left: auto;
+  grid-area: toggle;
+}
+
+@media (max-width: 719px) {
+  .chart-frame__head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title toggle'
+      'legend legend';
+  }
 }
 
 .chart-frame__body {
@@ -239,7 +257,7 @@
 
 .chart__label {
   fill: var(--text-3);
-  font-size: 0.6875rem;
+  font-size: var(--fs-11);
 }
 
 .chart__label.num {
@@ -249,7 +267,7 @@
 /* a note on the plot: readable over whatever it crosses */
 .chart__note {
   fill: var(--text-2);
-  font-size: 0.6875rem;
+  font-size: var(--fs-11);
   paint-order: stroke;
   stroke: var(--surface);
   stroke-width: 4px;
@@ -259,22 +277,22 @@
 .chart__line {
   fill: none;
   stroke: var(--chart-1);
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .chart__area {
   fill: var(--chart-1);
-  opacity: 0.1;
+  opacity: 0.07;
 }
 
 .chart__projection {
   stroke: var(--chart-1);
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-dasharray: 2 5;
   stroke-linecap: round;
-  opacity: 0.75;
+  opacity: 0.6;
 }
 
 .chart__threshold {
@@ -335,9 +353,9 @@
   gap: 1px;
   width: max-content;
   max-width: 240px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--r-1);
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: var(--shadow-float);
   font-size: var(--fs-12);

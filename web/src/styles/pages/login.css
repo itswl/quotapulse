@@ -21,11 +21,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-6);
-  width: min(100%, 360px);
-  padding: var(--s-8) var(--s-6) var(--s-6);
+  width: min(100%, 368px);
+  padding: var(--s-10) var(--s-8) var(--s-8);
   border: 1px solid var(--border);
   border-radius: var(--r-3);
   background: var(--surface);
+  box-shadow: var(--shadow-float);
   /* the logo's pulse line takes the colour of what is behind it */
   --logo-line: var(--surface);
 }
@@ -37,16 +38,33 @@
   text-align: center;
 }
 
+.login__logo {
+  width: 48px;
+  height: 48px;
+}
+
 .login__name {
-  margin-top: var(--s-3);
-  font-size: var(--fs-20);
-  letter-spacing: -0.01em;
+  margin-top: var(--s-4);
+  font-size: var(--fs-24);
+  font-weight: 650;
+  letter-spacing: -0.03em;
 }
 
 .login__tagline {
-  margin-top: 2px;
+  margin-top: var(--s-1);
   color: var(--text-2);
-  font-size: var(--fs-13);
+  text-wrap: balance;
+}
+
+/* the one thing to do here: a full-height control and its button */
+.login__form .input,
+.login__form .btn {
+  height: 44px;
+  border-radius: 10px;
+}
+
+.login__form .btn {
+  font-size: var(--fs-14);
 }
 
 .login__form {
@@ -91,4 +109,42 @@
 .login__version {
   color: var(--text-3);
   font-size: var(--fs-12);
+}
+
+/* On a phone there is no card: the page is the form, set a little above
+   the middle, where the keyboard will leave it in view. */
+@media (max-width: 719px) {
+  .login {
+    justify-content: flex-start;
+    padding: 18dvh var(--s-6) var(--s-8);
+  }
+
+  .login__tools {
+    top: calc(var(--s-1) + env(safe-area-inset-top, 0px));
+    right: var(--s-1);
+  }
+
+  .login__card {
+    width: min(100%, 400px);
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    --logo-line: var(--bg);
+  }
+
+  .login__logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .login__form .input,
+  .login__form .btn {
+    height: 50px;
+    border-radius: 14px;
+  }
+
+  .login__version {
+    margin-top: auto;
+  }
 }

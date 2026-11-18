@@ -149,14 +149,26 @@ function Meaning({ meter, unreadable }: { meter: MeterView; unreadable: boolean 
   return <Line>{balanceLine(meter)}</Line>;
 }
 
-function balanceLine(meter: MeterView): string {
+/** A line's words: what matters most, and then what a narrow row can do
+ *  without — the row is a link to the page that says it all. */
+function words(first: string, more?: string): ComponentChildren {
+  if (!more) return first;
+  return (
+    <span>
+      {first}
+      <span class="meter-card__more"> · {more}</span>
+    </span>
+  );
+}
+
+function balanceLine(meter: MeterView): ComponentChildren {
   const forecast = meter.forecast;
   if (meter.value !== null && meter.value <= 0) return t('meters.card.empty');
   if (!forecast || forecast.confidence === 'none') return t('meters.card.collecting');
   if (forecast.runway_days === null) return t('meters.card.barely');
   const runway = runwayText(forecast.runway_days);
   if (forecast.runway_days >= 365 || !forecast.depletes_at) return runway;
-  return `${runway} · ${t('meters.card.depletes', { date: formatDayOf(forecast.depletes_at) })}`;
+  return words(runway, t('meters.card.depletes', { date: formatDayOf(forecast.depletes_at) }));
 }
 
 function QuotaMeaning({ meter }: { meter: MeterView }) {

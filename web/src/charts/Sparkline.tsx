@@ -56,7 +56,7 @@ export function Sparkline({ points, max, tone = 'accent', label, class: extra }:
               <stop class="spark__fade-bottom" offset="1" />
             </linearGradient>
           </defs>
-          <path d={shape.area} fill={`url(#${fade})`} />
+          <path class="spark__area" d={shape.area} fill={`url(#${fade})`} />
           <path class="spark__line" d={shape.line} vector-effect="non-scaling-stroke" />
         </svg>
         <span class="spark__dot" style={{ top: `${shape.endY}%` }} />

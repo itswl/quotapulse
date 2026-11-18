@@ -14,10 +14,11 @@ import {
   WifiOff,
   type LucideIcon,
 } from 'lucide-preact';
+import { useEffect, useState } from 'preact/hooks';
 import type { Severity } from './api/types';
 import { Banner, Chip, cx, EmptyState, LinkButton, Logo, Toaster } from './components';
 import { useTitle } from './hooks';
-import { t, type TKey } from './i18n';
+import { lang, t, type TKey } from './i18n';
 import LoginPage from './pages/login';
 import { isActive, Link, route } from './router';
 import { resolve, type Area } from './routes';
@@ -35,14 +36,21 @@ export function App() {
   );
 }
 
-const NAV: { area: Area; href: string; label: TKey; icon: LucideIcon }[] = [
+const NAV: { area: Area; href: string; label: TKey; icon: LucideIcon; aside?: boolean }[] = [
   { area: 'overview', href: '/', label: 'common.nav.overview', icon: LayoutDashboard },
   { area: 'meters', href: '/meters', label: 'common.nav.meters', icon: Gauge },
   { area: 'dates', href: '/dates', label: 'common.nav.dates', icon: CalendarDays },
   { area: 'spend', href: '/spend', label: 'common.nav.spend', icon: Wallet },
   { area: 'activity', href: '/activity', label: 'common.nav.activity', icon: Activity },
-  { area: 'settings', href: '/settings', label: 'common.nav.settings', icon: Settings },
+  // Set apart in the rail. A phone's tab bar holds five, so there it is the
+  // gear in the top bar instead.
+  { area: 'settings', href: '/settings', label: 'common.nav.settings', icon: Settings, aside: true },
 ];
+
+/** Going where you already are takes you back to the top of it. */
+function toTop(): void {
+  scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 function Shell() {
   // The overview is the source of the server's clock and time zone, which
@@ -51,6 +59,8 @@ function Shell() {
   const current = route.value;
   const match = resolve(current.path);
   const Page = match?.page;
+  const bar = useTopBar(current.path);
+  const settings = t('common.nav.settings');
   return (
     <div class="shell">
       <a class="skip-link" href="#main">
@@ -58,9 +68,21 @@ function Shell() {
       </a>
       <Navigation path={current.path} />
       <div class="shell__body">
-        <header class="topbar">
-          <Brand />
-          <ShellTools />
+        <header class={cx('topbar', bar.scrolled && 'is-scrolled', bar.title !== null && 'is-carrying')}>
+          <Brand path={current.path} />
+          {/* Decoration: the heading it repeats is still in the page. */}
+          <p class="topbar__title truncate" aria-hidden="true">
+            {bar.title}
+          </p>
+          <Link
+            href="/settings"
+            class={cx('icon-btn topbar__settings', isActive('/settings', current.path) && 'is-active')}
+            aria-label={settings}
+            aria-current={isActive('/settings', current.path) ? 'page' : undefined}
+            title={settings}
+          >
+            <Settings size={20} />
+          </Link>
         </header>
         {muted.value && (
           <Banner slim tone="warning" icon={BellOff} class="shell__banner">
@@ -74,10 +96,13 @@ function Shell() {
         )}
         <main class="page" id="main" tabIndex={-1}>
           {/* The key remounts the page when the address moves to another
-              meter, so no state leaks from one to the next. Within an area
-              that does its own routing (settings sections), the page stays
-              mounted and only its params change. */}
-          {Page && match ? <Page key={`${match.area}/${match.params.id ?? ''}`} params={match.params} /> : <NotFound />}
+              meter, so no state leaks from one to the next — and the new
+              page fades in. Within an area that does its own routing
+              (settings sections), the page stays mounted and only its
+              params change. */}
+          <div class="page__view" key={match ? `${match.area}/${match.params.id ?? ''}` : 'missing'}>
+            {Page && match ? <Page params={match.params} /> : <NotFound />}
+          </div>
         </main>
       </div>
       <Toaster />
@@ -85,11 +110,46 @@ function Shell() {
   );
 }
 
-function Brand() {
+/** How the phone's top bar stands, as a native title bar would. At the top
+ *  of a page it is clear glass over whatever the page begins with. Once
+ *  something has scrolled under it, it is a bar; and once the page's own
+ *  heading has gone under, it carries the heading. */
+function useTopBar(path: string): { scrolled: boolean; title: string | null } {
+  const [scrolled, setScrolled] = useState(false);
+  const [title, setTitle] = useState<string | null>(null);
+  const language = lang.value;
+  useEffect(() => {
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      setScrolled(scrollY > 4);
+      const bar = document.querySelector('.topbar');
+      const heading = document.querySelector('#main h1');
+      // The bar is display: none on wider screens, and then has no box.
+      if (!bar || !heading || bar.getClientRects().length === 0) return setTitle(null);
+      const gone = heading.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom;
+      setTitle(gone ? heading.textContent : null);
+    };
+    const later = () => {
+      if (frame === 0) frame = requestAnimationFrame(read);
+    };
+    addEventListener('scroll', later, { passive: true });
+    addEventListener('resize', later, { passive: true });
+    read();
+    return () => {
+      removeEventListener('scroll', later);
+      removeEventListener('resize', later);
+      cancelAnimationFrame(frame);
+    };
+  }, [path, language]);
+  return { scrolled, title };
+}
+
+function Brand({ path }: { path: string }) {
   const info = sessionInfo.value;
   return (
     <div class="brand">
-      <Link href="/" class="brand__link" aria-label={t('common.app.name')}>
+      <Link href="/" class="brand__link" aria-label={t('common.app.name')} onClick={path === '/' ? toTop : undefined}>
         <Logo size={24} />
         <span class="brand__name">{t('common.app.name')}</span>
       </Link>
@@ -107,15 +167,24 @@ function Navigation({ path }: { path: string }) {
   const open = openIssues();
   return (
     <aside class="nav">
-      <Brand />
+      <Brand path={path} />
       <nav class="nav__items" aria-label={t('common.nav.label')}>
         {NAV.map((item) => {
           const active = isActive(item.href, path);
           const label = t(item.label);
           const Icon = item.icon;
           return (
-            <Link key={item.area} href={item.href} class={cx('nav__item', active && 'is-active')} aria-current={active ? 'page' : undefined} title={label}>
-              <Icon size={18} />
+            <Link
+              key={item.area}
+              href={item.href}
+              class={cx('nav__item', active && 'is-active', item.aside && 'nav__item--aside')}
+              aria-current={active ? 'page' : undefined}
+              title={label}
+              onClick={path === item.href ? toTop : undefined}
+            >
+              <span class="nav__icon">
+                <Icon size={18} />
+              </span>
               <span class="nav__label">{label}</span>
               {item.area === 'overview' && open.count > 0 && (
                 <>

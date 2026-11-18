@@ -37,7 +37,7 @@ export function toggleTheme(): void {
   setTheme(theme.value === 'dark' ? 'light' : 'dark');
 }
 
-const THEME_COLOR: Record<Theme, string> = { light: '#f6f7f9', dark: '#0f1114' };
+const THEME_COLOR: Record<Theme, string> = { light: '#f5f4f0', dark: '#0e0e0d' };
 
 if (typeof document !== 'undefined') {
   effect(() => {

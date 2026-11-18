@@ -8,8 +8,9 @@ export interface AmountProps {
   class?: string;
 }
 
-/** A number in the mono face with its unit after it, smaller and quieter:
- *  1,234.56 CNY · 38% · 923 calls. */
+/** A number with its unit after it, smaller and quieter: 1,234.56 CNY ·
+ *  38% · 923 calls. The digits are of equal width, so amounts line up in a
+ *  column and do not shift as they change. */
 export function Amount({ value, unit, class: extra }: AmountProps) {
   if (value === null || value === undefined) return <span class={cx('num', extra)}>{DASH}</span>;
   const parts = amountParts(value, unit);

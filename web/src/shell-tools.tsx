@@ -1,6 +1,7 @@
-// The three small controls that are always within reach: theme, language,
-// sign out. The shell shows them in the rail or the top bar; the sign-in
-// screen shows the first two.
+// The three small controls that are within reach wherever there is a rail:
+// theme, language, sign out. The sign-in screen shows the first two. A phone
+// has no rail and no room for them in its top bar: there they are in
+// Settings, under Preferences (pages/settings/device.tsx).
 import { LogOut, Moon, Sun } from 'lucide-preact';
 import { IconButton } from './components';
 import { lang, setLang, t } from './i18n';

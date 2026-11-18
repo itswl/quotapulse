@@ -24,18 +24,27 @@
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color 0.12s var(--ease),
     border-color 0.12s var(--ease),
-    color 0.12s var(--ease);
+    color 0.12s var(--ease),
+    transform 0.12s var(--ease);
 }
 
 .btn:hover {
   text-decoration: none;
 }
 
+/* pressed: it gives a little, so a touch is answered before the page is */
+.btn:active:not(:disabled),
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -52,6 +61,7 @@
 .btn--primary {
   background: var(--accent);
   color: var(--on-accent);
+  font-weight: 600;
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -61,11 +71,12 @@
 .btn--secondary {
   background: var(--surface);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-card);
   color: var(--text);
 }
 
 .btn--secondary:hover:not(:disabled) {
-  background: var(--surface-2);
+  border-color: var(--border-control);
 }
 
 .btn--ghost {
@@ -80,6 +91,7 @@
 .btn--danger {
   background: var(--critical);
   color: var(--on-accent);
+  font-weight: 600;
 }
 
 .btn--danger:hover:not(:disabled) {
@@ -98,7 +110,8 @@
   color: var(--text-2);
   transition:
     background-color 0.12s var(--ease),
-    color 0.12s var(--ease);
+    color 0.12s var(--ease),
+    transform 0.12s var(--ease);
 }
 
 .icon-btn:hover:not(:disabled) {
@@ -118,6 +131,7 @@
 .icon-btn--outlined {
   border: 1px solid var(--border-strong);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 /* ---------- Chip, FilterChip ---------- */
@@ -141,9 +155,11 @@
   color: var(--text-2);
 }
 
+/* the one that should be seen first: solid ink, where the rest are tints */
 .chip--accent {
-  background: var(--accent-weak);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 .chip--ok {
@@ -175,6 +191,8 @@
   color: var(--text-2);
   font-size: var(--fs-13);
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color 0.12s var(--ease),
     color 0.12s var(--ease),
@@ -182,29 +200,38 @@
 }
 
 .chip--filter:hover {
+  border-color: var(--border-control);
   color: var(--text);
-  background: var(--surface-2);
 }
 
 .chip--filter[aria-pressed='true'] {
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--surface);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .chip__count {
   font-size: var(--fs-12);
-  opacity: 0.75;
+  opacity: 0.6;
+}
+
+/* A row of FilterChips. It wraps where there is room; on a phone it keeps
+   to one line that runs off the screen's edge and scrolls. */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 /* ---------- Card ---------- */
 
 .card {
   min-width: 0;
-  padding: var(--s-4);
+  padding: var(--s-5);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .card--flush {
@@ -215,7 +242,7 @@
 /* ---------- Section ---------- */
 
 .section {
-  margin-top: var(--s-8);
+  margin-top: var(--s-10);
 }
 
 .section__head {
@@ -227,6 +254,7 @@
 
 .section__title {
   font-size: var(--fs-16);
+  letter-spacing: -0.01em;
 }
 
 .section__meta {
@@ -270,12 +298,14 @@
 }
 
 .page-head__title {
-  font-size: var(--fs-20);
-  letter-spacing: -0.01em;
+  font-size: var(--fs-24);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .page-head__subtitle {
-  margin-top: 2px;
+  margin-top: 4px;
   color: var(--text-2);
   font-size: var(--fs-13);
 }
@@ -322,12 +352,12 @@ html:has(dialog[open]) {
 
 .dialog[open] {
   display: flex;
-  animation: dialog-in 0.16s var(--ease);
+  animation: dialog-in 0.18s var(--ease-out);
 }
 
 .dialog::backdrop {
   background: var(--overlay);
-  animation: fade-in 0.16s var(--ease);
+  animation: fade-in 0.18s var(--ease);
 }
 
 .dialog--sm {
@@ -366,7 +396,8 @@ html:has(dialog[open]) {
 }
 
 .dialog__title {
-  font-size: var(--fs-16);
+  font-size: var(--fs-18);
+  letter-spacing: -0.01em;
 }
 
 .dialog__description {
@@ -462,7 +493,7 @@ html:has(dialog[open]) {
 
 .input:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
 .input input {
@@ -490,10 +521,11 @@ html:has(dialog[open]) {
   font-variant-numeric: tabular-nums;
 }
 
-/* figures get the plain zero, like every other number; keys and codes keep
-   the slashed one, where telling 0 from O matters */
-.input--mono input[inputmode='decimal'] {
-  font-feature-settings: 'ss09';
+/* a figure is typed in the face it will be shown in; the mono face stays
+   for keys and codes, where telling 0 from O matters */
+.input--mono input[inputmode='decimal'],
+.input--mono input[inputmode='numeric'] {
+  font-family: inherit;
 }
 
 .input--invalid {
@@ -534,6 +566,12 @@ html:has(dialog[open]) {
   border-color: var(--text-3);
 }
 
+.select select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
 /* the arrow: two strokes drawn with borders, so it follows the text colour */
 .select::after {
   content: '';
@@ -549,16 +587,19 @@ html:has(dialog[open]) {
   pointer-events: none;
 }
 
+/* The switch is sized from its thumb, so a phone can ask for a bigger one
+   by changing a single number. */
 .switch {
+  --thumb: 16px;
   display: inline-flex;
   align-items: center;
   flex: none;
-  width: 36px;
-  height: 20px;
+  width: calc(var(--thumb) * 2 + 4px);
+  height: calc(var(--thumb) + 4px);
   padding: 2px;
   border-radius: 999px;
   background: var(--border-control);
-  transition: background-color 0.15s var(--ease);
+  transition: background-color 0.18s var(--ease);
 }
 
 .switch[aria-checked='true'] {
@@ -566,19 +607,20 @@ html:has(dialog[open]) {
 }
 
 .switch:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .switch__thumb {
-  width: 16px;
-  height: 16px;
+  width: var(--thumb);
+  height: var(--thumb);
   border-radius: 50%;
   background: var(--surface);
-  transition: transform 0.15s var(--ease);
+  box-shadow: var(--shadow-lift);
+  transition: transform 0.18s var(--ease-out);
 }
 
 .switch[aria-checked='true'] .switch__thumb {
-  transform: translateX(16px);
+  transform: translateX(var(--thumb));
   background: var(--on-accent);
 }
 
@@ -588,20 +630,22 @@ html:has(dialog[open]) {
   align-self: flex-start;
   gap: 2px;
   max-width: 100%;
-  padding: 2px;
-  border-radius: 8px;
+  padding: 3px;
+  border-radius: calc(var(--r-1) + 2px);
   background: var(--surface-2);
 }
 
 .segmented__option,
 .tabs__tab {
-  height: calc(var(--control) - 4px);
-  padding: 0 10px;
-  border-radius: var(--r-1);
+  height: calc(var(--control) - 6px);
+  padding: 0 12px;
+  border-radius: calc(var(--r-1) - 1px);
   color: var(--text-2);
   font-size: var(--fs-13);
   font-weight: 500;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color 0.12s var(--ease),
     color 0.12s var(--ease);
@@ -612,13 +656,14 @@ html:has(dialog[open]) {
   color: var(--text);
 }
 
+/* the chosen one is a little card of its own, lifted off the track */
 .segmented__option[aria-checked='true'],
 .tabs__tab[aria-selected='true'] {
   background: var(--surface);
   color: var(--text);
   box-shadow:
     0 0 0 1px var(--border),
-    0 1px 1px rgb(15 17 20 / 0.04);
+    var(--shadow-lift);
 }
 
 /* ---------- Menu ---------- */
@@ -630,7 +675,7 @@ html:has(dialog[open]) {
 
 .menu__list {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 30;
   min-width: 208px;
@@ -639,12 +684,21 @@ html:has(dialog[open]) {
   border-radius: var(--r-2);
   background: var(--surface);
   box-shadow: var(--shadow-float);
-  animation: fade-in 0.1s var(--ease);
+  transform-origin: top right;
+  animation: menu-in 0.14s var(--ease-out);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
 }
 
 .menu__list--start {
   right: auto;
   left: 0;
+  transform-origin: top left;
 }
 
 .menu__item {
@@ -756,20 +810,21 @@ html:has(dialog[open]) {
   align-items: center;
   gap: 10px;
   max-width: 100%;
-  padding: 8px 8px 8px 12px;
+  padding: 8px 8px 8px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--r-2);
+  border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow-float);
   font-size: var(--fs-13);
+  font-weight: 500;
   pointer-events: auto;
-  animation: toast-in 0.18s var(--ease);
+  animation: toast-in 0.28s var(--ease-out);
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px) scale(0.96);
   }
 }
 
@@ -792,14 +847,15 @@ html:has(dialog[open]) {
 
 .toast__action {
   flex: none;
-  padding: 4px 8px;
-  border-radius: var(--r-1);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-weak);
   color: var(--accent);
   font-weight: 600;
 }
 
 .toast__action:hover {
-  background: var(--accent-weak);
+  background: var(--surface-3);
 }
 
 .toast__close {
@@ -808,7 +864,7 @@ html:has(dialog[open]) {
   flex: none;
   width: 24px;
   height: 24px;
-  border-radius: var(--r-1);
+  border-radius: 50%;
   color: var(--text-3);
 }
 
@@ -834,9 +890,9 @@ html:has(dialog[open]) {
 .empty__icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: var(--s-3);
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--s-4);
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--text-2);
@@ -848,7 +904,8 @@ html:has(dialog[open]) {
 }
 
 .empty__title {
-  font-size: var(--fs-16);
+  font-size: var(--fs-18);
+  letter-spacing: -0.01em;
 }
 
 .empty__body {
@@ -920,7 +977,7 @@ html:has(dialog[open]) {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: var(--r-2);
   background: var(--info-bg);
   font-size: var(--fs-13);
@@ -977,7 +1034,94 @@ html:has(dialog[open]) {
 @media (max-width: 719px) {
   :root {
     --control: 40px;
-    --control-sm: 34px;
+    --control-sm: 32px;
+    --r-1: 10px;
+    --r-2: 14px;
+    --r-3: 20px;
+  }
+
+  .btn {
+    padding: 0 14px;
+  }
+
+  .btn--sm {
+    padding: 0 12px;
+  }
+
+  /* Button compact: the icon alone, the shape of an IconButton. The label
+     is clipped, not removed, so it still names the button. */
+  .btn--compact {
+    width: var(--control);
+    padding: 0;
+  }
+
+  .btn--compact.btn--sm {
+    width: var(--control-sm);
+    padding: 0;
+  }
+
+  .btn--compact .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .card:not(.card--flush) {
+    padding: var(--s-4);
+  }
+
+  /* the padding is room for a focus ring, which a scrolling box would clip;
+     the mask fades the row out at the edge it runs off */
+  .filter-row {
+    flex-wrap: nowrap;
+    margin-right: calc(-1 * var(--s-4));
+    margin-left: calc(-1 * var(--s-4));
+    padding: 3px var(--s-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--s-4), black calc(100% - var(--s-4)), transparent);
+    mask-image: linear-gradient(to right, transparent, black var(--s-4), black calc(100% - var(--s-4)), transparent);
+  }
+
+  .filter-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* A page's name is the largest thing on it, with what can be done here
+     level with it. Beneath another page, the way back has the first line
+     and the actions share it. */
+  .page-head {
+    position: relative;
+    align-items: center;
+    margin-bottom: var(--s-5);
+  }
+
+  .page-head__title {
+    font-size: var(--fs-28);
+    letter-spacing: -0.025em;
+  }
+
+  .page-head__back {
+    min-height: 32px;
+    margin-bottom: var(--s-1);
+    font-size: var(--fs-14);
+  }
+
+  .page-head:has(.page-head__back) {
+    display: block;
+  }
+
+  .page-head:has(.page-head__back) .page-head__actions {
+    position: absolute;
+    top: -4px;
+    right: 0;
+  }
+
+  .section {
+    margin-top: var(--s-8);
   }
 
   .input input,
@@ -985,11 +1129,54 @@ html:has(dialog[open]) {
     font-size: var(--fs-16);
   }
 
+  .switch {
+    --thumb: 22px;
+  }
+
+  /* A dialog is a sheet here: it comes up from the bottom edge, where the
+     thumb already is, and leaves a strip of the page showing above it. */
+  .dialog,
+  .dialog--sm,
+  .dialog--lg {
+    width: 100vw;
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top, 0px));
+    margin: auto 0 0;
+    border: 0;
+    border-radius: var(--r-3) var(--r-3) 0 0;
+  }
+
+  .dialog[open] {
+    animation: sheet-in 0.34s var(--ease-out);
+  }
+
+  .dialog__head {
+    padding: var(--s-5) var(--s-3) var(--s-3) var(--s-5);
+  }
+
+  .dialog__body:last-child {
+    padding-bottom: calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dialog__foot {
+    padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
+  }
+
   .dialog__foot .btn {
     flex: 1 1 0;
   }
 
+  .menu__item {
+    min-height: 44px;
+    font-size: var(--fs-14);
+  }
+
   .toaster {
     bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + var(--s-3));
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
   }
 }

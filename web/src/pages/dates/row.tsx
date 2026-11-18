@@ -126,7 +126,7 @@ export function DateRow({ reminder, today, onEdit, onSnooze, onDelete }: DateRow
           <span class="dates-row__name">{title}</span>
           {years && <span class="dates-row__years">{years}</span>}
         </p>
-        <p class="dates-row__detail">
+        <p class="dates-row__detail dotted">
           <span>{ruleText(reminder.rule)}</span>
           <span class="dates-row__leads">
             <Bell size={12} />

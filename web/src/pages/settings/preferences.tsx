@@ -19,6 +19,7 @@ import { t, type TKey } from '../../i18n';
 import { now, setTimezone } from '../../state/clock';
 import { useResource } from '../../state/resource';
 import { settings } from '../../state/settings';
+import { DeviceBlock } from './device';
 import { numberText, otherProblems, parseNumber, problemFor, rateRows, ratesOf, splitProblems, type RateRow } from './logic';
 import { Block, Group, Labelled, TimeInput } from './parts';
 import { ZoneSelect } from './zone-select';
@@ -174,18 +175,27 @@ export function PreferencesSection() {
   useResource(settings);
   const current = settings.data.value;
   if (!current) {
-    if (settings.error.value) return <ErrorState error={settings.error.value} onRetry={() => void settings.load()} />;
+    // What belongs to this device needs nothing from the server: it is
+    // there while the rest loads, and when the rest cannot be loaded.
     return (
-      <div class="st-blocks" aria-busy="true">
-        <span class="sr-only">{t('common.state.loading')}</span>
-        {[0, 1, 2].map((index) => (
-          <Skeleton key={index} height="180px" />
-        ))}
+      <div class="st-blocks">
+        <DeviceBlock />
+        {settings.error.value ? (
+          <ErrorState error={settings.error.value} onRetry={() => void settings.load()} />
+        ) : (
+          <div class="st-blocks" aria-busy="true">
+            <span class="sr-only">{t('common.state.loading')}</span>
+            {[0, 1, 2].map((index) => (
+              <Skeleton key={index} height="180px" />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
   return (
     <div class="st-blocks">
+      <DeviceBlock />
       <TimeAndLanguage current={current} />
       <Money current={current} />
       <Watching current={current} />

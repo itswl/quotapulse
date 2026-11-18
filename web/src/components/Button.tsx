@@ -15,12 +15,15 @@ interface Look {
   icon?: LucideIcon;
   /** Stretch to the container's width. */
   block?: boolean;
+  /** On a phone, show the icon alone. The label is still the button's name,
+   *  so this is only for an icon that says it all: a refresh, a plus. */
+  compact?: boolean;
   class?: string;
   children?: ComponentChildren;
 }
 
-function classes({ variant = 'secondary', size = 'md', block, class: extra }: Look): string {
-  return cx('btn', `btn--${variant}`, size === 'sm' && 'btn--sm', block && 'btn--block', extra);
+function classes({ variant = 'secondary', size = 'md', block, compact, class: extra }: Look): string {
+  return cx('btn', `btn--${variant}`, size === 'sm' && 'btn--sm', block && 'btn--block', compact && 'btn--compact', extra);
 }
 
 export interface ButtonProps extends Look, Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size' | 'icon' | 'class' | 'type' | 'disabled' | 'form'> {
@@ -31,12 +34,12 @@ export interface ButtonProps extends Look, Omit<ButtonHTMLAttributes<HTMLButtonE
   form?: string;
 }
 
-export function Button({ variant, size, icon: Icon, block, class: extra, busy, disabled, type = 'button', children, ...rest }: ButtonProps) {
+export function Button({ variant, size, icon: Icon, block, compact, class: extra, busy, disabled, type = 'button', children, ...rest }: ButtonProps) {
   return (
     <button
       {...rest}
       type={type}
-      class={classes({ variant, size, block, class: extra })}
+      class={classes({ variant, size, block, compact, class: extra })}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
     >
@@ -54,14 +57,14 @@ export interface LinkButtonProps extends Look {
 }
 
 /** A link that looks like a button, for actions that are really navigation. */
-export function LinkButton({ variant, size, icon: Icon, block, class: extra, href, external, children, ...rest }: LinkButtonProps) {
+export function LinkButton({ variant, size, icon: Icon, block, compact, class: extra, href, external, children, ...rest }: LinkButtonProps) {
   const body = (
     <>
       {Icon ? <Icon /> : null}
       {children != null && <span class="btn__label">{children}</span>}
     </>
   );
-  const className = classes({ variant, size, block, class: extra });
+  const className = classes({ variant, size, block, compact, class: extra });
   if (external) {
     return (
       <a {...rest} class={className} href={href} target="_blank" rel="noopener noreferrer">

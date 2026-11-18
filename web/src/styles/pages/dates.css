@@ -29,9 +29,14 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 var(--s-5);
-  font-size: var(--fs-20);
-  font-weight: 500;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+}
+
+.dates-summary__value .unit {
+  font-size: var(--fs-13);
 }
 
 /* ---------- filters and search ---------- */
@@ -46,9 +51,7 @@
 }
 
 .dates-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
+  min-width: 0;
 }
 
 .dates-search {
@@ -100,6 +103,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .dates-row {
@@ -107,7 +111,7 @@
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
-  padding: 10px var(--s-3) 10px var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-5);
 }
 
 .dates-row + .dates-row {
@@ -123,7 +127,8 @@
 
 .dates-row__day {
   font-size: var(--fs-20);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .dates-row__month {
@@ -168,9 +173,6 @@
 }
 
 .dates-row__detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--s-2);
   margin-top: 1px;
   color: var(--text-2);
   font-size: var(--fs-13);
@@ -184,10 +186,9 @@
   min-width: 0;
 }
 
-.dates-row__detail > span + span::before {
-  content: '·';
-  margin-right: 4px;
-  color: var(--text-3);
+/* the dot is one of the part's flex items: take back the gap after it */
+.dates-row__detail > span::before {
+  margin-right: -4px;
 }
 
 .dates-row__leads svg {
@@ -224,9 +225,12 @@
 .dates-mark__undo {
   margin: -2px 0 -2px 2px;
   padding: 2px 6px;
-  border-radius: var(--r-1);
+  border-radius: 6px;
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
 }
 
 .dates-mark__undo:hover:not(:disabled) {
@@ -382,7 +386,7 @@
 .dates-textarea:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
 .dates-more summary {
@@ -596,11 +600,24 @@
   .dates-summary__value {
     justify-content: flex-end;
     gap: 0 var(--s-3);
-    font-size: var(--fs-16);
+    font-size: var(--fs-18);
+  }
+
+  .dates-summary {
+    margin-bottom: var(--s-5);
+  }
+
+  .dates-tools {
+    display: block;
+    margin-bottom: var(--s-5);
   }
 
   .dates-search {
-    flex-basis: 100%;
+    margin-top: var(--s-3);
+  }
+
+  .dates-group {
+    margin-top: var(--s-6);
   }
 
   /* Each row is a small grid of its own: the day at the left, the words in
@@ -613,10 +630,10 @@
   }
 
   .dates-row {
-    grid-template-columns: 76px minmax(0, 1fr) auto;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
     align-items: start;
     gap: var(--s-1) var(--s-3);
-    padding: var(--s-3) var(--s-2) var(--s-3) var(--s-3);
+    padding: 14px var(--s-2) 14px var(--s-4);
   }
 
   .dates-row__block {
@@ -625,11 +642,11 @@
     min-width: 0;
   }
 
-  /* The lunar day stays inside its column, on two lines if it must: after
-     "lunar", never in the middle of 十月初十. */
-  .dates-row__lunar {
-    white-space: normal;
-    word-break: keep-all;
+  /* The lunar day that put a date where it is: the rule beside it already
+     says so, and the column is too narrow to say it twice. A date that is
+     over keeps its year, which is written in the same place. */
+  .dates-row__lunar:not(.num) {
+    display: none;
   }
 
   .dates-row__text {
