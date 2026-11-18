@@ -154,11 +154,35 @@ func TestTokens(t *testing.T) {
 	}
 }
 
-func TestEqual(t *testing.T) {
-	if !Equal("same", "same") || Equal("same", "other") || Equal("", "x") || Equal("x", "") {
-		t.Error("Equal")
+func TestCheckPassword(t *testing.T) {
+	k := FromPassphrase("x")
+	if !k.CheckPassword("hunter2", "hunter2") {
+		t.Error("the password was refused")
 	}
-	if !Equal("", "") {
-		t.Error("two empty strings are equal; the caller must refuse an empty secret")
+	for _, guess := range []string{"", "hunter", "hunter22", "Hunter2", "hunter2 "} {
+		if k.CheckPassword(guess, "hunter2") {
+			t.Errorf("CheckPassword(%q) passed", guess)
+		}
+	}
+	// A guess is never kept in place of the password...
+	now := time.Now()
+	if _, ok := k.CheckSession("hunter2", k.Session("hunter2", now.Add(time.Hour)), now); !ok {
+		t.Error("a wrong guess spoiled the password's stretch")
+	}
+	// ...and a new password takes the old one's place.
+	if !k.CheckPassword("changed", "changed") || k.CheckPassword("hunter2", "changed") {
+		t.Error("after a change of password")
+	}
+}
+
+func TestStretchIsPerInstall(t *testing.T) {
+	// Nothing worked out against one install's stretch of a password holds
+	// for another's.
+	x, y := FromPassphrase("x"), FromPassphrase("y")
+	if bytes.Equal(x.stretchOf("hunter2"), y.stretchOf("hunter2")) {
+		t.Error("two installs stretch a password alike")
+	}
+	if !bytes.Equal(x.stretchOf("hunter2"), FromPassphrase("x").stretchOf("hunter2")) {
+		t.Error("an install must stretch a password alike every time, on every start")
 	}
 }
