@@ -8,7 +8,7 @@
 // down, the way back. Anything wider has room for the three places to go in
 // the bar as well, and keeps them there.
 import { BellOff, CalendarPlus, ChevronLeft, Compass, LucideProvider, Plug, Plus, Settings, SquareTerminal, WifiOff, type LucideIcon } from 'lucide-preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { Banner, Button, Chip, cx, Dialog, EmptyState, LinkButton, Logo, Toaster } from './components';
 import { useTitle } from './hooks';
 import { lang, t, type TKey } from './i18n';
@@ -186,12 +186,17 @@ function NavLink({ item, active, path, issues, class: extra }: { item: (typeof N
 /** How the phone's top bar stands, as a native title bar would. At the top
  *  of a page it is clear glass over whatever the page begins with. Once
  *  something has scrolled under it, it is a bar; and once the page's own
- *  heading has gone under, it carries the heading. */
+ *  heading has gone under, it carries the heading.
+ *
+ *  A new page is read as it renders, before it is painted, so that it never
+ *  shows the last page's bar. Where a step through history then restores
+ *  the scroll position, that scroll is read again before the frame is
+ *  painted. */
 function useTopBar(path: string): { scrolled: boolean; title: string | null } {
   const [scrolled, setScrolled] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
   const language = lang.value;
-  useEffect(() => {
+  useLayoutEffect(() => {
     let frame = 0;
     const read = () => {
       frame = 0;

@@ -57,7 +57,7 @@ export function useRulePreview(rule: RecurRule): RulePreview {
     return () => clearTimeout(timer);
   }, [wanted, key]);
   const query = useQuery(
-    key,
+    `preview:${key}`,
     (signal) => {
       const asked = JSON.parse(key) as RecurRule;
       const missing = missingOf(asked);

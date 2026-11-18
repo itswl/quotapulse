@@ -37,9 +37,10 @@
 }
 
 /* A page arrives rather than snaps in — where the browser cannot hand one
-   page over to the next itself (see the view transitions below). */
+   page over to the next itself (see the view transitions below). Not after
+   a swipe, which has already slid the page in (src/router.ts). */
 @supports not (view-transition-name: none) {
-  .page__view {
+  html:not([data-nav='none']) .page__view {
     animation: page-in 0.22s var(--ease);
   }
 }
@@ -118,6 +119,16 @@
   background: var(--bar);
   -webkit-backdrop-filter: saturate(1.8) blur(20px);
   backdrop-filter: saturate(1.8) blur(20px);
+}
+
+/* The bar fades for scrolling, not for a change of page: on a page that has
+   just arrived — by a link, the way back, or a swipe that has already slid
+   it in — it stands as the page has it at once, until the next touch
+   (src/router.ts). */
+html[data-arriving] .topbar,
+html[data-arriving] .topbar__title,
+html[data-arriving] .brand__demo {
+  transition: none;
 }
 
 .topbar .brand {

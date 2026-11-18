@@ -32,7 +32,7 @@ export function MeterDetail({ id, standalone = false }: MeterDetailProps) {
   const range = requested && RANGES.includes(requested) ? requested : DEFAULT_RANGE;
 
   // The series carries the meter itself, so one request draws the whole page.
-  const series = useQuery(`${id}:${range}`, (signal) => getSeries(id, range, signal), TOPICS);
+  const series = useQuery(`series:${id}:${range}`, (signal) => getSeries(id, range, signal), TOPICS);
   useResource(accounts);
   const data = series.data;
   useTitle(data?.meter.display ?? t('common.nav.watching'));

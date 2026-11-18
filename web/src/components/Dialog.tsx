@@ -1,7 +1,8 @@
 import { X } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
-import { useEffect, useId, useRef } from 'preact/hooks';
+import { useId, useLayoutEffect, useRef } from 'preact/hooks';
 import { t } from '../i18n';
+import { slidIn } from '../router';
 import { Button, IconButton, type ButtonVariant } from './Button';
 import { cx } from './cx';
 
@@ -32,11 +33,17 @@ export function Dialog({ open, onClose, title, description, size = 'md', busy, f
   const titleId = useId();
   const descriptionId = useId();
 
-  useEffect(() => {
+  // In the same frame as what opens or closes it — a step through history,
+  // when the address names the dialog — not one after.
+  useLayoutEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
+    if (open && !dialog.open) {
+      // Opened with a page a swipe has already slid in, it is already where
+      // the browser drew it: it does not come up again.
+      dialog.toggleAttribute('data-still', slidIn());
+      dialog.showModal();
+    } else if (!open && dialog.open) dialog.close();
   }, [open]);
 
   return (

@@ -15,6 +15,7 @@ import { batch, effect, signal, type ReadonlySignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { ApiError } from '../api/client';
 import { lang } from '../i18n';
+import { forget } from './kept';
 import { onChange, type LiveTopic } from './live';
 
 export interface Resource<T> {
@@ -37,9 +38,11 @@ export interface Resource<T> {
 
 const all = new Set<{ reset(): void; invalidate(): void }>();
 
-/** Clears every resource. Called when the session ends. */
+/** Clears every resource, and the answers pages keep (kept.ts). Called when
+ *  the session ends. */
 export function resetResources(): void {
   for (const each of all) each.reset();
+  forget();
 }
 
 export function resource<T>(fetcher: () => Promise<T>, topics: readonly LiveTopic[], onData?: (data: T) => void): Resource<T> {
