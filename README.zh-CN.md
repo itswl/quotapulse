@@ -81,7 +81,7 @@ docker compose up -d
   密码的链接。
 - **升级。** 镜像发布在 `ghcr.io/itswl/quotapulse`，支持 amd64 和 arm64。compose 文件
   跟着 1.x 走：`docker compose pull && docker compose up -d` 会拉到最新的 1.x。想停在
-  某个版本，就在旁边的 `.env` 里写上 `QUOTAPULSE_VERSION=1.2.2`。
+  某个版本，就在旁边的 `.env` 里写上 `QUOTAPULSE_VERSION=1.3.0`。
 - **数据目录**是 `./data`。容器只为了接管它才以 root 启动，随后就以目录主人的身份
   运行——新目录交给镜像自己的用户 65532。在 `.env` 里设
   `QUOTAPULSE_USER=$(id -u):$(id -g)`，就以你自己的身份运行。
