@@ -91,7 +91,7 @@ notification channel and a date. Everything is configured in the dashboard.
 - **Upgrading.** Images are published for amd64 and arm64 as
   `ghcr.io/itswl/quotapulse`, and the compose file follows the 1.x line:
   `docker compose pull && docker compose up -d` brings the newest 1.x. To hold
-  one release, put `QUOTAPULSE_VERSION=1.3.0` in a `.env` next to it.
+  one release, put `QUOTAPULSE_VERSION=1.3.1` in a `.env` next to it.
 - **The data directory** is `./data`. The container starts as root only to take
   it over, then runs as whoever owns it — 65532, the image's own user, for a new
   one. `QUOTAPULSE_USER=$(id -u):$(id -g)` in `.env` runs it as you instead.
