@@ -685,6 +685,25 @@ a.side-card:hover {
   font-size: var(--fs-13);
 }
 
+.now-step__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok);
+  font-weight: 550;
+}
+
+/* a step already taken: still there to go back to, but quieter */
+.now-step.is-done {
+  background: none;
+  box-shadow: none;
+}
+
+.now-step.is-done .now-step__title,
+.now-step.is-done .now-step__icon {
+  color: var(--text-2);
+}
+
 .now-step__icon {
   margin-bottom: var(--s-2);
 }

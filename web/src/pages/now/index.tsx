@@ -7,7 +7,7 @@
 //   ahead            today, tomorrow, within a week, a month, later
 //   steady           everything with nothing ahead, in one line
 //   at the side      the month, and how long every balance lasts
-import { ArrowRight, BellPlus, CalendarPlus, History, Plug, RefreshCw, type LucideIcon } from 'lucide-preact';
+import { ArrowRight, BellPlus, CalendarPlus, Check, History, Plug, RefreshCw, type LucideIcon } from 'lucide-preact';
 import { useEffect } from 'preact/hooks';
 import type { Overview } from '../../api/types';
 import { Banner, Button, cx, ErrorState, LinkButton, Skeleton, toast } from '../../components';
@@ -39,7 +39,9 @@ export default function NowPage(_props: PageProps) {
   }
 
   const { counts } = data;
-  if (counts.accounts + counts.meters + counts.reminders + counts.channels === 0) return <FirstSteps />;
+  // Until something is watched, the first steps stand in for the page; a
+  // channel added before anything to watch is ticked off among them.
+  if (counts.accounts + counts.meters + counts.reminders === 0) return <FirstSteps channels={counts.channels} />;
 
   const horizonDays = settings.data.value?.upcoming_days ?? 60;
   const horizon = buildHorizon(data, now.value, timezone.value, horizonDays);
@@ -194,12 +196,13 @@ function Verdict({ data, horizon, horizonDays }: { data: Overview; horizon: Hori
   );
 }
 
-/** An install with nothing in it: say what to do first. */
-function FirstSteps() {
-  const steps: { icon: LucideIcon; title: string; body: string; href: string }[] = [
-    { icon: Plug, title: t('overview.start.account.title'), body: t('overview.start.account.body'), href: '/meters?add=1' },
-    { icon: BellPlus, title: t('overview.start.channel.title'), body: t('overview.start.channel.body'), href: '/settings/channels' },
-    { icon: CalendarPlus, title: t('overview.start.date.title'), body: t('overview.start.date.body'), href: '/dates?add=1' },
+/** An install with nothing watched yet: say what to do first, and tick off
+ *  what is done. */
+function FirstSteps({ channels }: { channels: number }) {
+  const steps: { icon: LucideIcon; title: string; body: string; href: string; done: boolean }[] = [
+    { icon: Plug, title: t('overview.start.account.title'), body: t('overview.start.account.body'), href: '/meters?add=1', done: false },
+    { icon: BellPlus, title: t('overview.start.channel.title'), body: t('overview.start.channel.body'), href: '/settings/channels', done: channels > 0 },
+    { icon: CalendarPlus, title: t('overview.start.date.title'), body: t('overview.start.date.body'), href: '/dates?add=1', done: false },
   ];
   return (
     <div class="now now--start">
@@ -210,8 +213,15 @@ function FirstSteps() {
       <ol class="now-start__steps">
         {steps.map((step, index) => (
           <li key={step.href}>
-            <Link class="now-step" href={step.href}>
-              <span class="now-step__number num">{index + 1}</span>
+            <Link class={cx('now-step', step.done && 'is-done')} href={step.href}>
+              {step.done ? (
+                <span class="now-step__number now-step__done">
+                  <Check size={14} />
+                  {t('overview.start.done')}
+                </span>
+              ) : (
+                <span class="now-step__number num">{index + 1}</span>
+              )}
               <step.icon class="now-step__icon" size={20} />
               <span class="now-step__title">{step.title}</span>
               <span class="now-step__body">{step.body}</span>

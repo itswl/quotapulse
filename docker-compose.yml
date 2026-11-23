@@ -1,11 +1,15 @@
-# QuotaPulse with Docker Compose. This file and a .env are all a host needs.
+# QuotaPulse with Docker Compose. This file is all a host needs:
 #
-#   echo "QUOTAPULSE_PASSWORD=choose-one" > .env
-#   mkdir -p data && sudo chown 65532:65532 data
 #   docker compose up -d
 #
-# It runs the published image. Pin a release with QUOTAPULSE_VERSION in .env,
-# so that a pull never changes what is running behind your back.
+# then open http://<this machine>:8080 and choose a password: a new install
+# asks it, its language and its time zone in the dashboard. A .env next to
+# this file is read when there is one, and nothing in it is required (see
+# .env.example).
+#
+# It runs the published image's 1.x line: a pull brings the newest 1.x, never
+# a 2.0 that changes things you did not choose. To hold one release, set
+# QUOTAPULSE_VERSION in .env.
 #
 # Everything QuotaPulse knows lives in ./data: the database, its daily
 # backups, and the key that encrypts stored credentials. Back that directory up.
@@ -16,12 +20,14 @@
 services:
   quotapulse:
     # QUOTAPULSE_IMAGE replaces the whole reference: a fork, a mirror.
-    image: ${QUOTAPULSE_IMAGE:-ghcr.io/itswl/quotapulse:${QUOTAPULSE_VERSION:-latest}}
+    image: ${QUOTAPULSE_IMAGE:-ghcr.io/itswl/quotapulse:${QUOTAPULSE_VERSION:-1}}
     container_name: quotapulse
     restart: unless-stopped
-    # The image runs as 65532. With ./data owned by you instead, set
-    # QUOTAPULSE_USER to your own "uid:gid" in .env.
-    user: "${QUOTAPULSE_USER:-65532:65532}"
+    # It starts as root only to take ./data over — Docker makes a missing
+    # directory as root — and then runs as whoever owns it: 65532, the
+    # image's own user, for a new one. QUOTAPULSE_USER, a "uid:gid" in .env,
+    # starts it as that user instead.
+    user: "${QUOTAPULSE_USER:-0:0}"
     ports:
       # Put a TLS-terminating proxy in front before exposing this beyond the
       # machine. With one on the same host, publish to loopback only:

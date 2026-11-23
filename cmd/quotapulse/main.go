@@ -5,6 +5,7 @@
 //	quotapulse demo            run on generated data, touching nothing real
 //	quotapulse export          write the configuration and history as a bundle
 //	quotapulse import FILE     merge a bundle into the database
+//	quotapulse reset-password  forget the password, and print a link to choose another
 //	quotapulse healthcheck     exit 0 if the local server answers
 //	quotapulse version
 package main
@@ -104,6 +105,14 @@ func run(args []string) error {
 	}
 	cfg := loadConfig()
 	switch command {
+	case "serve", "demo", "export", "import", "reset-password":
+		// Started as root — as a container is that must take over a data
+		// directory Docker has just made — give root up before touching it.
+		if err := becomeDataOwner(cfg.DataDir); err != nil {
+			return err
+		}
+	}
+	switch command {
 	case "serve":
 		return serve(cfg)
 	case "demo":
@@ -112,6 +121,8 @@ func run(args []string) error {
 		return runExport(cfg, args)
 	case "import":
 		return runImport(cfg, args)
+	case "reset-password":
+		return resetPassword(cfg)
 	case "healthcheck":
 		return healthcheck(cfg)
 	case "version", "-v", "--version":
@@ -129,11 +140,15 @@ const usage = `Usage:
   quotapulse demo            run on generated data, touching nothing real
   quotapulse export          write the configuration and history as a bundle
   quotapulse import FILE     merge a bundle into the database
+  quotapulse reset-password  forget the password, and print a link to choose another
   quotapulse healthcheck     exit 0 if the local server answers
   quotapulse version
 
+Nothing has to be set: the password is chosen in the dashboard the first
+time it is opened. All of these are optional.
+
 Environment:
-  QUOTAPULSE_PASSWORD   signs you in to the dashboard (required to use it)
+  QUOTAPULSE_PASSWORD   the password, set here rather than in the dashboard
   QUOTAPULSE_DATA       where the database lives (default: ./data)
   QUOTAPULSE_LISTEN     address to listen on (default: :8080)
   QUOTAPULSE_SECRET     encrypts stored credentials; a key file in the data
@@ -255,16 +270,83 @@ func serve(cfg config) error {
 		return err
 	}
 	if cfg.Password == "" {
-		log.Warn("QUOTAPULSE_PASSWORD is not set: the dashboard cannot be signed in to. API tokens still work.")
+		if err := announceSetup(ctx, e.Store(), cfg, log); err != nil {
+			return err
+		}
 	}
 	if cfg.Mute {
 		log.Warn("QUOTAPULSE_MUTE is on: notifications are recorded, not sent")
 	}
 	runner := runtime.New(e, log, cfg.DataDir)
 	return listen(ctx, cfg, log, &api.Server{
-		Engine: e, Keys: keys, Runner: runner, Log: log, Password: cfg.Password,
+		Engine: e, Keys: keys, Runner: runner, Log: log, Password: cfg.Password, Started: time.Now(),
 		Assets: assets(), MCP: mcp.Handler(e, log), Version: buildinfo.Version,
 	}, runner)
+}
+
+// announceSetup says, while no password has been chosen, how to choose one:
+// on a new install anyone may within the hour, and with the link it logs at
+// any time in the next day.
+func announceSetup(ctx context.Context, st *store.Store, cfg config, log *slog.Logger) error {
+	if verifier, err := st.PasswordVerifier(ctx); err != nil || verifier != nil {
+		return err
+	}
+	code, err := api.NewSetupCode(ctx, st, time.Now())
+	if err != nil {
+		return err
+	}
+	link := setupLink(cfg.Listen, code)
+	if empty, err := st.Empty(ctx); err != nil {
+		return err
+	} else if empty {
+		log.Info("QuotaPulse is not set up yet. Open it in a browser within the hour to choose a password; after that, use this link, which works once in the next day", "link", link)
+		return nil
+	}
+	log.Warn("No password has been chosen, so nobody can sign in. Choose one with this link, which works once in the next day", "link", link)
+	return nil
+}
+
+// setupLink is where a setup code is used, as seen from the machine itself;
+// from anywhere else, the server's own address takes localAddress's place.
+func setupLink(listen, code string) string {
+	return "http://" + localAddress(listen) + "/#setup=" + code
+}
+
+// localAddress is the listening address as the machine itself reaches it.
+func localAddress(listen string) string {
+	host, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		host, port = "", "8080"
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "localhost"
+	}
+	return net.JoinHostPort(host, port)
+}
+
+// resetPassword forgets a password chosen in the dashboard and prints a link
+// to choose another. Every session ends with it.
+func resetPassword(cfg config) error {
+	if cfg.Password != "" {
+		return errors.New("the password is QUOTAPULSE_PASSWORD: change it there and restart")
+	}
+	e, _, err := open(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		return err
+	}
+	defer e.Store().Close()
+	ctx := context.Background()
+	if err := e.Store().ForgetPassword(ctx); err != nil {
+		return err
+	}
+	code, err := api.NewSetupCode(ctx, e.Store(), time.Now())
+	if err != nil {
+		return err
+	}
+	fmt.Printf("The password is forgotten, and everyone is signed out. Choose a new one here:\n\n  %s\n\n"+
+		"The link works once, in the next 24 hours. From another machine, put the\n"+
+		"server's own address in place of %s.\n", setupLink(cfg.Listen, code), localAddress(cfg.Listen))
+	return nil
 }
 
 // listen runs the HTTP server and the background loops until ctx ends.

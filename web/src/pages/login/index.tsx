@@ -1,23 +1,25 @@
 // The sign-in screen. It is shown in place of whatever page was asked for,
 // at that page's address — so after signing in, the user is where they were
-// going, with no redirect to remember.
+// going, with no redirect to remember. An install with no password yet shows
+// its setup here instead (setup.tsx).
 import { KeyRound, RefreshCw } from 'lucide-preact';
 import type { TargetedEvent } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
-import { Banner, Button, Field, Input, Logo, Spinner } from '../../components';
+import { Button, Field, Input, Logo, Spinner } from '../../components';
 import { errorText } from '../../errors';
 import { useTitle } from '../../hooks';
 import { t } from '../../i18n';
 import { ShellTools } from '../../shell-tools';
 import { checkSession, sessionInfo, sessionStatus, signIn } from '../../state/session';
+import { RESET_COMMAND, SetupForm } from './setup';
 
 /** The password of an instance started with -demo (internal/demo). */
 const DEMO_PASSWORD = 'demo';
 
 export default function LoginPage() {
-  useTitle(t('common.login.title'));
   const info = sessionInfo.value;
+  useTitle(info?.setup ? (info.fresh ? t('common.setup.welcome') : t('common.setup.choose')) : t('common.login.title'));
   const status = sessionStatus.value;
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
@@ -61,7 +63,6 @@ export default function LoginPage() {
     }
   };
 
-  const locked = info !== undefined && !info.password_set;
   const message = wait > 0 ? t('common.login.tooManyFor', { n: wait }) : error;
 
   return (
@@ -92,15 +93,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        {status === 'signedOut' && locked && (
-          <Banner tone="warning" class="login__notice">
-            <strong>{t('common.login.noPassword.title')}</strong>
-            <p>{t('common.login.noPassword.body')}</p>
-            <code>QUOTAPULSE_PASSWORD</code>
-          </Banner>
-        )}
+        {status === 'signedOut' && info?.setup && <SetupForm info={info} />}
 
-        {status === 'signedOut' && !locked && (
+        {status === 'signedOut' && !info?.setup && (
           <form class="login__form" ref={form} onSubmit={submit}>
             {/* Lets a password manager file the password under a name. */}
             <input class="sr-only" type="text" name="username" autoComplete="username" value="quotapulse" tabIndex={-1} aria-hidden="true" readOnly />
@@ -122,10 +117,18 @@ export default function LoginPage() {
             <Button type="submit" variant="primary" block busy={busy} disabled={wait > 0}>
               {t('common.login.submit')}
             </Button>
-            {info?.demo && (
+            {info?.demo ? (
               <p class="login__demo">
                 {t('common.login.demo')} <code>{DEMO_PASSWORD}</code>
               </p>
+            ) : (
+              <details class="login__forgot">
+                <summary>{t('common.login.forgot')}</summary>
+                <p>{t('common.login.forgot.body')}</p>
+                <pre>
+                  <code>{RESET_COMMAND}</code>
+                </pre>
+              </details>
             )}
           </form>
         )}

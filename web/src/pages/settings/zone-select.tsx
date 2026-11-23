@@ -19,7 +19,8 @@ function supported(): string[] {
   }
 }
 
-function browserZone(): string {
+/** This browser's own time zone: where the person setting things up is. */
+export function browserZone(): string {
   try {
     return new Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   } catch {

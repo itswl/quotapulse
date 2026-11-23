@@ -3,7 +3,7 @@
 import { computed, signal } from '@preact/signals';
 import { ApiError, onUnauthorized } from '../api/client';
 import * as api from '../api/endpoints';
-import type { SessionInfo } from '../api/types';
+import type { SessionInfo, SetupInput } from '../api/types';
 import { setTimezone, syncClock } from './clock';
 import { startLive, stopLive } from './live';
 import { resetResources } from './resource';
@@ -49,6 +49,13 @@ export async function checkSession(): Promise<boolean> {
 export async function signIn(password: string): Promise<void> {
   await api.signIn(password);
   if (!(await checkSession())) throw new ApiError(0, 'unknown', 'signed in, but the session did not stick');
+}
+
+/** Chooses the password of an install that has none, and signs in with it.
+ *  Rejects with the ApiError the setup form shows. */
+export async function setUp(input: SetupInput): Promise<void> {
+  await api.setUp(input);
+  if (!(await checkSession())) throw new ApiError(0, 'unknown', 'set up, but the session did not stick');
 }
 
 export async function signOut(): Promise<void> {

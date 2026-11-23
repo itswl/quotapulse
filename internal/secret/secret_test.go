@@ -108,35 +108,40 @@ func TestSession(t *testing.T) {
 	k := FromPassphrase("x")
 	now := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
 	expires := now.Add(30 * 24 * time.Hour)
-	token := k.Session("hunter2", expires)
+	verifier := k.Verifier("hunter2")
+	token := k.Session(verifier, expires)
 
-	got, ok := k.CheckSession("hunter2", token, now)
+	got, ok := k.CheckSession(verifier, token, now)
 	if !ok || !got.Equal(expires) {
 		t.Fatalf("CheckSession = %v, %v", got, ok)
 	}
-	if _, ok := k.CheckSession("hunter2", token, expires); ok {
+	if _, ok := k.CheckSession(verifier, token, expires); ok {
 		t.Error("an expired session passed")
 	}
-	if _, ok := k.CheckSession("changed", token, now); ok {
+	if _, ok := k.CheckSession(k.Verifier("changed"), token, now); ok {
 		t.Error("a session survived a password change")
 	}
-	if _, ok := FromPassphrase("y").CheckSession("hunter2", token, now); ok {
+	if _, ok := k.CheckSession(nil, token, now); ok {
+		t.Error("a session passed with no password at all")
+	}
+	other := FromPassphrase("y")
+	if _, ok := other.CheckSession(other.Verifier("hunter2"), token, now); ok {
 		t.Error("a session from another install passed")
 	}
 
 	// Pushing the expiry forward must break the signature.
 	body, signature, _ := strings.Cut(token, ".")
-	forged := k.Session("hunter2", expires.Add(365*24*time.Hour))
+	forged := k.Session(verifier, expires.Add(365*24*time.Hour))
 	forgedBody, _, _ := strings.Cut(forged, ".")
-	if _, ok := k.CheckSession("hunter2", forgedBody+"."+signature, now); ok {
+	if _, ok := k.CheckSession(verifier, forgedBody+"."+signature, now); ok {
 		t.Error("a forged expiry passed")
 	}
 	for _, junk := range []string{"", ".", body, body + ".", "a.b", token + "x"} {
-		if _, ok := k.CheckSession("hunter2", junk, now); ok {
+		if _, ok := k.CheckSession(verifier, junk, now); ok {
 			t.Errorf("CheckSession(%q) passed", junk)
 		}
 	}
-	if k.Session("hunter2", expires) == token {
+	if k.Session(verifier, expires) == token {
 		t.Error("two sessions must not be identical")
 	}
 }
@@ -156,33 +161,34 @@ func TestTokens(t *testing.T) {
 
 func TestCheckPassword(t *testing.T) {
 	k := FromPassphrase("x")
-	if !k.CheckPassword("hunter2", "hunter2") {
+	verifier := k.Verifier("hunter2")
+	if !k.CheckPassword("hunter2", verifier) {
 		t.Error("the password was refused")
 	}
 	for _, guess := range []string{"", "hunter", "hunter22", "Hunter2", "hunter2 "} {
-		if k.CheckPassword(guess, "hunter2") {
+		if k.CheckPassword(guess, verifier) {
 			t.Errorf("CheckPassword(%q) passed", guess)
 		}
 	}
-	// A guess is never kept in place of the password...
-	now := time.Now()
-	if _, ok := k.CheckSession("hunter2", k.Session("hunter2", now.Add(time.Hour)), now); !ok {
-		t.Error("a wrong guess spoiled the password's stretch")
-	}
-	// ...and a new password takes the old one's place.
-	if !k.CheckPassword("changed", "changed") || k.CheckPassword("hunter2", "changed") {
-		t.Error("after a change of password")
+	if k.CheckPassword("", nil) || k.CheckPassword("hunter2", nil) {
+		t.Error("a guess passed with no password at all")
 	}
 }
 
-func TestStretchIsPerInstall(t *testing.T) {
-	// Nothing worked out against one install's stretch of a password holds
-	// for another's.
+func TestVerifierIsPerInstall(t *testing.T) {
+	// Nothing worked out against one install's verifier holds for another's.
 	x, y := FromPassphrase("x"), FromPassphrase("y")
-	if bytes.Equal(x.stretchOf("hunter2"), y.stretchOf("hunter2")) {
+	if bytes.Equal(x.Verifier("hunter2"), y.Verifier("hunter2")) {
 		t.Error("two installs stretch a password alike")
 	}
-	if !bytes.Equal(x.stretchOf("hunter2"), FromPassphrase("x").stretchOf("hunter2")) {
+	if !bytes.Equal(x.Verifier("hunter2"), FromPassphrase("x").Verifier("hunter2")) {
 		t.Error("an install must stretch a password alike every time, on every start")
+	}
+}
+
+func TestSetupCode(t *testing.T) {
+	a, b := NewSetupCode(), NewSetupCode()
+	if a == b || len(a) != 26 || strings.Trim(a, "abcdefghijklmnopqrstuvwxyz234567") != "" {
+		t.Fatalf("setup codes: %q %q", a, b)
 	}
 }
