@@ -64,44 +64,48 @@ docker run --rm -p 8080:8080 ghcr.io/itswl/quotapulse demo --lang zh
 
 ## 部署
 
-一个文件，一项设置：
+一个文件，什么都不用设：
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/itswl/quotapulse/main/docker-compose.yml
-echo "QUOTAPULSE_PASSWORD=换成你的密码" > .env
-mkdir -p data && sudo chown 65532:65532 data
 docker compose up -d
 ```
 
-打开 http://localhost:8080 登录，然后添加一个账户、一个通知渠道、一个日期。
-所有配置都在看板里完成。
+打开 http://localhost:8080（或者服务器自己的地址），选一个密码；语言和时区已经
+按你的设备填好了。然后添加一个账户、一个通知渠道、一个日期。所有配置都在看板里完成。
 
-- **固定版本。** 镜像发布在 `ghcr.io/itswl/quotapulse`，支持 amd64 和 arm64。在
-  `.env` 里写上 `QUOTAPULSE_VERSION=1.2.2`，这样拉取镜像不会悄悄换掉正在运行的
-  版本；升级时改掉它，再执行 `docker compose pull && docker compose up -d`。
-- **数据目录要对容器用户（65532）可写** —— 就是上面那句 `chown`；或者在 `.env`
-  里设 `QUOTAPULSE_USER=$(id -u):$(id -g)`，让容器以你自己的身份运行。
+- **一小时内完成设置。** 新装的实例启动后一小时内，谁先打开谁来设置。超过一小时，
+  或者里面已经有东西了，就要用日志里的一次性链接：`docker compose logs quotapulse`。
+- **忘了密码？** 运行
+  `docker compose exec quotapulse /quotapulse reset-password`，它会给出一个重新选
+  密码的链接。
+- **升级。** 镜像发布在 `ghcr.io/itswl/quotapulse`，支持 amd64 和 arm64。compose 文件
+  跟着 1.x 走：`docker compose pull && docker compose up -d` 会拉到最新的 1.x。想停在
+  某个版本，就在旁边的 `.env` 里写上 `QUOTAPULSE_VERSION=1.2.2`。
+- **数据目录**是 `./data`。容器只为了接管它才以 root 启动，随后就以目录主人的身份
+  运行——新目录交给镜像自己的用户 65532。在 `.env` 里设
+  `QUOTAPULSE_USER=$(id -u):$(id -g)`，就以你自己的身份运行。
 - **从源码构建：**
   `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`。
   不用 Docker：`npm --prefix web ci && npm --prefix web run build`，然后
-  `go build ./cmd/quotapulse`，再 `QUOTAPULSE_PASSWORD=… ./quotapulse`。
+  `go build ./cmd/quotapulse`，再 `./quotapulse`。
 - **对外暴露之前先在前面加一层 TLS**，任何反向代理都行。看板的实时更新是一个
   长连接响应，不要给它开缓冲。
 
 ### 环境变量
 
-只有启动必需的那几个。其余的都存在数据库里，在看板上改。
+全都可以不设：关注什么、通知发到哪里、怎样提醒，都存在数据库里，在看板上改。
 
 | 变量 | 默认值 | |
 | --- | --- | --- |
-| `QUOTAPULSE_PASSWORD` | — | 登录密码。不设就没人能登录 |
+| `QUOTAPULSE_PASSWORD` | 在看板里选 | 在这里设登录密码；这样看板里就改不了它 |
 | `QUOTAPULSE_DATA` | `./data`（镜像里是 `/data`） | 数据库、每日备份和密钥文件都在这里 |
 | `QUOTAPULSE_LISTEN` | `:8080` | |
 | `QUOTAPULSE_SECRET` | 数据目录里的密钥文件 | 用来加密保存的凭据。设一次，之后不要改 |
 | `QUOTAPULSE_BOOTSTRAP` | — | 数据库为空时导入的[配置包](docs/bundle.md) |
 | `QUOTAPULSE_MUTE` | — | 设为 `1` 时通知只记录、不发送 |
 | `QUOTAPULSE_LOG`、`QUOTAPULSE_LOG_LEVEL` | `text`、`info` | `json` 输出结构化日志 |
-| `TZ`、`QUOTAPULSE_LANG` | `UTC`、`en` | **全新安装**的时区和语言（`en`、`zh`）；之后在看板里改 |
+| `TZ`、`QUOTAPULSE_LANG` | 设置时询问 | **全新安装**的时区和语言（`en`、`zh`），设了就不再询问；之后在看板里改 |
 
 ## 支持的平台
 

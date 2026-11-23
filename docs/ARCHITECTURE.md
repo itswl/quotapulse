@@ -191,8 +191,10 @@ here pretends otherwise.
 ## Configuration
 
 The database is the single source of truth, edited from the dashboard. The
-environment says only how to start — a password, a data directory, a port. There
-are no feature flags: an unused feature is an empty list.
+environment can say how to start — a data directory, a port, a password — and
+need not say anything: a new install asks its password, time zone and language
+the first time it is opened. There are no feature flags: an unused feature is an
+empty list.
 
 For those who want configuration in a file there is the **bundle**
 (`internal/bundle`): one JSON document holding accounts, dates, channels and
@@ -208,14 +210,20 @@ migrates a pre-1.0 install produces.
   The password is only ever used stretched (PBKDF2, with a salt of the install's
   own): neither a cookie nor a sign-in is checked against anything cheaper.
   Requests that change something must also come from the dashboard's own origin.
+- **The password** is `QUOTAPULSE_PASSWORD`, or — without it — chosen in the
+  dashboard and kept in the database as its stretch (`internal/api/access.go`).
+  A new install can be set up by whoever opens it within an hour of the start;
+  after that, or once anything is configured, choosing the password takes a
+  one-time code from the server's log or from `quotapulse reset-password`.
 - **Scripts and agents** use API tokens, of which only a hash is stored, with
   scopes: `read`, `act` (acknowledge, complete, manage dates), `ingest` (push
   readings), `admin`.
 - **MCP** (`/mcp`) accepts tokens only, and offers exactly the tools the token's
   scopes allow.
 
-Without `QUOTAPULSE_PASSWORD` nobody can sign in. Something that holds API keys
-should never be open by default.
+Until a password is chosen nobody can sign in, and an install left unclaimed
+does not stay open to anyone who finds it. Something that holds API keys should
+never be open by default.
 
 ## Layout
 

@@ -344,7 +344,9 @@ func TestNoPasswordLocksTheDashboardButNotTokens(t *testing.T) {
 	if status, body := c.do("POST", "/api/v1/session", map[string]string{"password": ""}); status != 503 || errorCode(body) != "no_password" {
 		t.Fatalf("sign in without a configured password: %d %s", status, body)
 	}
-	if status, body := c.do("GET", "/api/v1/overview", nil); status != 503 || errorCode(body) != "no_password" {
+	// 401, not 503: a dashboard left open when the password is forgotten
+	// reads it as signed out, and shows the way to choose a new one.
+	if status, body := c.do("GET", "/api/v1/overview", nil); status != 401 || errorCode(body) != "no_password" {
 		t.Fatalf("overview: %d %s", status, body)
 	}
 	if status, _ := s.withToken(core.ScopeRead).do("GET", "/api/v1/overview", nil); status != 200 {

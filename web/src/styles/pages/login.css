@@ -101,11 +101,6 @@
   font-size: var(--fs-13);
 }
 
-.login__notice code {
-  display: inline-block;
-  margin-top: var(--s-2);
-}
-
 .login__version {
   color: var(--text-3);
   font-size: var(--fs-12);
@@ -147,4 +142,84 @@
   .login__version {
     margin-top: auto;
   }
+}
+
+/* ---------- choosing the password of a new install (setup.tsx) ---------- */
+
+.setup__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  text-align: center;
+}
+
+.setup__title {
+  font-size: var(--fs-18);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.setup__body,
+.setup__note {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  text-wrap: pretty;
+}
+
+/* the eye in the password field: a quiet control at its end */
+.login__form .setup__reveal.icon-btn {
+  width: 34px;
+  height: 34px;
+  margin-right: -8px;
+  border-radius: 8px;
+}
+
+.setup--link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* A command to copy onto the server: in one piece, and wrapped rather than
+   scrolled where it does not fit. */
+.setup__command,
+.login__forgot pre {
+  padding: var(--s-3);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.setup__command code,
+.login__forgot code {
+  padding: 0;
+  background: none;
+}
+
+.login__forgot {
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.login__forgot summary {
+  width: fit-content;
+  margin: 0 auto;
+  cursor: pointer;
+  list-style: none;
+}
+
+.login__forgot summary::-webkit-details-marker {
+  display: none;
+}
+
+.login__forgot[open] summary {
+  margin-bottom: var(--s-2);
+}
+
+.login__forgot p {
+  margin-bottom: var(--s-2);
 }

@@ -28,6 +28,7 @@ import type {
   Series,
   SeriesRange,
   SessionInfo,
+  SetupInput,
   Settings,
   Spend,
   SubjectType,
@@ -49,6 +50,14 @@ export const getSession = () => request<SessionInfo>('GET', '/session');
 export const signIn = (password: string) =>
   request<{ signed_in: boolean }>('POST', '/session', { password }, { expect401: true });
 export const signOut = () => request<{ signed_in: boolean }>('DELETE', '/session');
+/** Chooses the password where there is none, and signs in. Rejects with code
+ *  password_short (422), setup_code (403), password_set (409) or
+ *  too_many_attempts (429). */
+export const setUp = (input: SetupInput) => request<{ signed_in: boolean }>('POST', '/setup', input);
+/** Rejects with code wrong_password (403), password_short (422) or
+ *  password_from_env (409). */
+export const changePassword = (current: string, password: string) =>
+  request<{ changed: boolean }>('PUT', '/password', { current, password });
 
 // ---------- overview ----------
 

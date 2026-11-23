@@ -71,48 +71,53 @@ docker run --rm -p 8080:8080 ghcr.io/itswl/quotapulse demo
 
 ## Run it
 
-One file and one setting:
+One file, and nothing to set:
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/itswl/quotapulse/main/docker-compose.yml
-echo "QUOTAPULSE_PASSWORD=choose-one" > .env
-mkdir -p data && sudo chown 65532:65532 data
 docker compose up -d
 ```
 
-Open http://localhost:8080, sign in, then add an account, a notification channel,
-and a date. Everything is configured in the dashboard.
+Open http://localhost:8080 — or the server's own address — and choose a password;
+the language and time zone are filled in from your device. Then add an account, a
+notification channel and a date. Everything is configured in the dashboard.
 
-- **Pin the release.** Images are published for amd64 and arm64 as
-  `ghcr.io/itswl/quotapulse`. Set `QUOTAPULSE_VERSION=1.2.2` in `.env` so that a
-  pull never changes what is running; to upgrade, change it and run
-  `docker compose pull && docker compose up -d`.
-- **The data directory must be writable** by the container's user, 65532 — the
-  `chown` above — or run the container as yourself by setting
-  `QUOTAPULSE_USER=$(id -u):$(id -g)` in `.env`.
+- **Set it up within the hour.** A new install is set up by whoever opens it
+  first, for an hour after it starts. After that, or once it holds anything, it
+  takes the one-time link in its log: `docker compose logs quotapulse`.
+- **Forgot the password?**
+  `docker compose exec quotapulse /quotapulse reset-password` prints a link to
+  choose a new one.
+- **Upgrading.** Images are published for amd64 and arm64 as
+  `ghcr.io/itswl/quotapulse`, and the compose file follows the 1.x line:
+  `docker compose pull && docker compose up -d` brings the newest 1.x. To hold
+  one release, put `QUOTAPULSE_VERSION=1.2.2` in a `.env` next to it.
+- **The data directory** is `./data`. The container starts as root only to take
+  it over, then runs as whoever owns it — 65532, the image's own user, for a new
+  one. `QUOTAPULSE_USER=$(id -u):$(id -g)` in `.env` runs it as you instead.
 - **From source:**
   `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
   Without Docker: `npm --prefix web ci && npm --prefix web run build`, then
-  `go build ./cmd/quotapulse` and `QUOTAPULSE_PASSWORD=… ./quotapulse`.
+  `go build ./cmd/quotapulse` and `./quotapulse`.
 - **Put TLS in front** before exposing it beyond the machine; any reverse proxy
   will do. The dashboard's live updates are a long-lived response, so do not
   buffer it.
 
 ### Settings from the environment
 
-Only what is needed to start. Everything else lives in the database and is edited
-in the dashboard.
+All optional: what to watch, where to notify and how to behave live in the
+database and are edited in the dashboard.
 
 | Variable | Default | |
 | --- | --- | --- |
-| `QUOTAPULSE_PASSWORD` | — | Signs you in. Without it nobody can |
+| `QUOTAPULSE_PASSWORD` | chosen in the dashboard | The password, set here instead; the dashboard then cannot change it |
 | `QUOTAPULSE_DATA` | `./data` (`/data` in the image) | The database, its daily backups, and the key file |
 | `QUOTAPULSE_LISTEN` | `:8080` | |
 | `QUOTAPULSE_SECRET` | a key file in the data directory | Encrypts stored credentials. Set once; never change it |
 | `QUOTAPULSE_BOOTSTRAP` | — | A [bundle](docs/bundle.md) to import into an empty database |
 | `QUOTAPULSE_MUTE` | — | `1` records notifications without sending them |
 | `QUOTAPULSE_LOG`, `QUOTAPULSE_LOG_LEVEL` | `text`, `info` | `json` for structured logs |
-| `TZ`, `QUOTAPULSE_LANG` | `UTC`, `en` | Time zone and language (`en`, `zh`) of a **new** install; change them later in the dashboard |
+| `TZ`, `QUOTAPULSE_LANG` | asked when it is set up | Time zone and language (`en`, `zh`) of a **new** install, instead of asking; change them later in the dashboard |
 
 ## Platforms
 

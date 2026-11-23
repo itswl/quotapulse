@@ -26,7 +26,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -49,12 +48,8 @@ var ErrUnreadable = errors.New("sealed with a different secret")
 type Keyring struct {
 	aead    cipher.AEAD
 	session []byte
-	// salt stretches the dashboard password (see stretch).
+	// salt stretches the dashboard password (see Verifier).
 	salt []byte
-
-	mu        sync.Mutex
-	password  string // the password last stretched, and what that came to
-	stretched []byte
 }
 
 // Load builds the keyring from a passphrase, or from the key file in dataDir
@@ -195,24 +190,25 @@ func (k *Keyring) OpenJSON(sealed []byte, v any) error {
 
 // Session returns a signed session token that expires at the given time.
 //
-// The password, stretched, is mixed into the signing key, so changing the
+// The password's verifier is mixed into the signing key, so changing the
 // password signs everyone out without keeping a list of sessions.
-func (k *Keyring) Session(password string, expires time.Time) string {
+func (k *Keyring) Session(verifier []byte, expires time.Time) string {
 	payload := make([]byte, 16)
 	binary.BigEndian.PutUint64(payload, uint64(expires.Unix()))
 	_, _ = rand.Read(payload[8:])
 	body := base64.RawURLEncoding.EncodeToString(payload)
-	return body + "." + base64.RawURLEncoding.EncodeToString(k.sign(password, body))
+	return body + "." + base64.RawURLEncoding.EncodeToString(k.sign(verifier, body))
 }
 
-// CheckSession verifies a session token and returns when it expires.
-func (k *Keyring) CheckSession(password, token string, now time.Time) (time.Time, bool) {
+// CheckSession verifies a session token and returns when it expires. With no
+// verifier — no password yet — no session is good.
+func (k *Keyring) CheckSession(verifier []byte, token string, now time.Time) (time.Time, bool) {
 	body, signature, ok := strings.Cut(token, ".")
-	if !ok {
+	if !ok || len(verifier) == 0 {
 		return time.Time{}, false
 	}
 	got, err := base64.RawURLEncoding.DecodeString(signature)
-	if err != nil || !hmac.Equal(got, k.sign(password, body)) {
+	if err != nil || !hmac.Equal(got, k.sign(verifier, body)) {
 		return time.Time{}, false
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(body)
@@ -226,42 +222,33 @@ func (k *Keyring) CheckSession(password, token string, now time.Time) (time.Time
 	return expires, true
 }
 
-func (k *Keyring) sign(password, body string) []byte {
+func (k *Keyring) sign(verifier []byte, body string) []byte {
 	key := hmac.New(sha256.New, k.session)
-	key.Write(k.stretch(password))
+	key.Write(verifier)
 	mac := hmac.New(sha256.New, key.Sum(nil))
 	mac.Write([]byte(body))
 	return mac.Sum(nil)
 }
 
-// CheckPassword reports whether a guess at signing in is the password. The
-// guess is stretched as the password is and the two compared in constant
-// time, so how long the answer takes says nothing about the password, not
-// even its length, and every guess costs a stretch.
-func (k *Keyring) CheckPassword(guess, password string) bool {
-	return hmac.Equal(k.stretchOf(guess), k.stretch(password))
-}
-
-// stretch is the dashboard password as it is used: stretched as a
-// passphrase is, with a salt of this installation's own. Nothing is checked
-// against anything cheaper — not a session cookie, not a guess — so even
-// with the master key and a cookie in hand, every guess at the password
-// costs a stretch. The password is set once, so its stretch is kept.
-func (k *Keyring) stretch(password string) []byte {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	if k.stretched == nil || k.password != password {
-		k.password, k.stretched = password, k.stretchOf(password)
-	}
-	return k.stretched
-}
-
-func (k *Keyring) stretchOf(password string) []byte {
-	stretched, err := pbkdf2.Key(sha256.New, password, k.salt, stretchIterations, 32)
+// Verifier is what the dashboard password is kept as, and what sessions and
+// sign-ins are checked against: the password stretched as a passphrase is,
+// with a salt of this install's own. Nothing is checked against anything
+// cheaper, so even with the master key and a session cookie in hand, every
+// guess at the password costs a stretch.
+func (k *Keyring) Verifier(password string) []byte {
+	verifier, err := pbkdf2.Key(sha256.New, password, k.salt, stretchIterations, 32)
 	if err != nil {
 		panic(err) // unreachable: SHA-256, a 32-byte salt and a 32-byte key are allowed everywhere
 	}
-	return stretched
+	return verifier
+}
+
+// CheckPassword reports whether a guess at signing in is the password whose
+// verifier is given. The guess is stretched as the password was and the two
+// compared in constant time, so how long the answer takes says nothing about
+// the password, not even its length, and every guess costs a stretch.
+func (k *Keyring) CheckPassword(guess string, verifier []byte) bool {
+	return len(verifier) > 0 && hmac.Equal(k.Verifier(guess), verifier)
 }
 
 // TokenPrefix marks an API token, so one can be recognised in a config file
@@ -275,6 +262,15 @@ func NewToken() string {
 	raw := make([]byte, 20)
 	_, _ = rand.Read(raw)
 	return TokenPrefix + tokenEncoding.EncodeToString(raw)
+}
+
+// NewSetupCode returns a one-time code for choosing the password: 130 random
+// bits, in lower-case letters and digits that survive being copied out of a
+// log. Like a token, it is kept only as a hash.
+func NewSetupCode() string {
+	raw := make([]byte, 17)
+	_, _ = rand.Read(raw)
+	return tokenEncoding.EncodeToString(raw)[:26]
 }
 
 // HashToken is what is stored for a token. A token is random and long, so a

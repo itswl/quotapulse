@@ -4,6 +4,7 @@
 //   /settings               the list
 //   /settings/channels      where notifications go
 //   /settings/providers     how platforms are read; the editor lives beneath it
+//   /settings/password      the password the dashboard is signed in with
 //   /settings/tokens        access for scripts and agents
 //   /settings/preferences   the defaults
 //   /settings/system        about, backup, export, import
@@ -11,7 +12,7 @@
 // `params.section` names the section and `params.rest` anything deeper.
 // Other pages link to /settings/channels, /settings/providers and
 // /settings/preferences.
-import { Bell, ChevronRight, Compass, History, KeyRound, LogOut, Plug, Server, SlidersHorizontal, type LucideIcon } from 'lucide-preact';
+import { Bell, ChevronRight, Compass, History, KeyRound, LockKeyhole, LogOut, Plug, Server, SlidersHorizontal, type LucideIcon } from 'lucide-preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { Button, cx, EmptyState, LinkButton, PageHeader } from '../../components';
 import { useTitle } from '../../hooks';
@@ -20,16 +21,18 @@ import { Link } from '../../router';
 import type { PageProps } from '../../routes';
 import { sessionInfo, signOut } from '../../state/session';
 import { ChannelsSection } from './channels';
+import { PasswordSection } from './password';
 import { PreferencesSection } from './preferences';
 import { ProvidersSection } from './providers';
 import { SystemSection } from './system';
 import { TokensSection } from './tokens';
 
-type SectionId = 'channels' | 'providers' | 'tokens' | 'preferences' | 'system';
+type SectionId = 'channels' | 'providers' | 'password' | 'tokens' | 'preferences' | 'system';
 
 const SECTIONS: readonly { id: SectionId; label: TKey }[] = [
   { id: 'channels', label: 'settings.nav.channels' },
   { id: 'providers', label: 'settings.nav.providers' },
+  { id: 'password', label: 'settings.nav.password' },
   { id: 'tokens', label: 'settings.nav.tokens' },
   { id: 'preferences', label: 'settings.nav.preferences' },
   { id: 'system', label: 'settings.nav.system' },
@@ -54,6 +57,8 @@ export default function SettingsPage({ params }: PageProps) {
         <ChannelsSection />
       ) : section.id === 'providers' ? (
         <ProvidersSection rest={params.rest ?? ''} />
+      ) : section.id === 'password' ? (
+        <PasswordSection />
       ) : section.id === 'tokens' ? (
         <TokensSection />
       ) : section.id === 'preferences' ? (
@@ -77,6 +82,12 @@ const HOME: { title: TKey; items: { href: string; label: TKey; hint: TKey; icon:
     title: 'settings.home.connect',
     items: [
       { href: '/settings/providers', label: 'settings.nav.providers', hint: 'settings.home.providers', icon: Plug },
+    ],
+  },
+  {
+    title: 'settings.home.access',
+    items: [
+      { href: '/settings/password', label: 'settings.nav.password', hint: 'settings.home.password', icon: LockKeyhole },
       { href: '/settings/tokens', label: 'settings.nav.tokens', hint: 'settings.home.tokens', icon: KeyRound },
     ],
   },

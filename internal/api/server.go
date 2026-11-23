@@ -46,9 +46,14 @@ type Server struct {
 	Keys   *secret.Keyring
 	Runner *runtime.Runner
 	Log    *slog.Logger
-	// Password signs a person in. Empty locks the API: nothing with access
-	// to credentials should ever be open by default.
+	// Password is QUOTAPULSE_PASSWORD. Set, it is the dashboard's password,
+	// and the dashboard cannot change it. Empty, the password is chosen in
+	// the dashboard the first time it is opened and kept in the database;
+	// until then nobody can sign in (access.go).
 	Password string
+	// Started is when the server started: a new install can be set up by
+	// whoever opens it within setupWindow of that. Zero: when Handler ran.
+	Started time.Time
 	// Assets is the built dashboard; nil serves a note saying it is missing.
 	Assets fs.FS
 	// MCP handles /mcp once a token has been checked; nil leaves it off.
@@ -58,6 +63,13 @@ type Server struct {
 	Demo bool
 
 	logins limiter
+
+	// envVerifier is Password's verifier, worked out once.
+	envOnce     sync.Once
+	envVerifier []byte
+	// setupMu makes choosing the password one step: two people cannot both
+	// claim an install.
+	setupMu sync.Mutex
 }
 
 // principal is who a request acts as.
@@ -91,6 +103,9 @@ func PrincipalScopes(ctx context.Context) (name string, allows func(scope string
 
 // Handler builds the routes.
 func (s *Server) Handler() http.Handler {
+	if s.Started.IsZero() {
+		s.Started = time.Now()
+	}
 	mux := http.NewServeMux()
 
 	// Probes are open: an orchestrator has no password.
@@ -100,6 +115,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/session", s.handleSessionInfo)
 	mux.HandleFunc("POST /api/v1/session", s.handleSignIn)
 	mux.HandleFunc("DELETE /api/v1/session", s.handleSignOut)
+	mux.HandleFunc("POST /api/v1/setup", s.handleSetup)
 
 	read, act, ingest, admin := s.scoped(core.ScopeRead), s.scoped(core.ScopeAct), s.scoped(core.ScopeIngest), s.scoped(core.ScopeAdmin)
 
@@ -160,6 +176,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/tokens", admin(s.handleTokens))
 	mux.Handle("POST /api/v1/tokens", admin(s.handleCreateToken))
 	mux.Handle("DELETE /api/v1/tokens/{id}", admin(s.handleDeleteToken))
+
+	mux.Handle("PUT /api/v1/password", admin(s.handleChangePassword))
 
 	mux.Handle("GET /api/v1/settings", read(s.handleSettings))
 	mux.Handle("PATCH /api/v1/settings", admin(s.handleUpdateSettings))
@@ -267,8 +285,13 @@ func (s *Server) authenticated(next http.Handler, tokenOnly bool) http.Handler {
 			fail(w, http.StatusUnauthorized, "unauthorized", "send an API token as Authorization: Bearer <token>")
 			return
 		}
-		if s.Password == "" {
-			fail(w, http.StatusServiceUnavailable, "no_password", "QUOTAPULSE_PASSWORD is not set, so nobody can sign in")
+		verifier, err := s.verifier(r.Context())
+		if err != nil {
+			s.failWith(w, r, err)
+			return
+		}
+		if verifier == nil {
+			fail(w, http.StatusUnauthorized, "no_password", "no password has been chosen yet: open the dashboard to set it up")
 			return
 		}
 		cookie, err := r.Cookie(sessionCookie)
@@ -276,7 +299,7 @@ func (s *Server) authenticated(next http.Handler, tokenOnly bool) http.Handler {
 			fail(w, http.StatusUnauthorized, "unauthorized", "sign in first")
 			return
 		}
-		expires, ok := s.Keys.CheckSession(s.Password, cookie.Value, time.Now())
+		expires, ok := s.Keys.CheckSession(verifier, cookie.Value, time.Now())
 		if !ok {
 			fail(w, http.StatusUnauthorized, "unauthorized", "the session has expired; sign in again")
 			return
@@ -288,7 +311,7 @@ func (s *Server) authenticated(next http.Handler, tokenOnly bool) http.Handler {
 			return
 		}
 		if time.Until(expires) < sessionRenew {
-			s.setSession(w, r)
+			s.setSession(w, r, verifier)
 		}
 		noteCaller(r, "session")
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Session: true})))
@@ -325,10 +348,10 @@ func sameOrigin(r *http.Request) bool {
 	return err == nil && u.Host == r.Host
 }
 
-func (s *Server) setSession(w http.ResponseWriter, r *http.Request) {
+func (s *Server) setSession(w http.ResponseWriter, r *http.Request, verifier []byte) {
 	expires := time.Now().Add(sessionLife)
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: s.Keys.Session(s.Password, expires), Path: "/",
+		Name: sessionCookie, Value: s.Keys.Session(verifier, expires), Path: "/",
 		Expires: expires, MaxAge: int(sessionLife.Seconds()),
 		HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: isHTTPS(r),
 	})
@@ -343,18 +366,34 @@ func isHTTPS(r *http.Request) bool {
 // ---------- session ----------
 
 func (s *Server) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
+	verifier, err := s.verifier(r.Context())
+	if err != nil {
+		s.failWith(w, r, err)
+		return
+	}
 	signedIn := false
-	if cookie, err := r.Cookie(sessionCookie); err == nil && s.Password != "" {
-		_, signedIn = s.Keys.CheckSession(s.Password, cookie.Value, time.Now())
+	if cookie, err := r.Cookie(sessionCookie); err == nil && verifier != nil {
+		_, signedIn = s.Keys.CheckSession(verifier, cookie.Value, time.Now())
 	}
 	info := map[string]any{
 		"signed_in":    signedIn,
-		"password_set": s.Password != "",
+		"password_set": verifier != nil,
 		"version":      s.Version,
 		"demo":         s.Demo,
 		"muted":        s.Engine.Muted(),
 	}
+	if verifier == nil {
+		// How the password can be chosen, and whether the install is new
+		// enough for the setup to ask its time zone and language as well.
+		mode, fresh, err := s.setup(r.Context())
+		if err != nil {
+			s.failWith(w, r, err)
+			return
+		}
+		info["setup"], info["fresh"] = mode, fresh
+	}
 	if signedIn {
+		info["password_from_env"] = s.Password != ""
 		// Every time on screen is shown by the server's clock and in the
 		// configured zone, so the dashboard needs both before anything else.
 		info["now"] = s.Engine.Now().UTC().Truncate(time.Second)
@@ -366,8 +405,13 @@ func (s *Server) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
-	if s.Password == "" {
-		fail(w, http.StatusServiceUnavailable, "no_password", "QUOTAPULSE_PASSWORD is not set, so nobody can sign in")
+	verifier, err := s.verifier(r.Context())
+	if err != nil {
+		s.failWith(w, r, err)
+		return
+	}
+	if verifier == nil {
+		fail(w, http.StatusServiceUnavailable, "no_password", "no password has been chosen yet: open the dashboard to set it up")
 		return
 	}
 	if !sameOrigin(r) {
@@ -386,13 +430,13 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	if body.Password == "" || !s.Keys.CheckPassword(body.Password, s.Password) {
+	if body.Password == "" || !s.Keys.CheckPassword(body.Password, verifier) {
 		s.logins.failed(client, time.Now())
 		s.log().Warn("failed sign-in", "client", client)
 		fail(w, http.StatusUnauthorized, "wrong_password", "that is not the password")
 		return
 	}
-	s.setSession(w, r)
+	s.setSession(w, r, verifier)
 	s.learnAddress(r)
 	writeJSON(w, http.StatusOK, map[string]any{"signed_in": true})
 }

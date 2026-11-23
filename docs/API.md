@@ -25,7 +25,7 @@ Everything the dashboard does, it does through this API. All of it is under
   `code` is stable; `message` is a sentence for a person. Codes: `invalid` (400),
   `unauthorized` (401), `forbidden` (403), `cross_site` (403), `not_found` (404),
   `conflict` (409), `too_large` (413), `too_many_attempts` (429), `no_password`
-  (503), `internal` (500).
+  (401, or 503 when signing in), `internal` (500).
 - **Unknown fields are refused.** A misspelt field name is a 400, not a silently
   ignored setting.
 - **Language.** Incident headlines and details are written by the server. Ask for
@@ -58,11 +58,18 @@ an HttpOnly cookie that carries every scope. Requests that change something must
 then come from the same origin. Five wrong passwords from one client, or thirty
 overall, within a minute lock sign-in for the rest of that minute.
 
+The password is `QUOTAPULSE_PASSWORD` when that is set. Otherwise it is chosen
+with `POST /api/v1/setup`: by anyone on a new install, within an hour of the
+server starting; later, or once anything is configured, only with the one-time
+`code` the server writes to its log, and that `quotapulse reset-password` prints.
+
 | | |
 | --- | --- |
-| `GET /api/v1/session` | `{signed_in, password_set, version, demo, muted}` — open to anyone. Signed in, it also carries `now` and `timezone`: the dashboard shows every time by the server's clock, in the configured zone |
+| `GET /api/v1/session` | `{signed_in, password_set, version, demo, muted}` — open to anyone. With no password yet it says how one can be chosen: `setup` (`open`, or `code`) and `fresh` (nothing is configured). Signed in, it also carries `now` and `timezone` — the dashboard shows every time by the server's clock, in the configured zone — and `password_from_env` |
 | `POST /api/v1/session` | Sign in |
 | `DELETE /api/v1/session` | Sign out |
+| `POST /api/v1/setup` | `{password, code?, timezone?, language?}` — choose the password where there is none, and sign in. A new install also takes its `timezone` and `language` (`en`, `zh`). Codes `password_short` (422: under 8 characters), `setup_code` (403), `password_set` (409) |
+| `PUT /api/v1/password` | `{current, password}`, from a signed-in dashboard — change a password chosen in the dashboard; every other session ends. Codes `wrong_password` (403), `password_short` (422), `password_from_env` (409) |
 
 ## Overview and live updates
 

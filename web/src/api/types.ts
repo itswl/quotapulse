@@ -25,13 +25,32 @@ export interface ErrorBody {
 /** GET /api/v1/session */
 export interface SessionInfo {
   signed_in: boolean;
+  /** False until someone chooses the password: then `setup` says how. */
   password_set: boolean;
+  /** While there is no password: "open" to whoever opens a new install
+   *  within the hour, "code" with the one-time code from the server's log. */
+  setup?: 'open' | 'code';
+  /** Nothing is configured yet, so the setup asks the time zone and language
+   *  as well. */
+  fresh?: boolean;
+  /** Signed in: the password is QUOTAPULSE_PASSWORD, which the dashboard
+   *  cannot change. */
+  password_from_env?: boolean;
   version: string;
   demo: boolean;
   muted: boolean;
   /** The server's clock and zone; only when signed in. */
   now?: Instant;
   timezone?: string;
+}
+
+export interface SetupInput {
+  password: string;
+  /** The one-time code, when the setup takes one. */
+  code?: string;
+  /** For a new install: its time zone and language. */
+  timezone?: string;
+  language?: 'en' | 'zh';
 }
 
 // ---------- core (internal/core/core.go) ----------
