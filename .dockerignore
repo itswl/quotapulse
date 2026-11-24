@@ -16,6 +16,7 @@ web/.test-dist/
 docs/
 scripts/
 tools/
+.agents/
 *.md
 **/testdata/
 **/*_test.go

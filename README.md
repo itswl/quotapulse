@@ -147,6 +147,13 @@ let an agent add dates or acknowledge incidents) and point an MCP client at `/mc
 | `add_date`, `complete_date`, `acknowledge`, `sample_now` | With the `act` scope |
 | `record_reading` | With the `ingest` scope |
 
+The tools say what they return. When to call them, and how to read the answers
+honestly, is in a skill: [`.agents/skills/quotapulse`](.agents/skills/quotapulse/SKILL.md).
+For example, a runway is a forecast and a quota is not money. The skill also
+checks an account before a costly job and turns "Mom's lunar birthday" into the
+right rule. Install it with `npx skills add itswl/quotapulse`, or copy the
+directory into your agent's skills folder.
+
 ## Reporting from a script
 
 ```bash
