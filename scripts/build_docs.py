@@ -102,6 +102,9 @@ def convert(rel: Path, text: str, html_set: set[Path]) -> tuple[str, list[Path]]
     any other existing repo file (source, scripts), to its GitHub blob;
     images are left alone, because docs/ ships with the site. Everything
     else — external URLs, anchors, dangling targets — passes through.
+
+    A .md under a hidden directory (.agents/) goes to GitHub as well: Pages
+    artifacts are free to leave hidden files out.
     """
     body = markdown.markdown(text, extensions=MD_EXTENSIONS)
     raw: list[Path] = []
@@ -118,7 +121,8 @@ def convert(rel: Path, text: str, html_set: set[Path]) -> tuple[str, list[Path]]
         if t in html_set:
             href = rel_to_root(rel, out_rel(t).as_posix())
             return f'{attr}="{href}{anchor}"'
-        if t.suffix == ".md":
+        hidden = any(part.startswith(".") for part in t.parts)
+        if t.suffix == ".md" and not hidden:
             raw.append(t)
             return m.group(0)
         if t.suffix.lower() in IMG_EXTS:

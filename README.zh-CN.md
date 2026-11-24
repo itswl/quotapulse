@@ -134,6 +134,12 @@ docker compose up -d
 | `add_date`、`complete_date`、`acknowledge`、`sample_now` | 需要 `act` 权限 |
 | `record_reading` | 需要 `ingest` 权限 |
 
+工具只说明自己返回什么。什么时候该调用、怎么如实解读结果，写在一个 skill 里：
+[`.agents/skills/quotapulse`](.agents/skills/quotapulse/SKILL.md)。比如，剩余天数
+只是预测，额度也不是钱。它还会在跑大任务前先查账户余量，并把“妈妈的农历生日”
+转成正确的规则。用 `npx skills add itswl/quotapulse` 安装，或者把这个目录复制到
+你的 Agent 的 skills 目录里。
+
 ## 用脚本上报
 
 ```bash
