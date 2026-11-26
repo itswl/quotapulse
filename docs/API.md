@@ -394,13 +394,15 @@ signing secret set on the channel, each request carries
 ## MCP
 
 `/mcp` speaks the Model Context Protocol over streamable HTTP, for AI agents. It
-accepts API tokens only and offers the tools the token's scopes allow:
+accepts API tokens only and offers the tools the token's scopes allow — everything
+the dashboard can do, shaped for reading by a model:
 
 | Scope | Tools |
 | --- | --- |
-| `read` | `attention`, `list_meters`, `get_meter`, `list_dates`, `get_spend`, `list_activity` |
-| `act` | `add_date`, `complete_date`, `acknowledge`, `sample_now` |
-| `ingest` | `record_reading` |
+| `read` | `attention`, `list_meters`, `get_meter`, `list_dates`, `get_spend`, `list_activity`, `list_accounts`, `list_deliveries`, `get_settings`, `preview_date`, `list_channel_types`, `list_providers` |
+| `act` | `add_date`, `update_date`, `complete_date`, `reopen_date`, `snooze_date`, `unsnooze_date`, `delete_date`, `acknowledge`, `unacknowledge`, `mute_meter`, `unmute_meter`, `sample_now` |
+| `ingest` | `record_reading`, `record_readings` |
+| `admin` | `add_account`, `update_account`, `delete_account`, `test_account`, `update_meter`, `delete_meter`, `list_channels`, `add_channel`, `update_channel`, `delete_channel`, `test_channel`, `send_digest`, `retry_delivery`, `update_settings`, `list_tokens`, `create_token`, `revoke_token`, `save_provider`, `delete_provider`, `get_system`, `backup_now`, `export_bundle`, `import_bundle` — and, since `admin` carries every scope, all of the tools above |
 
 ```json
 {"mcpServers": {"quotapulse": {"type": "http", "url": "https://pulse.example/mcp", "headers": {"Authorization": "Bearer qp_…"}}}}
@@ -409,3 +411,23 @@ accepts API tokens only and offers the tools the token's scopes allow:
 An agent should call `attention` first, and `list_meters` before starting work that
 will lean on an account: each meter carries a one-word `headroom` — `ok`, `low`,
 `exhausted` or `unknown`.
+
+- **By id or by name.** A tool that takes a meter, an account, a date, a channel
+  or a token accepts its `id`, or its name when exactly one has that name.
+- **Deleting is marked.** A tool that removes something for good — `delete_date`,
+  `delete_meter`, `delete_account`, `delete_channel`, `delete_provider`,
+  `revoke_token` — carries the MCP `destructive` annotation, so a client can ask
+  first. To silence something for a while, disable it, mute it or snooze it
+  instead.
+- **Rules are replaced as a whole.** `update_meter` takes a meter's `rules` the
+  way the dashboard does: a rule left out goes back to the default, and `0` turns
+  one off. `update_settings` is a partial update, except `fx`, `quiet` and
+  `digest`, which are replaced whole when sent.
+- **Secrets.** Credentials and channel settings are shown masked, as in the
+  dashboard. `create_token` returns the token itself once; `export_bundle`
+  carries credentials in the clear only when asked (`secrets: true`).
+- **Language.** A request may name its language as the API's requests do, with
+  `?lang=zh` or an `X-QuotaPulse-Lang` header. What the tools then say in words —
+  headlines, summaries, a rule in words — is written in it; a request that asks
+  for nothing is answered in English. Put it in the client's URL:
+  `"url": "https://pulse.example/mcp?lang=zh"`.

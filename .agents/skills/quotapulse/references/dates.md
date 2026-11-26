@@ -1,8 +1,9 @@
 # Dates
 
 A date is a title, a kind and a rule. The rule says which days it falls on.
-`add_date` takes the rule's fields flat, next to the title. Over HTTP they go in a
-nested `rule` object instead.
+`add_date` and `preview_date` take the rule's fields flat, next to the title.
+`update_date` and the HTTP API take a nested `rule` object instead — the
+`schedule` a date already has, as `list_dates` shows it.
 
 ## Kinds
 
@@ -72,6 +73,6 @@ and a passport needs months. When the user gives lead days, use theirs.
   head. Ask the user, since people who keep a lunar birthday usually know it, or
   convert with a proper calendar library.
 - **A lunar one-off.** A `once` date is always solar. Convert the day first.
-- **Checking the result.** After saving, compare `next` (and `lunar`) with what
-  the user said. Over HTTP, `POST /api/v1/reminders/preview` shows where a rule
-  lands before anything is saved.
+- **Checking the result.** Unsure where a rule lands? `preview_date` shows
+  `next` and the three occurrences after it before anything is saved. After
+  saving, compare `next` (and `lunar`) with what the user said.

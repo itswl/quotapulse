@@ -14,26 +14,67 @@ How the API behaves:
 - **Errors** come as `{"error": {"code", "message"}}`. The `message` is a
   sentence meant for a person.
 - **Language.** `?lang=zh` or `?lang=en` picks the language of headlines and
-  details. The MCP tools always answer in English.
+  details. The MCP tools are asked the same way, with the query on their URL.
 - **Unknown fields are refused.** A misspelt field is a 400, not a setting that
   is silently ignored.
 - **Partial updates.** `PATCH` changes only the fields that are sent.
 
 ## The MCP tools, over HTTP
 
-| MCP tool | Request | Scope |
+Every tool is one of these requests, so the same token works either way. The
+tool takes its scope's row; `admin` carries them all.
+
+| Scope | MCP tool | Request |
 | --- | --- | --- |
-| `attention` | `GET /api/v1/overview` | `read` |
-| `list_meters` | `GET /api/v1/meters` | `read` |
-| `get_meter` | `GET /api/v1/meters/{id}`, then `GET /api/v1/meters/{id}/series?range=30d` for its spend per day | `read` |
-| `list_dates` | `GET /api/v1/reminders`, soonest first | `read` |
-| `get_spend` | `GET /api/v1/spend?month=YYYY-MM` | `read` |
-| `list_activity` | `GET /api/v1/incidents?state=open&limit=20` | `read` |
-| `add_date` | `POST /api/v1/reminders` | `act` |
-| `complete_date` | `POST /api/v1/reminders/{id}/done` | `act` |
-| `acknowledge` | `POST /api/v1/incidents/{id}/ack` | `act` |
-| `sample_now` | `POST /api/v1/accounts/{id}/sample`, or `POST /api/v1/sample` for every account | `act` |
-| `record_reading` | `POST /api/v1/ingest` | `ingest` |
+| `read` | `attention` | `GET /api/v1/overview` |
+| `read` | `list_meters` | `GET /api/v1/meters` |
+| `read` | `get_meter` | `GET /api/v1/meters/{id}`, then `GET /api/v1/meters/{id}/series?range=30d` for its spend per day |
+| `read` | `list_dates` | `GET /api/v1/reminders`, soonest first |
+| `read` | `get_spend` | `GET /api/v1/spend?month=YYYY-MM` |
+| `read` | `list_activity` | `GET /api/v1/incidents?state=open&limit=20` |
+| `read` | `list_accounts` | `GET /api/v1/accounts` |
+| `read` | `list_deliveries` | `GET /api/v1/deliveries` |
+| `read` | `get_settings` | `GET /api/v1/settings` |
+| `read` | `preview_date` | `POST /api/v1/reminders/preview` |
+| `read` | `list_channel_types` | `GET /api/v1/channel-types` |
+| `read` | `list_providers` | `GET /api/v1/providers` |
+| `act` | `add_date` | `POST /api/v1/reminders` |
+| `act` | `update_date` | `PATCH /api/v1/reminders/{id}` |
+| `act` | `delete_date` | `DELETE /api/v1/reminders/{id}` |
+| `act` | `complete_date` | `POST /api/v1/reminders/{id}/done` |
+| `act` | `reopen_date` | `DELETE /api/v1/reminders/{id}/done` |
+| `act` | `snooze_date` | `PUT /api/v1/reminders/{id}/snooze` |
+| `act` | `unsnooze_date` | `DELETE /api/v1/reminders/{id}/snooze` |
+| `act` | `acknowledge` | `POST /api/v1/incidents/{id}/ack` |
+| `act` | `unacknowledge` | `DELETE /api/v1/incidents/{id}/ack` |
+| `act` | `mute_meter` | `PUT /api/v1/meters/{id}/mute` |
+| `act` | `unmute_meter` | `DELETE /api/v1/meters/{id}/mute` |
+| `act` | `sample_now` | `POST /api/v1/accounts/{id}/sample`, or `POST /api/v1/sample` for every account |
+| `ingest` | `record_reading` | `POST /api/v1/ingest` with one reading |
+| `ingest` | `record_readings` | `POST /api/v1/ingest` with `{"readings": […]}` |
+| `admin` | `add_account` | `POST /api/v1/accounts` |
+| `admin` | `update_account` | `PATCH /api/v1/accounts/{id}` |
+| `admin` | `delete_account` | `DELETE /api/v1/accounts/{id}` |
+| `admin` | `test_account` | `POST /api/v1/accounts/test` |
+| `admin` | `update_meter` | `PATCH /api/v1/meters/{id}` |
+| `admin` | `delete_meter` | `DELETE /api/v1/meters/{id}` |
+| `admin` | `list_channels` | `GET /api/v1/channels` |
+| `admin` | `add_channel` | `POST /api/v1/channels` |
+| `admin` | `update_channel` | `PATCH /api/v1/channels/{id}` |
+| `admin` | `delete_channel` | `DELETE /api/v1/channels/{id}` |
+| `admin` | `test_channel` | `POST /api/v1/channels/{id}/test` |
+| `admin` | `send_digest` | `POST /api/v1/digest` |
+| `admin` | `retry_delivery` | `POST /api/v1/deliveries/{id}/retry` |
+| `admin` | `update_settings` | `PATCH /api/v1/settings` |
+| `admin` | `list_tokens` | `GET /api/v1/tokens` |
+| `admin` | `create_token` | `POST /api/v1/tokens` |
+| `admin` | `revoke_token` | `DELETE /api/v1/tokens/{id}` |
+| `admin` | `save_provider` | `PUT /api/v1/providers/{id}` |
+| `admin` | `delete_provider` | `DELETE /api/v1/providers/{id}` |
+| `admin` | `get_system` | `GET /api/v1/system` |
+| `admin` | `backup_now` | `POST /api/v1/system/backup` |
+| `admin` | `export_bundle` | `GET /api/v1/export` |
+| `admin` | `import_bundle` | `POST /api/v1/import` |
 
 What the overview holds:
 
@@ -44,17 +85,14 @@ What the overview holds:
 - `meters`: every meter.
 - `spend`: this month's spend.
 
-The API can also do these, which the MCP tools cannot:
+The API can also do these, which have no MCP tool:
 
 | Request | Scope | Does |
 | --- | --- | --- |
-| `POST /api/v1/reminders/preview` with `{"rule": …}` | `read` | Shows where a rule lands, without saving it |
-| `PATCH /api/v1/reminders/{id}` | `act` | Changes a date |
-| `DELETE /api/v1/reminders/{id}` | `act` | Removes a date |
-| `PUT /api/v1/reminders/{id}/snooze` with `{"until": "YYYY-MM-DD"}` | `act` | No reminders until after that day |
-| `DELETE /api/v1/reminders/{id}/done` | `act` | Takes back a "done" |
-| `PUT /api/v1/meters/{id}/mute` with `{"until": "<RFC 3339>"}` | `act` | Nothing is sent about the meter until then |
-| `DELETE /api/v1/meters/{id}/mute` | `act` | Unmutes it |
+| `GET /api/v1/push` | `admin` | `{public_key}` — what a browser subscribes with |
+| `POST /api/v1/push/subscriptions` | `admin` | Turns a browser's push subscription into a channel |
+
+Both are a browser's business: nobody else has a subscription to hand over.
 
 ## Headroom
 

@@ -45,9 +45,10 @@ the only thing the user is ever notified about.
 
       | Scope | Lets the agent |
       | --- | --- |
-      | `read` | Ask anything |
-      | `act` | Add or complete dates, acknowledge incidents and ask for a fresh reading |
+      | `read` | Ask anything: what needs attention, meters and headroom, dates, spend, incidents, accounts, the notification log, settings, providers |
+      | `act` | Add, change, snooze and complete dates; acknowledge incidents; mute meters; ask for a fresh reading |
       | `ingest` | Report readings |
+      | `admin` | Everything the dashboard can do: accounts, meters' rules, channels, tokens, settings, export and backup |
 
    2. Add the server to the agent's MCP config:
 
@@ -61,10 +62,11 @@ the only thing the user is ever notified about.
 A token is a credential. Never print it, repeat it back, or write it into a file
 that is committed anywhere.
 
-Some changes are not for an agent: adding an account (which means handing over a
-platform's API key), notification channels, tokens and settings. These belong in
-the dashboard. Send the user there unless they explicitly ask you to do one with
-an `admin` token.
+An `admin` token lets an agent do everything the dashboard can — accounts,
+channels, tokens, settings. These are the tools most likely to do harm by
+accident, so the rule is the same as for everything here: do what was asked,
+by name, and say what it will change before you call it. Never print a token or
+a credential, and never store one anywhere.
 
 ## What needs attention
 
@@ -74,6 +76,10 @@ Call `attention` first. It returns:
 - `open`: each open incident, with a `headline` written for a person. Quote or
   paraphrase the headline rather than recomputing it.
 - `upcoming`: dates inside the user's look-ahead window. `days: 0` means today.
+- `notifications_muted`: true while notifications are recorded but not sent.
+
+When the question is why nobody was told, the answer is in `list_deliveries`:
+whether the message went, and what the channel said when it did not.
 
 For detail, use `list_meters`, then `get_meter` for a single meter (its rules,
 open incidents and spend per day). `list_meters` matches `query` against any
@@ -81,7 +87,8 @@ part of a meter's name, account or provider. `get_meter` needs the meter's `id`,
 or its whole `name` as `list_meters` gave it (case does not matter). An account
 with several meters names each one "account · meter".
 
-The MCP tools answer in English. Speak the user's language when you relay the
+The MCP tools answer in English, unless the client's endpoint asks for Chinese
+(`?lang=zh` on the MCP URL). Speak the user's language when you relay the
 answer.
 
 ### Read a meter honestly
@@ -139,39 +146,93 @@ why it cannot be read.
 ## Change things
 
 Do these when the user asks. Repeat back what was done. Where a request is
-ambiguous, check first.
+ambiguous, check first. A tool that takes a meter, an account, a date, a channel
+or a token accepts its `id`, or its name when exactly one has that name.
 
-- **`add_date`** (needs `act`). The rules are in
-  [references/dates.md](references/dates.md).
+### With `act`
+
+- **Dates.** The rules are in [references/dates.md](references/dates.md).
   1. Search first with `list_dates` and a `query`. If a date with that title
      already exists, ask before adding another.
-  2. After adding, read back where it landed: `next`, `days`, and `lunar` for a
-     lunar date. Make sure that is the day the user meant.
-  3. The MCP tools cannot edit or delete a date. If one lands wrong, fix it over
-     HTTP (`PATCH` or `DELETE` with `act`) or in the dashboard. Do not add a
-     second copy.
+  2. Unsure where a rule lands? `preview_date` (needs only `read`) takes the same
+     fields as `add_date` and answers without saving anything.
+  3. `add_date`. After adding, read back where it landed: `next`, `days` and
+     `lunar` for a lunar date. Make sure that is the day the user meant.
+  4. `update_date` changes what it is told to and leaves the rest: send only
+     what should change. Its `rule` is a date's `schedule` field from
+     `list_dates`, edited. `enabled: false` switches a date off without losing
+     it. If one lands wrong, change it; never add a second copy.
+  5. `delete_date` removes a date for good. Prefer `update_date` with
+     `enabled: false` unless the user asks for it to be gone.
 - **`complete_date`** marks the upcoming occurrence as dealt with: paid, renewed,
   celebrated. Its reminders stop and the date moves on to the next occurrence.
   Use it only for an occurrence that has actually been dealt with.
+  **`reopen_date`** takes the mark back.
+- **`snooze_date`** holds a date's reminders until a day (`until`, `YYYY-MM-DD`);
+  the date still shows as upcoming. **`unsnooze_date`** wakes it.
 - **`acknowledge`** stops an open incident from repeating its notification. It
   stays open until its cause is gone. Acknowledge only when the user says they
   have seen it or are handling it, never to tidy the list. It fixes nothing.
+  **`unacknowledge`** takes it back.
+- **`mute_meter`** holds back a meter's notifications until a moment (`until`,
+  RFC 3339); **`unmute_meter`** lifts it.
 - **`sample_now`** reads one account, or every account, now.
-- **`record_reading`** (needs `ingest`) reports a value QuotaPulse cannot read by
-  itself.
+
+### With `ingest`
+
+- **`record_reading`** reports a value QuotaPulse cannot read by itself, and
+  **`record_readings`** reports up to 500 at once.
   - The key is lowercase letters, digits, `.`, `-` and `_`.
   - The first reading for a key must give its `kind`.
   - A counter takes the running total so far, never the increase since last
     time. A drop in a counter means it started over.
+  - A quota may give `limit`, `resets_at` and `window_seconds`; a reading may
+    give `at` when it was taken earlier.
   - Sending the same reading twice changes nothing.
   - For a value that should be reported regularly, write a script that posts to
     `/api/v1/ingest` from cron (see [references/http.md](references/http.md)),
     rather than reporting it by hand once.
 
+### With `admin`
+
+Everything else the dashboard can do. Each of these carries a secret, changes
+what everyone is told, or can lock somebody out, so do one only when the user
+asks for it by name, and say what it will change before you call it.
+
+- **Accounts.** `list_accounts` (needs only `read`) shows them with the
+  credential masked. `test_account` tries a credential without saving it: use
+  it before `add_account`. `update_account` edits one; a secret left out keeps
+  its stored value, and `enabled: false` stops the reading without losing
+  anything. `delete_account` removes it with its meters and their history.
+- **Meters.** `update_meter` renames a meter, hides it (`hidden`), sorts it,
+  corrects the unit of a meter reported from outside, or replaces its `rules` as
+  a whole (a rule left out goes back to the default; `0` turns one off).
+  `delete_meter` removes a meter and its history.
+- **Notifications.** `list_deliveries` (needs only `read`) is the log of what
+  was sent and what failed: look there when someone was not told.
+  `retry_delivery` queues a failed message again; `send_digest` sends the digest
+  now. Channels: `list_channel_types` (needs only `read`), `list_channels`,
+  `add_channel`, `update_channel`, `delete_channel` and `test_channel`, which
+  sends a test message and answers with the platform's refusal when it has one.
+- **Settings.** `get_settings` (needs only `read`), and `update_settings`, which
+  takes only what should change. `fx`, `quiet` and `digest` are replaced as a
+  whole when sent.
+- **Tokens.** `list_tokens`, `create_token` and `revoke_token`. The answer of
+  `create_token` carries the token itself once: hand it to the user, and store
+  it nowhere.
+- **Providers.** `list_providers` (needs only `read`), `save_provider` for a
+  definition of the user's own, and `delete_provider`.
+- **System.** `get_system` (the version and what the background loops last
+  did), `backup_now`, `export_bundle` and `import_bundle`. A bundle carries
+  credentials in the clear only when exported with `secrets: true`; an import
+  never overwrites what already exists.
+
 ## When something fails
 
 - **A tool error with a sentence**, such as "day must be between 1 and 30": the
   input was wrong. Fix it and call again.
+- **`unknown tool`**: the token lacks the scope that offers it (see Connect).
+  Say which scope is missing; do not try another way around it.
 - **A name matches several things**, as in "2 meters match …; use the id": list
   them and use the `id`.
 - **HTTP 400 `invalid`**: the body was refused, and `message` says why. A
