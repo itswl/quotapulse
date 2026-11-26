@@ -123,7 +123,7 @@ database and are edited in the dashboard.
 ## Platforms
 
 Built in: DeepSeek, Zhipu GLM Coding Plan, OpenRouter, SiliconFlow, Moonshot
-(Kimi), Volcengine, Alibaba Cloud, TikHub, UniAPI, WxRank.
+(Kimi), Volcengine, Alibaba Cloud, TikHub and UniAPI.
 
 A platform is one HTTP request and one jq expression, so adding yours takes a few
 lines and no code — in the dashboard, with a live test against your own key. See

@@ -18,6 +18,8 @@ import (
 // built into 1.0, so their rows are not converted.
 var seeded = map[string]bool{
 	"deepseek": true, "glm": true, "openrouter": true, "tikhub": true, "uniapi": true,
+	// wxrank is no longer offered: its old row is still not converted, and
+	// an account that used it is reported as not migrated.
 	"wxrank": true, "volc": true, "aliyun": true,
 }
 

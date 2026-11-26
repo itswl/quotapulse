@@ -219,22 +219,6 @@ func TestUniAPISendsItsFixedQuery(t *testing.T) {
 	}
 }
 
-func TestWxRankNumberInsideASentence(t *testing.T) {
-	srv, seen := serve(t, 200, `{"code":0,"msg":"尊敬的用户，剩余263,419余额"}`)
-	samples, err := fetch(t, against(mustBuiltin(t, "wxrank"), srv), map[string]string{"api_key": "wx-key-0001"})
-	if err != nil || samples[0].Value != 263419 || samples[0].Unit != "credits" {
-		t.Fatalf("samples = %+v, err = %v", samples, err)
-	}
-	if seen.query.Get("key") != "wx-key-0001" {
-		t.Errorf("the key goes in the query: %v", seen.query)
-	}
-
-	srv, _ = serve(t, 200, `{"code":1002,"msg":"key 无效"}`)
-	if _, err := fetch(t, against(mustBuiltin(t, "wxrank"), srv), map[string]string{"api_key": "wx-key-0001"}); err == nil || err.Error() != "key 无效" {
-		t.Fatalf("err = %v", err)
-	}
-}
-
 func TestAliyunSignsTheQuery(t *testing.T) {
 	srv, seen := serve(t, 200, `{"Code":"200","Message":"Successful!","Success":true,"Data":{"AvailableAmount":"1,234.56","Currency":"CNY"}}`)
 	samples, err := fetch(t, against(mustBuiltin(t, "aliyun"), srv), map[string]string{
@@ -524,6 +508,12 @@ func TestExtractOutputs(t *testing.T) {
 	got, err := run(`{value: .n}`, `{"n":"12.5"}`)
 	if err != nil || len(got) != 1 || got[0].Key != "main" || got[0].Kind != core.Balance || got[0].Value != 12.5 {
 		t.Fatalf("defaults: %+v, %v", got, err)
+	}
+
+	// a number inside a sentence, with its separators
+	got, err = run(`{value: ("剩余263,419余额" | num)}`, `{}`)
+	if err != nil || got[0].Value != 263419 {
+		t.Fatalf("a number in a sentence: %+v, %v", got, err)
 	}
 
 	// an array of objects is as good as a stream of them

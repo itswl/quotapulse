@@ -18,7 +18,6 @@ same definitions you can write under **Settings → Providers**.
 | `aliyun` | Alibaba Cloud | balance (signed request) | recorded |
 | `tikhub` | TikHub | balance | recorded |
 | `uniapi` | UniAPI | credits | recorded |
-| `wxrank` | WxRank | credits | recorded |
 
 *Checked* says how far an entry was verified, so nobody has to guess:
 **live** — run against the real API; **recorded** — replays a response recorded

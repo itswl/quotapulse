@@ -38,13 +38,12 @@ var platforms = map[string]platform{
 	"openrouter": {id: "openrouter", meterKey: "credits", kind: core.Balance, unit: "USD", nameEN: "Credits", nameZH: "额度"},
 	"tikhub":     {id: "tikhub", meterKey: "balance", kind: core.Balance, unit: "USD", nameEN: "Balance", nameZH: "余额"},
 	"uniapi":     {id: "uniapi", meterKey: "credits", kind: core.Balance, unit: "USD", nameEN: "Credits", nameZH: "额度"},
-	"wxrank":     {id: "wxrank", meterKey: "credits", kind: core.Balance, unit: "credits", nameEN: "Credits", nameZH: "积分"},
 	"volc":       {id: "volcengine", meterKey: "balance", kind: core.Balance, unit: "CNY", nameEN: "Balance", nameZH: "余额", pair: [2]string{"access_key_id", "secret_access_key"}},
 	"aliyun":     {id: "aliyun", meterKey: "balance", kind: core.Balance, unit: "CNY", nameEN: "Balance", nameZH: "余额", pair: [2]string{"access_key_id", "access_key_secret"}},
 }
 
 // platformOrder is the order the old version discovered platforms in.
-var platformOrder = []string{"aliyun", "deepseek", "glm", "openrouter", "tikhub", "uniapi", "volc", "wxrank"}
+var platformOrder = []string{"aliyun", "deepseek", "glm", "openrouter", "tikhub", "uniapi", "volc"}
 
 const maxEnvAccounts = 10
 

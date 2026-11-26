@@ -191,23 +191,6 @@ if (.success // true) != true then error(.message // .msg // "the request was re
 } end`,
 		Checked: CheckedRecorded,
 	},
-	{
-		ID: "wxrank", Name: "WxRank", NameZH: "微信排名",
-		Homepage: "https://www.wxrank.com",
-		Fields:   []Field{apiKey},
-		Request: Request{
-			URL:  "https://data.wxrank.com/weixin/score",
-			Auth: Auth{Type: AuthQuery, Name: "key"},
-		},
-		// The balance arrives inside a sentence; num finds the number in it.
-		Extract: `
-if .code != 0 then error(.msg // "the request was rejected") else {
-  key: "credits", name: "Credits", name_zh: "积分",
-  kind: "balance", unit: "credits",
-  value: ((.msg // .data.score // .data.credits // .score // .credits) | num)
-} end`,
-		Checked: CheckedRecorded,
-	},
 }
 
 func init() {
