@@ -110,7 +110,7 @@ docker compose up -d
 ## 支持的平台
 
 内置：DeepSeek、智谱 GLM Coding Plan、OpenRouter、硅基流动、月之暗面 Kimi、
-火山引擎、阿里云、TikHub、UniAPI、微信排名。
+火山引擎、阿里云、TikHub、UniAPI。
 
 一个平台就是一个 HTTP 请求加一段 jq 表达式，所以接入你自己的平台只要几行、不用
 写代码 —— 在看板里完成，还能用你自己的 Key 当场测试。详见

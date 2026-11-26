@@ -648,7 +648,7 @@ func TestChannelsTokensAndProviders(t *testing.T) {
 		}
 	}
 	c.get("/api/v1/providers", &providers)
-	if len(providers.Items) < 10 {
+	if len(providers.Items) < 9 {
 		t.Fatalf("providers = %d", len(providers.Items))
 	}
 	definition := map[string]any{
