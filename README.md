@@ -54,8 +54,9 @@ ntfy, Bark, a plain webhook, or the browser itself. Each channel picks its topic
 and how severe something must be. Delivery is retried from an outbox, and a
 channel that keeps failing is itself reported — through the others.
 
-**Agents can ask.** `/mcp` gives an AI agent "what needs attention" and "does this
-account have headroom" before it starts a large job, under a scoped token.
+**Agents can ask — and act.** `/mcp` gives an AI agent "what needs attention" and
+"does this account have headroom" before it starts a large job, and, under a scoped
+token, everything the dashboard can do.
 
 **Anything can report in.** No API for it? Push the number:
 `POST /api/v1/ingest`. A pushed meter gets the same forecast and rules.
@@ -132,7 +133,8 @@ definition was verified.
 ## Agents
 
 Create a token under **Settings → Tokens** (`read` is enough to ask; add `act` to
-let an agent add dates or acknowledge incidents) and point an MCP client at `/mcp`:
+let an agent change dates or acknowledge incidents, `ingest` to report readings,
+`admin` for everything else) and point an MCP client at `/mcp`:
 
 ```json
 {"mcpServers": {"quotapulse": {"type": "http", "url": "https://pulse.example/mcp",

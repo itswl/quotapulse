@@ -81,9 +81,16 @@ func (w *world) connect(scopes ...string) *sdk.ClientSession {
 
 func (w *world) connectWith(token string) *sdk.ClientSession {
 	w.t.Helper()
+	return w.connectTo(w.url, token)
+}
+
+// connectTo opens an MCP session at an endpoint, which may carry a query —
+// as ?lang=zh does — with a token.
+func (w *world) connectTo(endpoint, token string) *sdk.ClientSession {
+	w.t.Helper()
 	client := sdk.NewClient(&sdk.Implementation{Name: "test-agent", Version: "1"}, nil)
 	session, err := client.Connect(ctx, &sdk.StreamableClientTransport{
-		Endpoint: w.url, HTTPClient: &http.Client{Transport: bearer{token}}, DisableStandaloneSSE: true, MaxRetries: -1,
+		Endpoint: endpoint, HTTPClient: &http.Client{Transport: bearer{token}}, DisableStandaloneSSE: true, MaxRetries: -1,
 	}, nil)
 	if err != nil {
 		w.t.Fatal(err)
@@ -140,33 +147,80 @@ func errorText(result *sdk.CallToolResult) string {
 	return strings.Join(parts, " ")
 }
 
+// refused reports whether a call did not go through, whether the tool is
+// not offered to this token or it answered with an error.
+func refused(t *testing.T, session *sdk.ClientSession, name string, args map[string]any) bool {
+	t.Helper()
+	result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: name, Arguments: args})
+	return err != nil || result.IsError
+}
+
 func ptr[T any](v T) *T { return &v }
 
 func TestToolsFollowTheTokensScopes(t *testing.T) {
 	w := newWorld(t)
-	read := []string{"attention", "get_meter", "get_spend", "list_activity", "list_dates", "list_meters"}
-	act := []string{"acknowledge", "add_date", "complete_date", "sample_now"}
+	acting := w.connect(core.ScopeAct)
+	read := []string{"attention", "get_meter", "get_settings", "get_spend", "list_accounts", "list_activity", "list_channel_types",
+		"list_dates", "list_deliveries", "list_meters", "list_providers", "preview_date"}
+	act := []string{"acknowledge", "add_date", "complete_date", "delete_date", "mute_meter", "reopen_date", "sample_now",
+		"snooze_date", "unacknowledge", "unmute_meter", "unsnooze_date", "update_date"}
+	ingest := []string{"record_reading", "record_readings"}
+	admin := []string{"add_account", "add_channel", "backup_now", "create_token", "delete_account", "delete_channel",
+		"delete_meter", "delete_provider", "export_bundle", "get_system", "import_bundle", "list_channels", "list_tokens",
+		"retry_delivery", "revoke_token", "save_provider", "send_digest", "test_account", "test_channel", "update_account",
+		"update_channel", "update_meter", "update_settings"}
 
 	if got := toolNames(t, w.connect(core.ScopeRead)); strings.Join(got, ",") != strings.Join(read, ",") {
 		t.Errorf("read token sees %v", got)
 	}
-	if got := toolNames(t, w.connect(core.ScopeAct)); strings.Join(got, ",") != strings.Join(act, ",") {
+	if got := toolNames(t, acting); strings.Join(got, ",") != strings.Join(act, ",") {
 		t.Errorf("act token sees %v", got)
 	}
-	if got := toolNames(t, w.connect(core.ScopeIngest)); strings.Join(got, ",") != "record_reading" {
+	if got := toolNames(t, w.connect(core.ScopeIngest)); strings.Join(got, ",") != strings.Join(ingest, ",") {
 		t.Errorf("ingest token sees %v", got)
 	}
-	if got := toolNames(t, w.connect(core.ScopeAdmin)); len(got) != len(read)+len(act)+1 {
+	// An admin token is offered everything: what the dashboard can do.
+	all := append(append(append(append([]string{}, read...), act...), ingest...), admin...)
+	sort.Strings(all)
+	if got := toolNames(t, w.connect(core.ScopeAdmin)); strings.Join(got, ",") != strings.Join(all, ",") {
 		t.Errorf("admin token sees %v", got)
 	}
 
 	// A tool that is not offered cannot be called by guessing its name.
-	result, err := w.connect(core.ScopeRead, core.ScopeIngest).CallTool(ctx, &sdk.CallToolParams{Name: "add_date", Arguments: map[string]any{"title": "x", "freq": "once", "date": "2030-01-01"}})
-	if err == nil && !result.IsError {
+	if !refused(t, w.connect(core.ScopeRead, core.ScopeIngest), "add_date", map[string]any{"title": "x", "freq": "once", "date": "2030-01-01"}) {
 		t.Fatal("a read token added a date")
+	}
+	if !refused(t, acting, "list_tokens", map[string]any{}) {
+		t.Fatal("an act token listed the tokens")
 	}
 	if all, _ := w.engine.Reminders(ctx, "en"); len(all) != 0 {
 		t.Fatal("a reminder was created without the scope")
+	}
+}
+
+// TestToolsSayWhatTheyAre checks the annotations a client relies on to
+// know what is safe to call on its own initiative.
+func TestToolsSayWhatTheyAre(t *testing.T) {
+	w := newWorld(t)
+	listed, err := w.connect(core.ScopeAdmin).ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range listed.Tools {
+		a := tool.Annotations
+		if a == nil || !a.ReadOnlyHint && a.DestructiveHint == nil {
+			t.Errorf("%s says neither read-only nor whether it is destructive", tool.Name)
+		}
+		switch tool.Name {
+		case "delete_date", "delete_meter", "delete_account", "delete_channel", "delete_provider", "revoke_token":
+			if a.DestructiveHint == nil || !*a.DestructiveHint {
+				t.Errorf("%s removes something for good and must say so", tool.Name)
+			}
+		default:
+			if a.DestructiveHint != nil && *a.DestructiveHint {
+				t.Errorf("%s is marked destructive", tool.Name)
+			}
+		}
 	}
 }
 

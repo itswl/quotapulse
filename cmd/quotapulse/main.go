@@ -280,7 +280,7 @@ func serve(cfg config) error {
 	runner := runtime.New(e, log, cfg.DataDir)
 	return listen(ctx, cfg, log, &api.Server{
 		Engine: e, Keys: keys, Runner: runner, Log: log, Password: cfg.Password, Started: time.Now(),
-		Assets: assets(), MCP: mcp.Handler(e, log), Version: buildinfo.Version,
+		Assets: assets(), MCP: mcp.Handler(e, log, mcp.WithRunner(runner)), Version: buildinfo.Version,
 	}, runner)
 }
 
@@ -441,7 +441,7 @@ func runDemo(cfg config, args []string) error {
 	runner := runtime.New(e, log, "")
 	return listen(ctx, cfg, log, &api.Server{
 		Engine: e, Keys: keys, Runner: runner, Log: log, Password: demo.Password,
-		Assets: assets(), MCP: mcp.Handler(e, log), Version: buildinfo.Version, Demo: true,
+		Assets: assets(), MCP: mcp.Handler(e, log, mcp.WithRunner(runner), mcp.WithDemo(true)), Version: buildinfo.Version, Demo: true,
 	}, runner)
 }
 

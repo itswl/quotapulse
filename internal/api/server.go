@@ -647,9 +647,11 @@ func jsonProblem(err error) string {
 	return text
 }
 
-// language picks the language a response is written in: what the dashboard
-// asks for, else what the browser prefers. Empty leaves it to the settings.
-func language(r *http.Request) string {
+// LanguageOf is the language a request asks for — zh or en — in its query
+// (?lang=) or its X-QuotaPulse-Lang header. Empty when it asks for none:
+// the API then writes in the language configured in Settings, and the MCP
+// endpoint, which has always answered in English, in English.
+func LanguageOf(r *http.Request) string {
 	for _, candidate := range []string{r.URL.Query().Get("lang"), r.Header.Get("X-QuotaPulse-Lang")} {
 		if candidate == "zh" || candidate == "en" {
 			return candidate
@@ -657,3 +659,7 @@ func language(r *http.Request) string {
 	}
 	return ""
 }
+
+// language picks the language a response is written in: what the request
+// asks for, else — empty — what the settings say.
+func language(r *http.Request) string { return LanguageOf(r) }
