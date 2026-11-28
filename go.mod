@@ -7,7 +7,7 @@ require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/itchyny/gojq v0.12.20
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 )
 
 require (
